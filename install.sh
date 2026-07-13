@@ -325,11 +325,12 @@ set_app_permissions
 # ─── Caddy vhost ──────────────────────────────────────────────────────────────
 
 log "Конфигурация Caddy для ${DOMAIN}..."
-cat > "/etc/caddy/Caddyfile" <<EOF
-{
-    email admin@${DOMAIN}
-}
+CADDY_SITES_DIR="/etc/caddy/sites"
+CADDY_SNIPPET="${CADDY_SITES_DIR}/${DOMAIN}.caddy"
+CADDY_MAIN="/etc/caddy/Caddyfile"
+mkdir -p "$CADDY_SITES_DIR"
 
+cat > "$CADDY_SNIPPET" <<EOF
 ${DOMAIN} {
     root * ${APP_DIR}/public
     encode gzip zstd
@@ -352,8 +353,34 @@ www.${DOMAIN} {
 }
 EOF
 
+if [[ ! -f "$CADDY_MAIN" ]] || [[ ! -s "$CADDY_MAIN" ]]; then
+    cat > "$CADDY_MAIN" <<EOF
+{
+    email admin@${DOMAIN}
+}
+
+import sites/*.caddy
+EOF
+elif ! grep -qF "${DOMAIN}" "$CADDY_MAIN" && ! grep -qF "sites/${DOMAIN}.caddy" "$CADDY_MAIN"; then
+    cp "$CADDY_MAIN" "${CADDY_MAIN}.bak.$(date +%Y%m%d%H%M%S)"
+    printf '\nimport sites/%s.caddy\n' "$DOMAIN" >> "$CADDY_MAIN"
+fi
+
+if ! caddy validate --config "$CADDY_MAIN" 2>/tmp/lordserial-caddy-validate.err; then
+    warn "Ошибка валидации Caddyfile:"
+    cat /tmp/lordserial-caddy-validate.err >&2
+    die "Исправьте /etc/caddy/Caddyfile и запустите: systemctl restart caddy"
+fi
+
 systemctl enable caddy
-systemctl reload caddy || systemctl restart caddy
+systemctl restart caddy
+sleep 2
+
+if ! curl -fsS -o /dev/null --max-time 10 -H "Host: ${DOMAIN}" http://127.0.0.1/up; then
+    warn "Локальная проверка http://127.0.0.1/up не прошла — смотрите: journalctl -u caddy -u php${PHP_VERSION}-fpm -n 50"
+else
+    log "Локальная проверка OK: http://${DOMAIN}/up"
+fi
 
 # ─── Queue worker (systemd) ───────────────────────────────────────────────────
 
