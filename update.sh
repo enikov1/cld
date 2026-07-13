@@ -54,6 +54,30 @@ set_app_permissions() {
 
     chown -R www-data:www-data "$APP_DIR/storage" "$APP_DIR/bootstrap/cache"
     chmod -R ug+rwx "$APP_DIR/storage" "$APP_DIR/bootstrap/cache"
+
+    if [[ -d "$APP_DIR/public" ]]; then
+        touch "$APP_DIR/public/sitemap.xml"
+        chown www-data:www-data "$APP_DIR/public/sitemap.xml"
+        chmod 664 "$APP_DIR/public/sitemap.xml"
+    fi
+}
+
+generate_sitemap_if_possible() {
+    [[ -f "$APP_DIR/artisan" ]] || return 0
+
+    log "Генерация sitemap.xml..."
+    if id www-data &>/dev/null; then
+        if sudo -u www-data php "$APP_DIR/artisan" sitemap:generate --force; then
+            chown www-data:www-data "$APP_DIR/public/sitemap.xml" 2>/dev/null || true
+            return 0
+        fi
+    fi
+
+    if php "$APP_DIR/artisan" sitemap:generate --force; then
+        chown www-data:www-data "$APP_DIR/public/sitemap.xml" 2>/dev/null || true
+    else
+        warn "sitemap:generate не выполнен — сгенерируйте sitemap в админке"
+    fi
 }
 
 # ─── Подготовка ───────────────────────────────────────────────────────────────
@@ -151,6 +175,7 @@ php artisan view:cache
 
 log "Права на storage и cache..."
 set_app_permissions
+generate_sitemap_if_possible
 
 # ─── Перезапуск сервисов ──────────────────────────────────────────────────────
 
