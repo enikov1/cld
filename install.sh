@@ -370,5 +370,6 @@ echo "  Caddy автоматически получит SSL-сертификат
 echo ""
 echo "  Полезные команды:"
 echo "    systemctl status caddy lordserial-queue mariadb"
+echo "    sudo bash update.sh        # обновление после git push"
 echo "    php artisan config:clear   # после смены .env"
 echo "════════════════════════════════════════════════════════════"
