@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Http\Controllers\AdminPanelController;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Cookie;
 
@@ -11,7 +12,7 @@ class AdminAccess
 
     public static function expectedToken(): string
     {
-        return (string)env('ADMIN_TOKEN', '');
+        return (string)config('admin.token', '');
     }
 
     public static function isAdminPath(Request $request): bool
@@ -25,6 +26,13 @@ class AdminAccess
     public static function isAdminApiPath(Request $request): bool
     {
         return $request->is('api/admin') || $request->is('api/admin/*');
+    }
+
+    public static function isAdminAssetPath(Request $request): bool
+    {
+        $prefix = AdminPanelController::ASSET_ROUTE;
+
+        return $request->is($prefix) || $request->is($prefix . '/*');
     }
 
     public static function hasValidToken(Request $request): bool
@@ -46,7 +54,7 @@ class AdminAccess
 
     public static function canBypassMaintenance(Request $request): bool
     {
-        if (self::isAdminPath($request) || self::isAdminApiPath($request)) {
+        if (self::isAdminPath($request) || self::isAdminApiPath($request) || self::isAdminAssetPath($request)) {
             return true;
         }
 

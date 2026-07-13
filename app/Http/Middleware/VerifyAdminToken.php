@@ -12,7 +12,7 @@ class VerifyAdminToken
     /**
      * Verify admin token by header.
      * Header: X-ADMIN-TOKEN
-     * Token is taken from env ADMIN_TOKEN.
+     * Token is taken from config admin.token (ADMIN_TOKEN in .env).
      */
     public function handle(Request $request, Closure $next): Response
     {

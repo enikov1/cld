@@ -29,6 +29,10 @@ use Illuminate\Support\Facades\Route;
 
 $adminPath = AdminPath::path();
 
+Route::get(AdminPanelController::ASSET_ROUTE . '/{file}', [AdminPanelController::class, 'asset'])
+    ->where('file', '.+')
+    ->name('admin.asset.static');
+
 Route::get($adminPath . '/assets/{file}', [AdminPanelController::class, 'asset'])
     ->where('file', '.+')
     ->name('admin.asset');

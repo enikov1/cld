@@ -36,7 +36,6 @@ export default function LoginPage() {
             <Typography.Title level={3} style={{ margin: 0 }}>
               LordSerial Admin
             </Typography.Title>
-            <Typography.Text type="secondary">Введите ADMIN_TOKEN для доступа</Typography.Text>
           </div>
         </div>
 
@@ -54,10 +53,6 @@ export default function LoginPage() {
             Войти
           </Button>
         </Form>
-
-        <Typography.Paragraph type="secondary" className="admin-login__hint">
-          Токен передаётся в заголовке <code>X-ADMIN-TOKEN</code> и хранится локально в браузере.
-        </Typography.Paragraph>
       </Card>
     </div>
   )

@@ -22,6 +22,7 @@ return [
         'year',
         'skoro',
         'theme-assets',
+        '_admin-assets',
         'sitemap.xml',
         'robots.txt',
         'lander',

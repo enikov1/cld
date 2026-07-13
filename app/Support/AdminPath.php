@@ -21,7 +21,7 @@ class AdminPath
             // DB may be unavailable during install.
         }
 
-        $fromEnv = trim((string)env('ADMIN_PATH', ''));
+        $fromEnv = trim((string)config('admin.path', ''));
         if ($fromEnv !== '') {
             return self::normalize($fromEnv);
         }

@@ -34,6 +34,7 @@ use App\Services\PosterStorage;
 use App\Services\BrandingStorage;
 use App\Services\SitemapService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 
@@ -584,8 +585,10 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
         ]);
 
         $oldTheme = \App\Models\SiteSetting::get('active_theme');
+        $previousAdminPath = AdminPath::path();
         $themeChanged = false;
         $configChanged = false;
+        $adminPathChanged = false;
 
         foreach ($data['settings'] as $row) {
             $key = $row['key'];
@@ -617,6 +620,9 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
                 $error = AdminPath::validate($value);
                 if ($error !== null) {
                     return response()->json(['ok' => false, 'error' => $error], 422);
+                }
+                if ($value !== $previousAdminPath) {
+                    $adminPathChanged = true;
                 }
             }
 
@@ -660,6 +666,13 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
 
         if ($themeChanged || $configChanged) {
             Cache::flush();
+        }
+
+        if ($adminPathChanged) {
+            Artisan::call('route:clear');
+            if (app()->environment('production')) {
+                Artisan::call('route:cache');
+            }
         }
 
         return response()->json([
