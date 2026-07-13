@@ -122,6 +122,21 @@ install_nodejs() {
     apt-get install -y -qq nodejs
 }
 
+ensure_git_safe() {
+    git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
+}
+
+set_app_permissions() {
+    # root владеет .git (git pull от root), www-data — запись в storage/cache
+    chown -R root:www-data "$APP_DIR"
+    find "$APP_DIR" -type d -exec chmod 775 {} \;
+    find "$APP_DIR" -type f -exec chmod 664 {} \;
+    chmod +x "$APP_DIR/artisan"
+
+    chown -R www-data:www-data "$APP_DIR/storage" "$APP_DIR/bootstrap/cache"
+    chmod -R ug+rwx "$APP_DIR/storage" "$APP_DIR/bootstrap/cache"
+}
+
 # ─── Подготовка ───────────────────────────────────────────────────────────────
 
 require_root
@@ -140,6 +155,8 @@ elif [[ ! -f "$APP_DIR/artisan" ]]; then
 fi
 
 [[ -f "$APP_DIR/artisan" ]] || die "Laravel-проект не найден в ${APP_DIR}."
+
+ensure_git_safe
 
 if [[ -z "$DB_PASSWORD" ]]; then
     DB_PASSWORD="$(rand_secret)"
@@ -257,7 +274,8 @@ env_set CACHE_STORE     "database"                .env
 env_set QUEUE_CONNECTION "database"               .env
 env_set ADMIN_TOKEN     "${ADMIN_TOKEN}"          .env
 
-chown -R www-data:www-data "$APP_DIR"
+mkdir -p "$APP_DIR/storage" "$APP_DIR/bootstrap/cache"
+chown -R www-data:www-data "$APP_DIR/storage" "$APP_DIR/bootstrap/cache" 2>/dev/null || true
 chmod -R ug+rwx "$APP_DIR/storage" "$APP_DIR/bootstrap/cache" 2>/dev/null || true
 
 log "Composer install (production)..."
@@ -297,9 +315,7 @@ fi
 # ─── Права ────────────────────────────────────────────────────────────────────
 
 log "Финальная настройка прав..."
-chown -R www-data:www-data "$APP_DIR"
-chmod -R ug+rwx "$APP_DIR/storage" "$APP_DIR/bootstrap/cache"
-chmod +x "$APP_DIR/artisan"
+set_app_permissions
 
 # ─── Caddy vhost ──────────────────────────────────────────────────────────────
 

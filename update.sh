@@ -39,6 +39,20 @@ require_root() {
     [[ "${EUID:-$(id -u)}" -eq 0 ]] || die "Запустите скрипт от root: sudo bash update.sh"
 }
 
+ensure_git_safe() {
+    git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
+}
+
+set_app_permissions() {
+    chown -R root:www-data "$APP_DIR"
+    find "$APP_DIR" -type d -exec chmod 775 {} \;
+    find "$APP_DIR" -type f -exec chmod 664 {} \;
+    chmod +x "$APP_DIR/artisan"
+
+    chown -R www-data:www-data "$APP_DIR/storage" "$APP_DIR/bootstrap/cache"
+    chmod -R ug+rwx "$APP_DIR/storage" "$APP_DIR/bootstrap/cache"
+}
+
 # ─── Подготовка ───────────────────────────────────────────────────────────────
 
 require_root
@@ -47,6 +61,8 @@ require_root
 [[ -d "$APP_DIR/.git" ]]    || die "Каталог ${APP_DIR} не является git-репозиторием. Используйте install.sh."
 
 cd "$APP_DIR"
+
+ensure_git_safe
 
 log "Каталог: ${APP_DIR}"
 log "Ветка:   ${GIT_BRANCH}"
@@ -130,8 +146,7 @@ sudo -u www-data php artisan view:cache
 # ─── Права ────────────────────────────────────────────────────────────────────
 
 log "Права на storage и cache..."
-chown -R www-data:www-data "$APP_DIR"
-chmod -R ug+rwx "$APP_DIR/storage" "$APP_DIR/bootstrap/cache"
+set_app_permissions
 
 # ─── Перезапуск сервисов ──────────────────────────────────────────────────────
 
