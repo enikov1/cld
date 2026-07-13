@@ -2,6 +2,7 @@
 [meta-description][series.short_description]{series.short_description}[/series.short_description][not-series.short_description][series.description]{series.description}[/series.description][/not-series.short_description][/meta-description]
 [meta-image]{series.poster_url|raw}[/meta-image]
 [meta-canonical]{seo.canonical|raw}[/meta-canonical]
+[meta-robots]{seo.robots|raw}[/meta-robots]
 <div class="fmain" data-series-id="{series.id}">
     [auth.logged_in]<span hidden data-logged-in="1"></span>[/auth.logged_in]
     <section class="serial-view">

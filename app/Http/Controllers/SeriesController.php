@@ -280,24 +280,21 @@ class SeriesController extends TplController
             'heading' => $series->title,
         ];
 
-        $metaTitle = trim((string)($series->meta_title ?? ''));
-        if ($metaTitle === '') {
-            $metaTitle = $series->title . SiteConfig::str('series_meta_title_suffix');
-        }
-
-        $metaDescription = trim((string)($series->meta_description ?? ''));
-        if ($metaDescription === '') {
-            $metaDescription = $series->short_description
-                ?: ($series->description ? mb_substr($series->description, 0, 160) : SiteConfig::str('series_meta_description_fallback'));
-        }
-
         $meta = [
-            'title' => $metaTitle,
-            'description' => $metaDescription,
-            'image' => $series->poster_url,
+            'image' => (string)($series->poster_url ?? ''),
             'canonical' => url(SeriesUrl::path($series)),
             'robots' => $series->noindex ? 'noindex,follow' : '',
         ];
+
+        $metaTitle = trim((string)($series->meta_title ?? ''));
+        if ($metaTitle !== '') {
+            $meta['title'] = trim($this->renderer()->interpolate($metaTitle, $vars));
+        }
+
+        $metaDescription = trim((string)($series->meta_description ?? ''));
+        if ($metaDescription !== '') {
+            $meta['description'] = trim($this->renderer()->interpolate($metaDescription, $vars));
+        }
 
         $vars['_cache_series_id'] = $series->id;
 

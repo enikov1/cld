@@ -56,7 +56,9 @@ class SeasonEpisodeLabels
             3 => '1-' . $number . ' ' . $suffix,
             4 => $number === 1
                 ? '1 ' . $suffix
-                : '1-' . ($number - 1) . ', ' . $number . ' ' . $suffix,
+                : ($number === 2
+                    ? '1-2 ' . $suffix
+                    : '1-' . ($number - 1) . ', ' . $number . ' ' . $suffix),
             5 => '1 по ' . $number . ' ' . $suffix,
             default => '',
         };

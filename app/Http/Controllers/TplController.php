@@ -208,7 +208,13 @@ abstract class TplController extends Controller
      */
     protected function resolvePageMeta(array $defaults, array $fromTpl, array $vars): array
     {
-        $merged = array_merge($defaults, $fromTpl);
+        // Шаблон задаёт fallback; непустые значения из контроллера (админка) имеют приоритет.
+        $merged = $fromTpl;
+        foreach ($defaults as $key => $value) {
+            if (trim((string)$value) !== '') {
+                $merged[$key] = (string)$value;
+            }
+        }
 
         if (empty($merged['title'])) {
             $merged['title'] = (string)($vars['page']['heading'] ?? config('app.name'));

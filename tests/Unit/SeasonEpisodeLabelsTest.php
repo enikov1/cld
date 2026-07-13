@@ -12,6 +12,7 @@ class SeasonEpisodeLabelsTest extends TestCase
         $this->assertSame('3 сезон', SeasonEpisodeLabels::formatSeason(3, 1));
         $this->assertSame('1, 2, 3 сезон', SeasonEpisodeLabels::formatSeason(3, 2));
         $this->assertSame('1-3 сезон', SeasonEpisodeLabels::formatSeason(3, 3));
+        $this->assertSame('1-2 сезон', SeasonEpisodeLabels::formatSeason(2, 4));
         $this->assertSame('1-4, 5 сезон', SeasonEpisodeLabels::formatSeason(5, 4));
         $this->assertSame('1 по 5 сезон', SeasonEpisodeLabels::formatSeason(5, 5));
     }

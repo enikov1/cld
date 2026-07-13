@@ -101,6 +101,16 @@ class TplRenderer
         return $this->baseDir . DIRECTORY_SEPARATOR . $tpl;
     }
 
+    /**
+     * Подставляет {переменные} в строку (SEO-поля из админки, заголовки и т.п.).
+     *
+     * @param array<string, mixed> $vars
+     */
+    public function interpolate(string $text, array $vars): string
+    {
+        return $this->renderString($text, $vars);
+    }
+
     private function renderString(string $tpl, array $vars): string
     {
         $out = $tpl;
