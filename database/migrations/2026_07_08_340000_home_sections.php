@@ -1,8 +1,6 @@
 <?php
 
-use App\Models\Category;
 use App\Models\HomeSection;
-use App\Models\Series;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -12,35 +10,43 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('home_sections', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('category_id')->nullable()->constrained('categories')->nullOnDelete();
-            $table->string('title');
-            $table->unsignedSmallInteger('sort_order')->default(0);
-            $table->boolean('is_active')->default(true);
-            $table->unsignedSmallInteger('item_limit')->default(18);
-            $table->boolean('show_tabs')->default(true);
-            $table->string('default_sort', 20)->default('latest');
-            $table->timestamps();
+        if (! Schema::hasTable('home_sections')) {
+            Schema::create('home_sections', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('category_id')->nullable()->constrained('categories')->nullOnDelete();
+                $table->string('title');
+                $table->unsignedSmallInteger('sort_order')->default(0);
+                $table->boolean('is_active')->default(true);
+                $table->unsignedSmallInteger('item_limit')->default(18);
+                $table->boolean('show_tabs')->default(true);
+                $table->string('default_sort', 20)->default('latest');
+                $table->timestamps();
 
-            $table->index(['is_active', 'sort_order']);
-        });
+                $table->index(['is_active', 'sort_order']);
+            });
+        }
 
-        $wrong = Category::query()->where('slug', 'zarubeznye-serialy')->first();
-        $correct = Category::query()->where('slug', 'zarubezhnye-serialy')->first();
+        if (! Schema::hasTable('categories') || HomeSection::query()->exists()) {
+            \App\Support\TplCache::forgetHome();
+
+            return;
+        }
+
+        $wrong = DB::table('categories')->where('slug', 'zarubeznye-serialy')->first();
+        $correct = DB::table('categories')->where('slug', 'zarubezhnye-serialy')->first();
         if ($wrong && $correct && $wrong->id !== $correct->id) {
-            Series::query()->where('category_id', $wrong->id)->update(['category_id' => $correct->id]);
-            $wrong->delete();
+            DB::table('series')->where('category_id', $wrong->id)->update(['category_id' => $correct->id]);
+            DB::table('categories')->where('id', $wrong->id)->delete();
         }
 
         $sort = 0;
-        foreach (
-            Category::query()
-                ->where('is_active', true)
-                ->orderBy('sort_order')
-                ->orderBy('title')
-                ->get() as $cat
-        ) {
+        $categories = DB::table('categories')
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('title')
+            ->get();
+
+        foreach ($categories as $cat) {
             $sort += 10;
             HomeSection::query()->create([
                 'category_id' => $cat->id,

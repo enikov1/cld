@@ -1,13 +1,12 @@
 <?php
 
-use App\Models\Category;
 use App\Models\NavItem;
 use App\Models\NavMegaButton;
-use App\Models\NavMegaLink;
 use App\Models\NavMegaSection;
 use App\Support\SiteConfig;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -100,7 +99,7 @@ return new class extends Migration
             'has_mega' => false,
         ]);
 
-        $categories = Category::query()
+        $categories = DB::table('categories')
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('title')

@@ -5,6 +5,7 @@ use App\Models\NavMegaButton;
 use App\Support\NavMenuBuilder;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -62,40 +63,38 @@ return new class extends Migration
 
     private function migrateCategoryNavLinks(): void
     {
-        NavItem::query()
-            ->where('link_type', NavItem::LINK_CATEGORY)
-            ->whereNotNull('category_id')
-            ->with('category')
-            ->get()
-            ->each(function (NavItem $item) {
-                $slug = $item->category?->slug;
-                if ($slug === null || $slug === '') {
-                    return;
-                }
+        if (! Schema::hasTable('categories')) {
+            return;
+        }
 
-                $item->update([
-                    'link_type' => NavItem::LINK_CUSTOM,
-                    'custom_url' => NavMenuBuilder::resolveLink(NavItem::LINK_CATEGORY, $slug, null),
-                    'category_id' => null,
-                ]);
-            });
+        $navItems = DB::table('nav_items')
+            ->join('categories', 'nav_items.category_id', '=', 'categories.id')
+            ->where('nav_items.link_type', NavItem::LINK_CATEGORY)
+            ->whereNotNull('nav_items.category_id')
+            ->select('nav_items.id', 'categories.slug')
+            ->get();
 
-        NavMegaButton::query()
-            ->where('link_type', NavItem::LINK_CATEGORY)
-            ->whereNotNull('category_id')
-            ->with('category')
-            ->get()
-            ->each(function (NavMegaButton $button) {
-                $slug = $button->category?->slug;
-                if ($slug === null || $slug === '') {
-                    return;
-                }
+        foreach ($navItems as $row) {
+            NavItem::query()->whereKey($row->id)->update([
+                'link_type' => NavItem::LINK_CUSTOM,
+                'custom_url' => NavMenuBuilder::resolveLink(NavItem::LINK_CATEGORY, $row->slug, null),
+                'category_id' => null,
+            ]);
+        }
 
-                $button->update([
-                    'link_type' => NavItem::LINK_CUSTOM,
-                    'custom_url' => NavMenuBuilder::resolveLink(NavItem::LINK_CATEGORY, $slug, null),
-                    'category_id' => null,
-                ]);
-            });
+        $megaButtons = DB::table('nav_mega_buttons')
+            ->join('categories', 'nav_mega_buttons.category_id', '=', 'categories.id')
+            ->where('nav_mega_buttons.link_type', NavItem::LINK_CATEGORY)
+            ->whereNotNull('nav_mega_buttons.category_id')
+            ->select('nav_mega_buttons.id', 'categories.slug')
+            ->get();
+
+        foreach ($megaButtons as $row) {
+            NavMegaButton::query()->whereKey($row->id)->update([
+                'link_type' => NavItem::LINK_CUSTOM,
+                'custom_url' => NavMenuBuilder::resolveLink(NavItem::LINK_CATEGORY, $row->slug, null),
+                'category_id' => null,
+            ]);
+        }
     }
 };
