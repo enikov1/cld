@@ -210,7 +210,7 @@ write_caddy_vhost() {
     local snippet="$2"
 
     cat > "$snippet" <<EOF
-www.${domain} {
+${domain} {
     root * ${APP_DIR}/public
     encode gzip zstd
 
@@ -227,9 +227,9 @@ www.${domain} {
     file_server
 }
 
-# apex: редирект по HTTP (сертификат на www уже есть; apex TLS часто падает из-за AAAA)
-http://${domain} {
-    redir https://www.${domain}{uri} permanent
+# www → apex (основной домен без www)
+www.${domain} {
+    redir https://${domain}{uri} permanent
 }
 EOF
 }
@@ -377,7 +377,7 @@ fi
 env_set APP_NAME        "LordSerial"              .env
 env_set APP_ENV         "production"              .env
 env_set APP_DEBUG       "false"                   .env
-env_set APP_URL         "https://www.${DOMAIN}"     .env
+env_set APP_URL         "https://${DOMAIN}"           .env
 env_set DB_CONNECTION   "mysql"                   .env
 env_set DB_HOST         "127.0.0.1"               .env
 env_set DB_PORT         "3306"                    .env
@@ -467,10 +467,10 @@ systemctl enable caddy
 systemctl restart caddy
 sleep 2
 
-if ! curl -fsS -o /dev/null --max-time 10 -H "Host: www.${DOMAIN}" http://127.0.0.1/up; then
+if ! curl -fsS -o /dev/null --max-time 10 -H "Host: ${DOMAIN}" http://127.0.0.1/up; then
     warn "Локальная проверка http://127.0.0.1/up не прошла — смотрите: journalctl -u caddy -u php${PHP_VERSION}-fpm -n 50"
 else
-    log "Локальная проверка OK: https://www.${DOMAIN}/up"
+    log "Локальная проверка OK: https://${DOMAIN}/up"
 fi
 
 if [[ -n "$PREVIOUS_DOMAIN" && "$PREVIOUS_DOMAIN" != "$DOMAIN" ]]; then
@@ -533,8 +533,8 @@ cat > "$CREDENTIALS_FILE" <<EOF
 LordSerial — учётные данные установки
 Сгенерировано: $(date -Iseconds)
 
-Сайт:        https://www.${DOMAIN}
-Админка:     https://www.${DOMAIN}/admin/
+Сайт:        https://${DOMAIN}
+Админка:     https://${DOMAIN}/admin/
 Каталог:     ${APP_DIR}
 
 База данных:
@@ -546,7 +546,7 @@ LordSerial — учётные данные установки
 ADMIN_TOKEN (заголовок X-Admin-Token):
   ${ADMIN_TOKEN}
 
-Проверка:    curl -sI https://www.${DOMAIN}/up
+Проверка:    curl -sI https://${DOMAIN}/up
 Логи:        tail -f ${APP_DIR}/storage/logs/laravel.log
 Очередь:     journalctl -u lordserial-queue -f
 EOF
@@ -559,8 +559,8 @@ echo "════════════════════════�
 echo "  Установка завершена!"
 echo "════════════════════════════════════════════════════════════"
 echo ""
-echo "  Сайт:     https://www.${DOMAIN}"
-echo "  Админка:  https://www.${DOMAIN}/admin/"
+echo "  Сайт:     https://${DOMAIN}"
+echo "  Админка:  https://${DOMAIN}/admin/"
 echo ""
 echo "  Учётные данные сохранены в: ${CREDENTIALS_FILE}"
 echo ""
