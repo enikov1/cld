@@ -266,7 +266,7 @@ fi
 env_set APP_NAME        "LordSerial"              .env
 env_set APP_ENV         "production"              .env
 env_set APP_DEBUG       "false"                   .env
-env_set APP_URL         "https://${DOMAIN}"       .env
+env_set APP_URL         "https://www.${DOMAIN}"     .env
 env_set DB_CONNECTION   "mysql"                   .env
 env_set DB_HOST         "127.0.0.1"               .env
 env_set DB_PORT         "3306"                    .env
@@ -331,7 +331,7 @@ CADDY_MAIN="/etc/caddy/Caddyfile"
 mkdir -p "$CADDY_SITES_DIR"
 
 cat > "$CADDY_SNIPPET" <<EOF
-${DOMAIN} {
+www.${DOMAIN} {
     root * ${APP_DIR}/public
     encode gzip zstd
 
@@ -348,8 +348,9 @@ ${DOMAIN} {
     file_server
 }
 
-www.${DOMAIN} {
-    redir https://${DOMAIN}{uri} permanent
+# apex: редирект по HTTP (сертификат на www уже есть; apex TLS часто падает из-за AAAA)
+http://${DOMAIN} {
+    redir https://www.${DOMAIN}{uri} permanent
 }
 EOF
 
