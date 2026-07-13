@@ -200,7 +200,100 @@
         if (/csrf token mismatch/i.test(message)) {
             return cfg('ui_msg_session_expired', 'Сессия истекла. Обновите страницу и попробуйте снова.');
         }
+        var known = {
+            'The email field must be a valid email address.': 'Укажите корректный адрес email.',
+            'The email field is required.': 'Укажите email.',
+            'The password field is required.': 'Укажите пароль.',
+            'The name field is required.': 'Укажите имя.',
+            'The password confirmation field is required.': 'Повторите пароль.',
+            'The current password field is required.': 'Укажите текущий пароль.',
+        };
+        if (known[message]) return known[message];
         return message;
+    }
+
+    function fieldLabel(input) {
+        var label = input.closest('label');
+        if (label) {
+            var span = label.querySelector('span');
+            if (span && span.textContent.trim()) return span.textContent.trim();
+        }
+        var placeholder = input.getAttribute('placeholder');
+        if (placeholder) return placeholder;
+        return input.name;
+    }
+
+    function isValidEmail(value) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+    }
+
+    function validateFormFields(form) {
+        var errors = {};
+        var passwordInput = form.querySelector('input[name="password"]');
+        var passwordConfirm = form.querySelector('input[name="password_confirmation"]');
+
+        form.querySelectorAll('input, textarea, select').forEach(function (input) {
+            if (!input.name || input.type === 'hidden' || input.disabled) return;
+
+            var value = String(input.value || '').trim();
+            var label = fieldLabel(input);
+
+            if (input.required && !value) {
+                errors[input.name] = ['Заполните поле «' + label + '».'];
+                return;
+            }
+
+            if (input.type === 'email' && value && !isValidEmail(value)) {
+                errors[input.name] = ['Укажите корректный адрес email.'];
+            }
+        });
+
+        if (passwordInput && passwordConfirm) {
+            var pass = String(passwordInput.value || '');
+            var confirm = String(passwordConfirm.value || '');
+            if (pass && confirm && pass !== confirm) {
+                errors.password_confirmation = ['Пароли не совпадают.'];
+            }
+        }
+
+        return errors;
+    }
+
+    function splitFormErrors(form, errors) {
+        var fieldErrors = {};
+        var general = [];
+
+        if (!errors) {
+            return { fieldErrors: fieldErrors, general: general };
+        }
+
+        Object.keys(errors).forEach(function (field) {
+            var input = form.querySelector('[name="' + field + '"]');
+            var val = errors[field];
+            var msgs = Array.isArray(val) ? val.slice() : [String(val)];
+            msgs = msgs.map(humanizeApiMessage).filter(Boolean);
+
+            if (input && msgs.length) {
+                fieldErrors[field] = msgs;
+            } else if (msgs.length) {
+                general = general.concat(msgs);
+            }
+        });
+
+        return { fieldErrors: fieldErrors, general: general };
+    }
+
+    function showFormErrors(form, feedback, errors) {
+        var split = splitFormErrors(form, errors);
+        applyFieldErrors(form, split.fieldErrors);
+
+        if (split.general.length) {
+            showFeedback(feedback, split.general.join(' '), true);
+        } else if (Object.keys(split.fieldErrors).length) {
+            showFeedback(feedback, '', false, true);
+        } else {
+            showFeedback(feedback, humanizeApiMessage('Произошла ошибка'), true);
+        }
     }
 
     function parseApiErrors(data) {
@@ -212,7 +305,7 @@
                 if (Array.isArray(val)) parts = parts.concat(val);
                 else if (val) parts.push(String(val));
             });
-            if (parts.length) return humanizeApiMessage(parts.join(' '));
+            if (parts.length) return humanizeApiMessage(parts.map(humanizeApiMessage).join(' '));
         }
         return humanizeApiMessage(data.message || 'Произошла ошибка');
     }
@@ -248,7 +341,7 @@
             input.classList.add('is-invalid');
             var msg = document.createElement('div');
             msg.className = 'field-error';
-            msg.textContent = Array.isArray(errors[field]) ? errors[field][0] : String(errors[field]);
+            msg.textContent = Array.isArray(errors[field]) ? humanizeApiMessage(errors[field][0]) : humanizeApiMessage(String(errors[field]));
             var host = input.closest('.login-form__field, .profile-field, label') || input.parentElement;
             if (host) host.appendChild(msg);
         });
@@ -289,18 +382,29 @@
             clearFieldErrors(form);
             showFeedback(feedback, '', false, true);
 
+            var clientErrors = validateFormFields(form);
+            if (Object.keys(clientErrors).length) {
+                showFormErrors(form, feedback, clientErrors);
+                if (submitBtn) submitBtn.disabled = false;
+                return;
+            }
+
             postJson(form.getAttribute('action'), formToObject(form))
                 .then(readJsonResponse)
                 .then(function (res) {
                     if (!res.ok) {
-                        showFeedback(feedback, parseApiErrors(res.data), true);
-                        applyFieldErrors(form, res.data.errors || {});
+                        showFormErrors(form, feedback, res.data.errors || {});
+                        if (!res.data.errors && (res.data.message || res.data.error)) {
+                            showFeedback(feedback, humanizeApiMessage(res.data.message || res.data.error), true);
+                        }
                         return;
                     }
                     var data = res.data || {};
                     if (data.ok === false) {
-                        showFeedback(feedback, parseApiErrors(data), true);
-                        applyFieldErrors(form, data.errors || {});
+                        showFormErrors(form, feedback, data.errors || {});
+                        if (!data.errors && (data.message || data.error)) {
+                            showFeedback(feedback, humanizeApiMessage(data.message || data.error), true);
+                        }
                         return;
                     }
                     if (data.message) showFeedback(feedback, data.message, false);

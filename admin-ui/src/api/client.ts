@@ -1,6 +1,34 @@
 import { adminAuthHeaders } from '../auth/tokenStorage'
 import { notifyUnauthorized } from '../auth/unauthorized'
 
+const knownValidationMessages: Record<string, string> = {
+  'The email field must be a valid email address.': 'Укажите корректный адрес email.',
+  'The email field is required.': 'Укажите email.',
+  'The password field is required.': 'Укажите пароль.',
+  'The name field is required.': 'Укажите имя.',
+}
+
+function humanizeValidationMessage(message: string): string {
+  return knownValidationMessages[message] ?? message
+}
+
+function formatApiErrorMessage(data: Record<string, unknown>, fallback: string): string {
+  if (data.errors && typeof data.errors === 'object') {
+    const parts = Object.values(data.errors as Record<string, unknown>)
+      .flatMap((value) => (Array.isArray(value) ? value : [value]))
+      .filter(Boolean)
+      .map((part) => humanizeValidationMessage(String(part)))
+    if (parts.length) return parts.join(' ')
+  }
+
+  const message = data.error || data.message
+  if (typeof message === 'string' && message) {
+    return humanizeValidationMessage(message)
+  }
+
+  return fallback
+}
+
 export async function api<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     headers: {
@@ -20,12 +48,7 @@ export async function api<T>(url: string, opts?: RequestInit): Promise<T> {
     let message = `Ошибка ${res.status}`
     try {
       const data = await res.json()
-      if (data.errors) {
-        const parts = Object.values(data.errors).flat().filter(Boolean)
-        if (parts.length) message = parts.join(' ')
-      } else {
-        message = data.error || data.message || message
-      }
+      message = formatApiErrorMessage(data, message)
     } catch {
       const text = await res.text().catch(() => '')
       if (text) message = text
@@ -58,12 +81,7 @@ export async function apiUpload<T>(url: string, formData: FormData): Promise<T> 
     let message = `Ошибка ${res.status}`
     try {
       const data = await res.json()
-      if (data.errors) {
-        const parts = Object.values(data.errors).flat().filter(Boolean)
-        if (parts.length) message = parts.join(' ')
-      } else {
-        message = data.error || data.message || message
-      }
+      message = formatApiErrorMessage(data, message)
     } catch {
       const text = await res.text().catch(() => '')
       if (text) message = text

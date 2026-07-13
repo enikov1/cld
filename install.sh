@@ -16,9 +16,12 @@
 #   REPO_URL=https://github.com/enikov1/cld.git
 #   DB_NAME=lordserial
 #   DB_USER=lordserial
-#   DB_PASSWORD=секрет          # если не задан — сгенерируется
-#   ADMIN_TOKEN=секрет          # если не задан — сгенерируется
+#   DB_PASSWORD=секрет          # если не задан — сгенерируется (или возьмётся из .env)
+#   ADMIN_TOKEN=секрет          # если не задан — сгенерируется (или возьмётся из .env)
 #   SKIP_BUILD=1                # пропустить npm/composer build (для отладки)
+#
+# Смена домена на уже установленном сервере:
+#   cd /var/www/lordserialov.net && sudo DOMAIN=новый-домен.ru SKIP_BUILD=1 bash install.sh
 #
 set -euo pipefail
 
@@ -141,6 +144,96 @@ set_app_permissions() {
     chmod -R ug+rwx "$APP_DIR/storage" "$APP_DIR/bootstrap/cache"
 }
 
+read_env_value() {
+    local key="$1" file="$2"
+    grep -E "^${key}=" "$file" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"' || true
+}
+
+normalize_domain() {
+    local value="$1"
+    value="${value#https://}"
+    value="${value#http://}"
+    value="${value%%/*}"
+    value="${value#www.}"
+    echo "$value"
+}
+
+detect_previous_domain() {
+    local from_env=""
+    if [[ -f "$APP_DIR/.env" ]]; then
+        from_env="$(normalize_domain "$(read_env_value APP_URL "$APP_DIR/.env")")"
+    fi
+    if [[ -n "$from_env" ]]; then
+        echo "$from_env"
+        return
+    fi
+
+    local snippet base
+    shopt -s nullglob
+    for snippet in /etc/caddy/sites/*.caddy; do
+        [[ -f "$snippet" ]] || continue
+        if grep -qF "${APP_DIR}/public" "$snippet" 2>/dev/null; then
+            base="$(basename "$snippet" .caddy)"
+            echo "$base"
+            return
+        fi
+    done
+    shopt -u nullglob
+}
+
+cleanup_stale_caddy_configs() {
+    local keep_domain="$1"
+    local caddy_main="${2:-/etc/caddy/Caddyfile}"
+    local caddy_sites_dir="${3:-/etc/caddy/sites}"
+    local snippet base
+
+    shopt -s nullglob
+    for snippet in "${caddy_sites_dir}"/*.caddy; do
+        [[ -f "$snippet" ]] || continue
+        base="$(basename "$snippet" .caddy)"
+        if [[ "$base" == "$keep_domain" ]]; then
+            continue
+        fi
+        if grep -qF "${APP_DIR}/public" "$snippet" 2>/dev/null; then
+            log "Удаление устаревшего конфига Caddy: ${snippet}"
+            rm -f "$snippet"
+            if [[ -f "$caddy_main" ]]; then
+                sed -i "/sites\/${base}\\.caddy/d" "$caddy_main" || true
+            fi
+        fi
+    done
+    shopt -u nullglob
+}
+
+write_caddy_vhost() {
+    local domain="$1"
+    local snippet="$2"
+
+    cat > "$snippet" <<EOF
+www.${domain} {
+    root * ${APP_DIR}/public
+    encode gzip zstd
+
+    @blocked {
+        path /.env* /.git* /storage/* /vendor/*
+    }
+    respond @blocked 404
+
+    php_fastcgi unix//run/php/php${PHP_VERSION}-fpm-lordserial.sock {
+        resolve_root_symlink
+    }
+
+    try_files {path} {path}/ /index.php?{query}
+    file_server
+}
+
+# apex: редирект по HTTP (сертификат на www уже есть; apex TLS часто падает из-за AAAA)
+http://${domain} {
+    redir https://www.${domain}{uri} permanent
+}
+EOF
+}
+
 # ─── Подготовка ───────────────────────────────────────────────────────────────
 
 require_root
@@ -162,11 +255,29 @@ fi
 
 ensure_git_safe
 
+if [[ -f "$APP_DIR/.env" ]]; then
+    if [[ -z "$DB_PASSWORD" ]]; then
+        existing_db_password="$(read_env_value DB_PASSWORD "$APP_DIR/.env")"
+        [[ -n "$existing_db_password" ]] && DB_PASSWORD="$existing_db_password"
+    fi
+    if [[ -z "$ADMIN_TOKEN" ]]; then
+        existing_admin_token="$(read_env_value ADMIN_TOKEN "$APP_DIR/.env")"
+        [[ -n "$existing_admin_token" ]] && ADMIN_TOKEN="$existing_admin_token"
+    fi
+fi
+
 if [[ -z "$DB_PASSWORD" ]]; then
     DB_PASSWORD="$(rand_secret)"
 fi
 if [[ -z "$ADMIN_TOKEN" ]]; then
     ADMIN_TOKEN="$(rand_secret)"
+fi
+
+PREVIOUS_DOMAIN="$(detect_previous_domain)"
+DOMAIN="$(normalize_domain "$DOMAIN")"
+
+if [[ -n "$PREVIOUS_DOMAIN" && "$PREVIOUS_DOMAIN" != "$DOMAIN" ]]; then
+    log "Обнаружена смена домена: ${PREVIOUS_DOMAIN} → ${DOMAIN}"
 fi
 
 log "Домен:     ${DOMAIN}"
@@ -330,29 +441,8 @@ CADDY_SNIPPET="${CADDY_SITES_DIR}/${DOMAIN}.caddy"
 CADDY_MAIN="/etc/caddy/Caddyfile"
 mkdir -p "$CADDY_SITES_DIR"
 
-cat > "$CADDY_SNIPPET" <<EOF
-www.${DOMAIN} {
-    root * ${APP_DIR}/public
-    encode gzip zstd
-
-    @blocked {
-        path /.env* /.git* /storage/* /vendor/*
-    }
-    respond @blocked 404
-
-    php_fastcgi unix//run/php/php${PHP_VERSION}-fpm-lordserial.sock {
-        resolve_root_symlink
-    }
-
-    try_files {path} {path}/ /index.php?{query}
-    file_server
-}
-
-# apex: редирект по HTTP (сертификат на www уже есть; apex TLS часто падает из-за AAAA)
-http://${DOMAIN} {
-    redir https://www.${DOMAIN}{uri} permanent
-}
-EOF
+cleanup_stale_caddy_configs "$DOMAIN" "$CADDY_MAIN" "$CADDY_SITES_DIR"
+write_caddy_vhost "$DOMAIN" "$CADDY_SNIPPET"
 
 if [[ ! -f "$CADDY_MAIN" ]] || [[ ! -s "$CADDY_MAIN" ]]; then
     cat > "$CADDY_MAIN" <<EOF
@@ -377,10 +467,18 @@ systemctl enable caddy
 systemctl restart caddy
 sleep 2
 
-if ! curl -fsS -o /dev/null --max-time 10 -H "Host: ${DOMAIN}" http://127.0.0.1/up; then
+if ! curl -fsS -o /dev/null --max-time 10 -H "Host: www.${DOMAIN}" http://127.0.0.1/up; then
     warn "Локальная проверка http://127.0.0.1/up не прошла — смотрите: journalctl -u caddy -u php${PHP_VERSION}-fpm -n 50"
 else
-    log "Локальная проверка OK: http://${DOMAIN}/up"
+    log "Локальная проверка OK: https://www.${DOMAIN}/up"
+fi
+
+if [[ -n "$PREVIOUS_DOMAIN" && "$PREVIOUS_DOMAIN" != "$DOMAIN" ]]; then
+    log "Обновление кэша Laravel после смены домена..."
+    php artisan config:clear
+    php artisan config:cache
+    php artisan route:cache
+    warn "Проверьте DNS A-запись для ${DOMAIN} и пересоберите sitemap.xml в админке."
 fi
 
 # ─── Queue worker (systemd) ───────────────────────────────────────────────────
@@ -435,8 +533,8 @@ cat > "$CREDENTIALS_FILE" <<EOF
 LordSerial — учётные данные установки
 Сгенерировано: $(date -Iseconds)
 
-Сайт:        https://${DOMAIN}
-Админка:     https://${DOMAIN}/admin/
+Сайт:        https://www.${DOMAIN}
+Админка:     https://www.${DOMAIN}/admin/
 Каталог:     ${APP_DIR}
 
 База данных:
@@ -448,7 +546,7 @@ LordSerial — учётные данные установки
 ADMIN_TOKEN (заголовок X-Admin-Token):
   ${ADMIN_TOKEN}
 
-Проверка:    curl -sI https://${DOMAIN}/up
+Проверка:    curl -sI https://www.${DOMAIN}/up
 Логи:        tail -f ${APP_DIR}/storage/logs/laravel.log
 Очередь:     journalctl -u lordserial-queue -f
 EOF
@@ -461,8 +559,8 @@ echo "════════════════════════�
 echo "  Установка завершена!"
 echo "════════════════════════════════════════════════════════════"
 echo ""
-echo "  Сайт:     https://${DOMAIN}"
-echo "  Админка:  https://${DOMAIN}/admin/"
+echo "  Сайт:     https://www.${DOMAIN}"
+echo "  Админка:  https://www.${DOMAIN}/admin/"
 echo ""
 echo "  Учётные данные сохранены в: ${CREDENTIALS_FILE}"
 echo ""
@@ -472,5 +570,6 @@ echo ""
 echo "  Полезные команды:"
 echo "    systemctl status caddy lordserial-queue mariadb"
 echo "    sudo bash update.sh        # обновление после git push"
+echo "    sudo DOMAIN=новый-домен.ru SKIP_BUILD=1 bash install.sh  # смена домена"
 echo "    php artisan config:clear   # после смены .env"
 echo "════════════════════════════════════════════════════════════"
