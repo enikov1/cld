@@ -1,0 +1,137 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\PlayerSource;
+use App\Models\Series;
+use App\Support\PlayerUrlHelper;
+use App\Support\TplCache;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+
+class AdminPlayersController extends Controller
+{
+    public function show(string $kpId)
+    {
+        $series = Series::query()->where('kp_id', $kpId)->firstOrFail();
+        $this->ensureLegacyPlayerMigrated($series);
+
+        $items = $series->playerSources()
+            ->orderByDesc('priority')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (PlayerSource $source) => [
+                'id' => $source->id,
+                'provider' => $source->provider,
+                'iframe_url' => $source->iframe_url,
+                'is_active' => $source->is_active,
+                'priority' => $source->priority,
+            ])
+            ->all();
+
+        return response()->json(['players' => $items]);
+    }
+
+    public function save(Request $request, string $kpId)
+    {
+        $series = Series::query()->where('kp_id', $kpId)->firstOrFail();
+
+        $data = $request->validate([
+            'players' => ['nullable', 'array'],
+            'players.*.id' => ['nullable', 'integer'],
+            'players.*.provider' => ['nullable', 'string', 'max:120'],
+            'players.*.iframe_url' => ['required', 'string', 'max:2000'],
+            'players.*.is_active' => ['nullable', 'boolean'],
+            'players.*.priority' => ['nullable', 'integer'],
+        ]);
+
+        DB::transaction(function () use ($series, $data) {
+            $existingIds = $series->playerSources()->pluck('id')->all();
+            $keptIds = [];
+
+            foreach ($data['players'] ?? [] as $i => $row) {
+                $url = PlayerUrlHelper::sanitize($row['iframe_url'] ?? '');
+                if ($url === '') {
+                    continue;
+                }
+
+                $payload = [
+                    'provider' => trim((string)($row['provider'] ?? '')) ?: ('Плеер ' . ($i + 1)),
+                    'iframe_url' => $url,
+                    'is_active' => array_key_exists('is_active', $row) ? (bool)$row['is_active'] : true,
+                    'priority' => isset($row['priority']) ? (int)$row['priority'] : (100 - $i),
+                ];
+
+                if (!empty($row['id'])) {
+                    $source = PlayerSource::query()
+                        ->where('series_id', $series->id)
+                        ->where('id', $row['id'])
+                        ->first();
+
+                    if ($source) {
+                        $source->update($payload);
+                        $keptIds[] = $source->id;
+                        continue;
+                    }
+                }
+
+                $created = PlayerSource::query()->create(array_merge($payload, [
+                    'series_id' => $series->id,
+                ]));
+                $keptIds[] = $created->id;
+            }
+
+            $removeIds = array_diff($existingIds, $keptIds);
+            if ($removeIds !== []) {
+                PlayerSource::query()
+                    ->where('series_id', $series->id)
+                    ->whereIn('id', $removeIds)
+                    ->delete();
+            }
+
+            $series->refresh();
+            $firstUrl = PlayerUrlHelper::activePlayersForSeries($series)[0]['url'] ?? null;
+            $series->update(['player_url' => $firstUrl]);
+        });
+
+        TplCache::forgetSeries($series->id);
+
+        $series->refresh();
+
+        return response()->json([
+            'ok' => true,
+            'players' => $series->playerSources()
+                ->orderByDesc('priority')
+                ->orderBy('id')
+                ->get()
+                ->map(fn (PlayerSource $source) => [
+                    'id' => $source->id,
+                    'provider' => $source->provider,
+                    'iframe_url' => $source->iframe_url,
+                    'is_active' => $source->is_active,
+                    'priority' => $source->priority,
+                ])
+                ->all(),
+        ]);
+    }
+
+    private function ensureLegacyPlayerMigrated(Series $series): void
+    {
+        if ($series->playerSources()->exists()) {
+            return;
+        }
+
+        $url = PlayerUrlHelper::sanitize($series->player_url);
+        if ($url === '') {
+            return;
+        }
+
+        PlayerSource::query()->create([
+            'series_id' => $series->id,
+            'provider' => 'Смотреть онлайн',
+            'iframe_url' => $url,
+            'is_active' => true,
+            'priority' => 100,
+        ]);
+    }
+}

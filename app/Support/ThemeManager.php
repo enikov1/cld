@@ -1,0 +1,188 @@
+<?php
+
+namespace App\Support;
+
+use App\Models\SiteSetting;
+use Illuminate\Support\Facades\File;
+
+class ThemeManager
+{
+    public static function themesRoot(): string
+    {
+        return resource_path('tpl');
+    }
+
+    /**
+     * @return list<array{name: string, label: string}>
+     */
+    public static function listThemes(): array
+    {
+        $root = self::themesRoot();
+        if (!is_dir($root)) {
+            return [];
+        }
+
+        $themes = [];
+        foreach (File::directories($root) as $dir) {
+            $name = basename($dir);
+            if (!self::isValidThemeName($name)) {
+                continue;
+            }
+            if (!is_file($dir . DIRECTORY_SEPARATOR . 'layout.tpl')) {
+                continue;
+            }
+            $themes[] = [
+                'name' => $name,
+                'label' => $name,
+            ];
+        }
+
+        usort($themes, fn ($a, $b) => strcmp($a['name'], $b['name']));
+
+        return $themes;
+    }
+
+    public static function activeName(): string
+    {
+        $configured = SiteSetting::get('active_theme');
+        if (is_string($configured) && $configured !== '' && self::themeExists($configured)) {
+            return $configured;
+        }
+
+        $themes = self::listThemes();
+        if (count($themes) > 0) {
+            return $themes[0]['name'];
+        }
+
+        return (string)config('tpl.default_theme', 'default');
+    }
+
+    public static function activeBaseDir(): string
+    {
+        $path = self::themesRoot() . DIRECTORY_SEPARATOR . self::activeName();
+        if (is_dir($path)) {
+            return $path;
+        }
+
+        return self::themesRoot();
+    }
+
+    public static function themeExists(string $name): bool
+    {
+        if (!self::isValidThemeName($name)) {
+            return false;
+        }
+
+        $path = self::themesRoot() . DIRECTORY_SEPARATOR . $name;
+
+        return is_dir($path) && is_file($path . DIRECTORY_SEPARATOR . 'layout.tpl');
+    }
+
+    public static function setActive(string $name): void
+    {
+        if (!self::themeExists($name)) {
+            throw new \InvalidArgumentException("Theme not found: {$name}");
+        }
+
+        SiteSetting::set('active_theme', $name);
+    }
+
+    public static function assetsDir(string $themeName): string
+    {
+        return self::themesRoot() . DIRECTORY_SEPARATOR . $themeName . DIRECTORY_SEPARATOR . 'assets';
+    }
+
+    public static function assetPath(string $file, ?string $themeName = null): ?string
+    {
+        $themeName = $themeName ?? self::activeName();
+        $path = self::assetsDir($themeName) . DIRECTORY_SEPARATOR . $file;
+
+        return is_file($path) ? $path : null;
+    }
+
+    public static function resolveAssetDiskPath(string $file, ?string $themeName = null): ?string
+    {
+        $file = ltrim(str_replace('\\', '/', $file), '/');
+        $basename = basename($file);
+        $path = self::assetPath($basename, $themeName);
+        if ($path === null) {
+            return null;
+        }
+
+        if (self::shouldUseMinifiedAssets() && preg_match('/\.(css|js)$/i', $basename) && !preg_match('/\.min\.(css|js)$/i', $basename)) {
+            $minPath = preg_replace('/\.(css|js)$/i', '.min.$1', $path);
+            if (is_file($minPath)) {
+                return $minPath;
+            }
+        }
+
+        return $path;
+    }
+
+    public static function shouldUseMinifiedAssets(): bool
+    {
+        return !config('app.debug');
+    }
+
+    public static function webPath(?string $themeName = null): string
+    {
+        $themeName = $themeName ?? self::activeName();
+
+        return '/theme-assets/' . $themeName;
+    }
+
+    public static function assetUrl(string $file, ?string $themeName = null): string
+    {
+        $themeName = $themeName ?? self::activeName();
+        $file = ltrim(str_replace('\\', '/', $file), '/');
+        if (!str_starts_with($file, 'assets/')) {
+            $file = 'assets/' . $file;
+        }
+
+        $url = route('theme.asset', [
+            'theme' => $themeName,
+            'path' => $file,
+        ]);
+
+        $path = self::resolveAssetDiskPath($file, $themeName);
+        if ($path && is_file($path)) {
+            $url .= (str_contains($url, '?') ? '&' : '?') . 'v=' . filemtime($path);
+        }
+
+        return $url;
+    }
+
+    /**
+     * @return array{name: string, stylesheets?: list<string>, js?: string}
+     */
+    public static function assetVars(): array
+    {
+        $name = self::activeName();
+        $vars = ['name' => $name];
+
+        $stylesheets = [];
+        foreach (['font-awesome.min.css', 'style.formated.css', 'new-dark.css', 'site.css'] as $file) {
+            if (self::assetPath($file, $name)) {
+                $stylesheets[] = self::assetUrl($file, $name);
+            }
+        }
+        if ($stylesheets) {
+            $vars['stylesheets'] = $stylesheets;
+        }
+
+        if (self::assetPath('logo.svg', $name)) {
+            $vars['logo'] = self::assetUrl('logo.svg', $name);
+        }
+
+        if (self::assetPath('site.js', $name)) {
+            $vars['js'] = self::assetUrl('site.js', $name);
+        }
+
+        return $vars;
+    }
+
+    private static function isValidThemeName(string $name): bool
+    {
+        return (bool)preg_match('/^[a-zA-Z0-9_-]+$/', $name);
+    }
+}
