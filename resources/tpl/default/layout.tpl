@@ -6,6 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#111">
 
+    [site.has_favicon]
+    <link rel="shortcut icon" href="{site.favicon|raw}" />
+    [/site.has_favicon]
+
     <title>{meta.title}</title>
     <meta name="description" content="{meta.description}">
     <link rel="canonical" href="{meta.canonical}"> [meta.robots]

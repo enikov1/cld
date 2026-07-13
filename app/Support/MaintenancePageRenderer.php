@@ -19,11 +19,14 @@ class MaintenancePageRenderer
 
         $siteName = SiteSetting::get('site_name', config('app.name', 'LordSerial'));
         $logoUrl = trim((string)SiteSetting::get('site_logo_url', ''));
+        $faviconUrl = trim((string)SiteSetting::get('site_favicon_url', ''));
 
         $vars = [
             'site_name' => $siteName,
             'site_logo_url' => $logoUrl,
             'has_logo' => $logoUrl !== '',
+            'site_favicon_url' => $faviconUrl,
+            'has_favicon' => $faviconUrl !== '',
             'maintenance_title' => SiteConfig::str('maintenance_title') ?: 'Сайт на техническом обслуживании',
             'maintenance_message' => SiteConfig::str('maintenance_message') ?: 'Мы проводим технические работы. Скоро вернёмся!',
             'year' => (string)date('Y'),

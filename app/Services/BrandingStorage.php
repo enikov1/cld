@@ -14,6 +14,8 @@ class BrandingStorage
 
     private const LOGO_EXTENSIONS = ['png', 'jpg', 'jpeg', 'svg'];
 
+    private const FAVICON_EXTENSIONS = ['png', 'jpg', 'jpeg', 'ico', 'svg', 'webp'];
+
     private const BACKGROUND_EXTENSIONS = ['png', 'jpg', 'jpeg'];
 
     public function publicUrl(string $relativePath): string
@@ -29,6 +31,14 @@ class BrandingStorage
         return $this->store($file, 'logo', $ext, 'site_logo_url');
     }
 
+    public function storeFavicon(UploadedFile $file): string
+    {
+        $ext = $this->validateExtension($file, self::FAVICON_EXTENSIONS);
+        $this->validateSize($file);
+
+        return $this->store($file, 'favicon', $ext, 'site_favicon_url');
+    }
+
     public function storeBackground(UploadedFile $file): string
     {
         $ext = $this->validateExtension($file, self::BACKGROUND_EXTENSIONS);
@@ -40,6 +50,11 @@ class BrandingStorage
     public function deleteLogo(): void
     {
         $this->delete('logo', 'site_logo_url');
+    }
+
+    public function deleteFavicon(): void
+    {
+        $this->delete('favicon', 'site_favicon_url');
     }
 
     public function deleteBackground(): void

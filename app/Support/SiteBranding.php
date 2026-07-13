@@ -25,6 +25,13 @@ class SiteBranding
         return $url !== '' ? $url : null;
     }
 
+    public static function faviconUrl(): ?string
+    {
+        $url = trim((string)SiteSetting::get('site_favicon_url', ''));
+
+        return $url !== '' ? $url : null;
+    }
+
     public static function headerOffset(): int
     {
         $raw = SiteSetting::get('site_background_header_offset', '200');
@@ -39,11 +46,14 @@ class SiteBranding
     {
         $logo = self::logoUrl();
         $background = self::backgroundUrl();
+        $favicon = self::faviconUrl();
 
         return [
             'logo' => $logo ?? '',
             'background' => $background ?? '',
             'has_background' => $background ? '1' : '',
+            'favicon' => $favicon ?? '',
+            'has_favicon' => $favicon ? '1' : '',
             'background_header_offset' => (string)self::headerOffset(),
             'body_class' => $background ? 'has-site-bg' : '',
         ];

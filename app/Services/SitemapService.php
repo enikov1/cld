@@ -145,17 +145,60 @@ class SitemapService
 
         $xml .= "</urlset>\n";
 
-        $path = $this->path();
-        File::put($path, $xml);
-
-        $rootPath = base_path('../sitemap.xml');
-        if (is_dir(dirname($rootPath))) {
-            File::put($rootPath, $xml);
-        }
+        $this->writeXml($xml);
 
         $this->clearDirty();
 
         return true;
+    }
+
+    private function writeXml(string $xml): void
+    {
+        $path = $this->path();
+        $directory = dirname($path);
+
+        if (!is_dir($directory)) {
+            throw new \RuntimeException('Каталог public/ не найден.');
+        }
+
+        if (!is_writable($directory) && !(is_file($path) && is_writable($path))) {
+            throw new \RuntimeException(
+                'Нет прав на запись sitemap.xml в public/. '
+                . 'На сервере выполните: chgrp www-data public && chmod 775 public'
+            );
+        }
+
+        $tempPath = $path . '.tmp.' . getmypid();
+        if (file_put_contents($tempPath, $xml) === false) {
+            throw new \RuntimeException('Не удалось записать временный файл sitemap.xml.');
+        }
+
+        if (!@rename($tempPath, $path)) {
+            @unlink($tempPath);
+            throw new \RuntimeException('Не удалось сохранить public/sitemap.xml.');
+        }
+
+        $this->writeLegacyMirror($xml);
+    }
+
+    /**
+     * Optional mirror for local layouts (e.g. OSPanel). Must never break generation on VPS.
+     */
+    private function writeLegacyMirror(string $xml): void
+    {
+        $rootPath = base_path('../sitemap.xml');
+        $parentDir = dirname($rootPath);
+        $projectDir = realpath(base_path()) ?: base_path();
+
+        if ($parentDir === $projectDir || !is_dir($parentDir) || !is_writable($parentDir)) {
+            return;
+        }
+
+        try {
+            File::put($rootPath, $xml);
+        } catch (\Throwable) {
+            // Ignore — main sitemap in public/ is already written.
+        }
     }
 
     public function urlCount(): int

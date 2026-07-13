@@ -280,7 +280,7 @@ export default function SettingsPage() {
       children: (
         <Card title="Брендинг сайта" loading={loading} bordered={false}>
           <Typography.Paragraph type="secondary">
-            Название, слоган, логотип, фон и текст в подвале — отображаются на всех страницах.
+            Название, слоган, логотип, favicon, фон и текст в подвале — отображаются на всех страницах.
           </Typography.Paragraph>
           <Form.Item label="Название сайта" name="site_name">
             <Input placeholder="LordSerial" />
@@ -337,6 +337,56 @@ export default function SettingsPage() {
             accept=".png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml"
           >
             <Button style={{ marginBottom: 24 }}>Загрузить логотип</Button>
+          </Upload>
+
+          <Typography.Title level={5}>Favicon</Typography.Title>
+          <Typography.Paragraph type="secondary" style={{ marginBottom: 12 }}>
+            PNG, JPG, ICO, SVG или WebP, до 2 МБ. Отображается во вкладке браузера на всех страницах сайта.
+          </Typography.Paragraph>
+          {settingsMap.site_favicon_url ? (
+            <div style={{ marginBottom: 12 }}>
+              <img
+                src={settingsMap.site_favicon_url}
+                alt="Favicon"
+                style={{ width: 32, height: 32, objectFit: 'contain', display: 'block', marginBottom: 8 }}
+              />
+              <Typography.Paragraph type="secondary" style={{ marginBottom: 8, fontSize: 12 }}>
+                <code>{settingsMap.site_favicon_url}</code>
+              </Typography.Paragraph>
+              <Button
+                danger
+                size="small"
+                onClick={async () => {
+                  try {
+                    await api('/api/admin/branding/favicon', { method: 'DELETE' })
+                    message.success('Favicon удалён')
+                    await load()
+                  } catch (e) {
+                    message.error(String((e as Error).message))
+                  }
+                }}
+              >
+                Удалить favicon
+              </Button>
+            </div>
+          ) : null}
+          <Upload
+            beforeUpload={async (file) => {
+              const fd = new FormData()
+              fd.append('favicon', file)
+              try {
+                await apiUpload<{ favicon_url: string }>('/api/admin/branding/favicon', fd)
+                message.success('Favicon загружен')
+                await load()
+              } catch (e) {
+                message.error(String((e as Error).message))
+              }
+              return false
+            }}
+            showUploadList={false}
+            accept=".png,.jpg,.jpeg,.ico,.svg,.webp,image/png,image/jpeg,image/x-icon,image/vnd.microsoft.icon,image/svg+xml,image/webp"
+          >
+            <Button style={{ marginBottom: 24 }}>Загрузить favicon</Button>
           </Upload>
 
           <Typography.Title level={5}>Фон сайта</Typography.Title>

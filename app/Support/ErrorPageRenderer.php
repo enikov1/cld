@@ -106,12 +106,12 @@ class ErrorPageRenderer
             'form_errors_list' => [],
             'THEME' => ThemeManager::webPath(),
             'theme' => ThemeManager::assetVars(),
-            'site' => [
+            'site' => array_merge([
                 'name' => SiteSetting::get('site_name', config('app.name', 'LordSerial')),
                 'tagline' => SiteSetting::get('site_tagline', 'Сериалы онлайн'),
                 'footer_text' => SiteSetting::get('footer_text', 'Сериалы онлайн в HD качестве'),
                 'year' => (string)date('Y'),
-            ],
+            ], SiteBranding::siteVars()),
             'has_notifications' => SiteConfig::bool('notifications_enabled'),
             'speedbar_block' => '',
         ], NavMenuBuilder::forTpl(), SiteConfig::forTpl());

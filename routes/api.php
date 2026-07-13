@@ -577,6 +577,29 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
         return response()->json(['ok' => true]);
     });
 
+    Route::post('/branding/favicon', function (Request $request) {
+        $request->validate([
+            'favicon' => ['required', 'file', 'max:2048'],
+        ]);
+
+        try {
+            $url = app(BrandingStorage::class)->storeFavicon($request->file('favicon'));
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['ok' => false, 'error' => $e->getMessage()], 422);
+        }
+
+        TplCache::bumpGlobalVersion();
+
+        return response()->json(['ok' => true, 'favicon_url' => $url]);
+    });
+
+    Route::delete('/branding/favicon', function () {
+        app(BrandingStorage::class)->deleteFavicon();
+        TplCache::bumpGlobalVersion();
+
+        return response()->json(['ok' => true]);
+    });
+
     Route::post('/settings', function (Request $request) {
         $data = $request->validate([
             'settings' => ['required', 'array'],
@@ -880,7 +903,16 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
     });
 
     Route::post('/sitemap/generate', function (SitemapService $sitemap) {
-        $sitemap->generate();
+        try {
+            $sitemap->generate();
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'ok' => false,
+                'error' => $e->getMessage() ?: 'Не удалось сгенерировать sitemap.',
+            ], 500);
+        }
 
         $path = $sitemap->path();
         $mtime = is_file($path) ? filemtime($path) : null;

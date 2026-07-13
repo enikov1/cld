@@ -78,6 +78,8 @@ class TplSampleValues
             'site.logo' => \App\Support\SiteBranding::logoUrl() ?? '',
             'site.background' => \App\Support\SiteBranding::backgroundUrl() ?? '',
             'site.has_background' => \App\Support\SiteBranding::backgroundUrl() ? '1' : '',
+            'site.favicon' => \App\Support\SiteBranding::faviconUrl() ?? '',
+            'site.has_favicon' => \App\Support\SiteBranding::faviconUrl() ? '1' : '',
             'site.background_header_offset' => (string)\App\Support\SiteBranding::headerOffset(),
             'site.body_class' => \App\Support\SiteBranding::backgroundUrl() ? 'has-site-bg' : '',
             'csrf_token' => '(генерируется для каждой сессии)',

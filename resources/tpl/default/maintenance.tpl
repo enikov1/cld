@@ -6,6 +6,9 @@
     <meta name="robots" content="noindex, nofollow">
     <meta name="theme-color" content="#111">
     <title>{maintenance_title} — {site_name}</title>
+    [has_favicon]
+    <link rel="shortcut icon" href="{site_favicon_url|raw}" />
+    [/has_favicon]
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Oswald:wght@600;700&display=swap" rel="stylesheet">

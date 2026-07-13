@@ -419,6 +419,8 @@ class TplDocumentation
             self::docVar('site.tagline', 'Слоган'),
             self::docVar('site.footer_text', 'Текст в подвале'),
             self::docVar('site.year', 'Текущий год'),
+            self::docVar('site.favicon', 'URL favicon из настроек брендинга'),
+            self::docVar('site.has_favicon', 'Загружен favicon (блок [site.has_favicon])'),
             self::docVar('csrf_token', 'CSRF-токен'),
             self::docVar('THEME', 'Базовый URL-путь активной темы от корня сайта'),
             self::docVar('search_query', 'Текущий поисковый запрос'),
