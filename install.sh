@@ -68,12 +68,68 @@ env_set() {
     fi
 }
 
+fix_nodesource_apt_conflict() {
+    local force="${1:-0}"
+    local ns_files keyrings
+
+    ns_files=$(grep -rl 'deb.nodesource.com' /etc/apt/sources.list.d/ 2>/dev/null || true)
+    keyrings=0
+    [[ -f /usr/share/keyrings/nodejs.gpg ]] && keyrings=$((keyrings + 1))
+    [[ -f /usr/share/keyrings/nodesource.gpg ]] && keyrings=$((keyrings + 1))
+
+    if [[ "$force" == "1" ]] || [[ "$keyrings" -gt 1 ]] || [[ "$(echo "$ns_files" | grep -c . || echo 0)" -gt 1 ]]; then
+        warn "Исправление конфликта репозитория NodeSource..."
+        rm -f /etc/apt/sources.list.d/nodesource*.list /etc/apt/sources.list.d/nodesource*.sources
+        rm -f /etc/apt/sources.list.d/node_*.list /etc/apt/sources.list.d/node_*.sources
+        rm -f /usr/share/keyrings/nodejs.gpg /usr/share/keyrings/nodesource.gpg
+        return 0
+    fi
+    return 1
+}
+
+apt_get_update() {
+    if apt-get update -qq 2>/tmp/lordserial-apt-update.err; then
+        return 0
+    fi
+
+    if grep -q 'Conflicting values set for option Signed-By' /tmp/lordserial-apt-update.err; then
+        fix_nodesource_apt_conflict 1
+        apt-get update -qq
+        return 0
+    fi
+
+    cat /tmp/lordserial-apt-update.err >&2
+    die "apt-get update завершился с ошибкой"
+}
+
+install_nodejs() {
+    if command -v node &>/dev/null && [[ "$(node -v | cut -d. -f1 | tr -d v)" -ge 18 ]]; then
+        log "Node.js $(node -v) уже установлен — пропуск"
+        return
+    fi
+
+    log "Установка Node.js 20 LTS..."
+    rm -f /etc/apt/sources.list.d/nodesource*.list /etc/apt/sources.list.d/nodesource*.sources
+    rm -f /etc/apt/sources.list.d/node_*.list /etc/apt/sources.list.d/node_*.sources
+    rm -f /usr/share/keyrings/nodejs.gpg /usr/share/keyrings/nodesource.gpg
+
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+        | gpg --dearmor -o /usr/share/keyrings/nodesource.gpg
+    echo "deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" \
+        > /etc/apt/sources.list.d/nodesource.list
+
+    apt_get_update
+    apt-get install -y -qq nodejs
+}
+
 # ─── Подготовка ───────────────────────────────────────────────────────────────
 
 require_root
 check_ubuntu
 
 export DEBIAN_FRONTEND=noninteractive
+
+fix_nodesource_apt_conflict || true
 
 if [[ -f "$SCRIPT_DIR/artisan" ]]; then
     APP_DIR="$SCRIPT_DIR"
@@ -99,7 +155,7 @@ log "База:      ${DB_NAME} (пользователь: ${DB_USER})"
 # ─── Системные пакеты ───────────────────────────────────────────────────────
 
 log "Обновление пакетов и установка зависимостей..."
-apt-get update -qq
+apt_get_update
 apt-get install -y -qq \
     ca-certificates curl gnupg lsb-release software-properties-common \
     git unzip acl \
@@ -119,7 +175,7 @@ if ! command -v caddy &>/dev/null; then
         | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
     curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' \
         | tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null
-    apt-get update -qq
+    apt_get_update
     apt-get install -y -qq caddy
 else
     log "Caddy уже установлен — пропуск"
@@ -127,13 +183,7 @@ fi
 
 # ─── Node.js 20 LTS ─────────────────────────────────────────────────────────
 
-if ! command -v node &>/dev/null || [[ "$(node -v | cut -d. -f1 | tr -d v)" -lt 18 ]]; then
-    log "Установка Node.js 20 LTS..."
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-    apt-get install -y -qq nodejs
-else
-    log "Node.js $(node -v) уже установлен — пропуск"
-fi
+install_nodejs
 
 # ─── Composer ───────────────────────────────────────────────────────────────
 
