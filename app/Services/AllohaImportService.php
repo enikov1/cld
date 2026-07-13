@@ -73,9 +73,7 @@ class AllohaImportService
         $isNew = !$existing;
 
         $ratingsOnly = (bool)($options['ratings_only'] ?? false);
-        $syncPlayers = array_key_exists('sync_players', $options)
-            ? (bool)$options['sync_players']
-            : SiteConfig::bool('player_alloha_sync_enabled');
+        $syncPlayers = $this->resolveSyncPlayers($options);
         $syncMetadata = array_key_exists('sync_metadata', $options) ? (bool)$options['sync_metadata'] : true;
         $syncPoster = (bool)($options['sync_poster'] ?? ($options['download_poster'] ?? false));
         $syncGenresCountries = array_key_exists('sync_genres_countries', $options)
@@ -194,6 +192,8 @@ class AllohaImportService
 
         if ($syncPlayers) {
             $this->playerSync->sync($series, $translations, $defaultIframe);
+        } else {
+            $this->playerSync->removeForSeries($series);
         }
 
         app(CdnVideoHubPlayerSync::class)->syncIfEnabled($series);
@@ -246,5 +246,21 @@ class AllohaImportService
         }
 
         return $filtered;
+    }
+
+    /**
+     * @param array<string,mixed> $options
+     */
+    private function resolveSyncPlayers(array $options): bool
+    {
+        if (!SiteConfig::bool('player_alloha_sync_enabled')) {
+            return false;
+        }
+
+        if (array_key_exists('sync_players', $options)) {
+            return (bool)$options['sync_players'];
+        }
+
+        return true;
     }
 }

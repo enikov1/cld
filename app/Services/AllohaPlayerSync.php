@@ -5,14 +5,28 @@ namespace App\Services;
 use App\Models\PlayerSource;
 use App\Models\Series;
 use App\Support\PlayerUrlHelper;
+use App\Support\SiteConfig;
 
 class AllohaPlayerSync
 {
+    public const SOURCE_KEY = 'alloha';
+
+    public static function isEnabled(): bool
+    {
+        return SiteConfig::bool('player_alloha_sync_enabled');
+    }
+
     /**
      * @param list<array<string,mixed>> $translations
      */
     public function sync(Series $series, array $translations, ?string $defaultIframe = null): void
     {
+        if (!self::isEnabled()) {
+            $this->removeForSeries($series);
+
+            return;
+        }
+
         $priority = 100;
         $seenTranslationIds = [];
 
@@ -34,6 +48,7 @@ class AllohaPlayerSync
                 'iframe_url' => $iframe,
                 'is_active' => true,
                 'priority' => $priority,
+                'source_key' => self::SOURCE_KEY,
             ];
             $priority -= 10;
 
@@ -66,6 +81,7 @@ class AllohaPlayerSync
             if ($defaultIframe !== '' && !$series->playerSources()->exists()) {
                 PlayerSource::query()->create([
                     'series_id' => $series->id,
+                    'source_key' => self::SOURCE_KEY,
                     'provider' => 'Смотреть онлайн',
                     'iframe_url' => $defaultIframe,
                     'is_active' => true,
@@ -75,7 +91,36 @@ class AllohaPlayerSync
         }
 
         $series->refresh();
-        $firstUrl = PlayerUrlHelper::firstIframeUrlForSeries($series);
-        $series->update(['player_url' => $firstUrl]);
+        $this->syncLegacyPlayerUrl($series);
+    }
+
+    public function removeForSeries(Series $series): void
+    {
+        $deleted = PlayerSource::query()
+            ->where('series_id', $series->id)
+            ->where(function ($query) {
+                $query->where('source_key', self::SOURCE_KEY)
+                    ->orWhereNotNull('alloha_translation_id');
+            })
+            ->delete();
+
+        if ($deleted === 0) {
+            return;
+        }
+
+        $series->refresh();
+        $this->syncLegacyPlayerUrl($series);
+    }
+
+    private function syncLegacyPlayerUrl(Series $series): void
+    {
+        $activePlayers = PlayerUrlHelper::activePlayersForSeries($series);
+        if ($activePlayers === []) {
+            $series->update(['player_url' => null]);
+
+            return;
+        }
+
+        $series->update(['player_url' => PlayerUrlHelper::firstIframeUrlForSeries($series)]);
     }
 }

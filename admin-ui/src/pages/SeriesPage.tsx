@@ -18,6 +18,7 @@ import {
   Upload,
   message,
 } from 'antd'
+import { CopyOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -29,6 +30,7 @@ import SeriesPlayersEditor from '../components/SeriesPlayersEditor'
 import type { SeriesItem, StudioItem, TaxonomyOption } from '../types'
 import { BROADCAST_STATUSES, CONTENT_TYPES } from '../types'
 import { resolveMediaUrl } from '../utils/mediaUrl'
+import { buildDescriptionAiPrompt } from '../utils/descriptionAiPrompt'
 
 type SelectOption = { value: number; label: string }
 
@@ -182,7 +184,7 @@ export default function SeriesPage() {
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(50)
   const [total, setTotal] = useState(0)
-  const [filtersOpen, setFiltersOpen] = useState(true)
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerTab, setDrawerTab] = useState('main')
   const [mainSubTab, setMainSubTab] = useState('basic')
@@ -380,6 +382,41 @@ export default function SeriesPage() {
       await loadSeries()
     } catch (e) {
       message.error(String((e as Error).message))
+    }
+  }
+
+  async function copyDescriptionAiPrompt() {
+    const values = form.getFieldsValue()
+    const title = String(values.title ?? '').trim()
+    const description = String(values.description ?? '').trim()
+
+    if (!title) {
+      message.warning('Заполните название')
+      return
+    }
+    if (!description) {
+      message.warning('Заполните описание')
+      return
+    }
+
+    const genreIds: number[] = values.genre_ids ?? []
+    const genreNames = genreIds
+      .map((id) => genreOptions.find((option) => option.value === id)?.label)
+      .filter((name): name is string => Boolean(name))
+
+    const prompt = buildDescriptionAiPrompt({
+      title,
+      year: values.year,
+      contentType: values.content_type,
+      genreNames,
+      description,
+    })
+
+    try {
+      await navigator.clipboard.writeText(prompt)
+      message.success('Промпт скопирован в буфер обмена')
+    } catch {
+      message.error('Не удалось скопировать')
     }
   }
 
@@ -888,7 +925,17 @@ export default function SeriesPage() {
                   <>
                     <Form.Item label="Слоган" name="slogan"><Input /></Form.Item>
                     <Form.Item label="Краткое описание" name="short_description"><Input.TextArea rows={2} /></Form.Item>
-                    <Form.Item label="Описание" name="description"><Input.TextArea rows={4} /></Form.Item>
+                    <Form.Item
+                      label="Описание"
+                      name="description"
+                      extra={
+                        <Button type="link" size="small" icon={<CopyOutlined />} onClick={copyDescriptionAiPrompt} style={{ padding: 0 }}>
+                          Скопировать промпт для ИИ
+                        </Button>
+                      }
+                    >
+                      <Input.TextArea rows={4} />
+                    </Form.Item>
                     <Form.Item label="Meta title" name="meta_title" extra="Если пусто — название + суффикс из настроек">
                       <Input />
                     </Form.Item>

@@ -244,11 +244,13 @@ export default function SettingsPage() {
 
   async function save(values: Record<string, unknown>) {
     const prevPath = settingsMap.admin_path || 'admin'
+    const allValues = form.getFieldsValue(true) as Record<string, unknown>
+    const merged = { ...allValues, ...values }
     try {
       await api('/api/admin/settings', {
         method: 'POST',
         body: JSON.stringify({
-          settings: Object.entries(values).map(([key, value]) => {
+          settings: Object.entries(merged).map(([key, value]) => {
             if (boolKeys.has(key)) {
               return { key, value: value ? '1' : '0' }
             }
@@ -256,7 +258,7 @@ export default function SettingsPage() {
           }),
         }),
       })
-      const nextPath = String(values.admin_path || 'admin').replace(/^\/+|\/+$/g, '')
+      const nextPath = String(merged.admin_path || 'admin').replace(/^\/+|\/+$/g, '')
       if (nextPath !== prevPath.replace(/^\/+|\/+$/g, '')) {
         message.success(`Настройки сохранены. Откройте админку: /${nextPath}/`)
       } else {

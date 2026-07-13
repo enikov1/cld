@@ -16,7 +16,6 @@ use App\Services\PosterStorage;
 use App\Services\SeriesViewService;
 use App\Services\TaxonomyService;
 use App\Support\AdminSeriesFilter;
-use App\Support\SiteConfig;
 use App\Support\SlugHelper;
 use App\Support\TplCache;
 use Illuminate\Http\Request;
@@ -336,7 +335,6 @@ class AdminSeriesController extends Controller
 
         $result = app(AllohaImportService::class)->importByKpId($kp_id, [
             'download_poster' => (bool)($data['download_poster'] ?? true),
-            'sync_players' => (bool)($data['sync_players'] ?? SiteConfig::bool('player_alloha_sync_enabled')),
             'sync_metadata' => (bool)($data['sync_metadata'] ?? true),
             'sync_genres_countries' => true,
             'sync_people' => true,
