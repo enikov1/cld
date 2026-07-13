@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Series;
+use App\Support\SiteConfig;
 use App\Support\SlugHelper;
 use App\Support\TplCache;
 use Illuminate\Support\Str;
@@ -72,7 +73,9 @@ class AllohaImportService
         $isNew = !$existing;
 
         $ratingsOnly = (bool)($options['ratings_only'] ?? false);
-        $syncPlayers = array_key_exists('sync_players', $options) ? (bool)$options['sync_players'] : true;
+        $syncPlayers = array_key_exists('sync_players', $options)
+            ? (bool)$options['sync_players']
+            : SiteConfig::bool('player_alloha_sync_enabled');
         $syncMetadata = array_key_exists('sync_metadata', $options) ? (bool)$options['sync_metadata'] : true;
         $syncPoster = (bool)($options['sync_poster'] ?? ($options['download_poster'] ?? false));
         $syncGenresCountries = array_key_exists('sync_genres_countries', $options)
@@ -136,7 +139,7 @@ class AllohaImportService
         if ($isNew) {
             $attrs['is_active'] = array_key_exists('is_active', $options)
                 ? (bool)$options['is_active']
-                : true;
+                : false;
             $attrs['is_hidden'] = array_key_exists('is_hidden', $options)
                 ? (bool)$options['is_hidden']
                 : false;
@@ -192,6 +195,8 @@ class AllohaImportService
         if ($syncPlayers) {
             $this->playerSync->sync($series, $translations, $defaultIframe);
         }
+
+        app(CdnVideoHubPlayerSync::class)->syncIfEnabled($series);
 
         TplCache::forgetSeries($series->id);
 

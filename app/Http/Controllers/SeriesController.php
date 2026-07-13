@@ -56,7 +56,7 @@ class SeriesController extends TplController
         UserLibraryService::recordWatchHistory($series->id, Auth::user(), request());
 
         $players = PlayerUrlHelper::activePlayersForSeries($series);
-        $activeSource = $players[0]['url'] ?? '';
+        $activeSource = $players[0]['url'] ?? ($players[0]['html'] ?? '');
 
         $seriesUrl = url(SeriesUrl::path($series));
 

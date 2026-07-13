@@ -11,6 +11,7 @@ class PlayerSource extends Model
         'series_id',
         'provider',
         'alloha_translation_id',
+        'source_key',
         'iframe_url',
         'is_active',
         'priority',

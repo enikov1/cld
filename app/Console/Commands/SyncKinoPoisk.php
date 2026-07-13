@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Series;
+use App\Services\CdnVideoHubPlayerSync;
 use App\Services\KinoPoiskClient;
 use App\Services\KinoPoiskMapper;
 use App\Services\KinoPoiskStaffMapper;
@@ -112,6 +113,8 @@ class SyncKinoPoisk extends Command
                 $people['_actor_people'],
                 $people['_director_people'],
             );
+
+            app(CdnVideoHubPlayerSync::class)->syncIfEnabled($series);
 
             $count++;
             if ($sleep > 0) {

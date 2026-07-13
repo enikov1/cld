@@ -14,16 +14,17 @@ type PlayerRow = {
 
 type Props = {
   kpId?: string | null
-  open: boolean
+  drawerOpen: boolean
+  refreshKey?: number
 }
 
-export default function SeriesPlayersEditor({ kpId, open }: Props) {
+export default function SeriesPlayersEditor({ kpId, drawerOpen, refreshKey = 0 }: Props) {
   const [rows, setRows] = useState<PlayerRow[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
-    if (!kpId || !open) return
+    if (!kpId || !drawerOpen) return
     setLoading(true)
     try {
       const data = await api<{ players: Array<Omit<PlayerRow, 'key'>> }>(`/api/admin/series/${kpId}/players`)
@@ -42,11 +43,12 @@ export default function SeriesPlayersEditor({ kpId, open }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [kpId, open])
+  }, [kpId, drawerOpen])
 
   useEffect(() => {
+    if (!drawerOpen || !kpId) return
     load()
-  }, [load])
+  }, [kpId, drawerOpen, refreshKey, load])
 
   function addPlayer() {
     const nextPriority = rows.length ? Math.min(...rows.map((r) => r.priority)) - 10 : 100
@@ -120,12 +122,12 @@ export default function SeriesPlayersEditor({ kpId, open }: Props) {
       ),
     },
     {
-      title: 'URL iframe',
+      title: 'URL / embed-код',
       dataIndex: 'iframe_url',
       render: (_, row) => (
         <Input
           value={row.iframe_url}
-          placeholder="https://..."
+          placeholder="https://... или <video-player ..."
           onChange={(e) => updateRow(row.key, { iframe_url: e.target.value })}
         />
       ),
@@ -171,6 +173,7 @@ export default function SeriesPlayersEditor({ kpId, open }: Props) {
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
         <p className="admin-empty-hint">
           Добавьте один или несколько embed-плееров. На сайте они отображаются вкладками. Чем выше приоритет — тем левее вкладка.
+          Не забудьте нажать «Сохранить плееры» перед закрытием редактора.
         </p>
         <Space wrap>
           <Button onClick={addPlayer}>Добавить плеер</Button>

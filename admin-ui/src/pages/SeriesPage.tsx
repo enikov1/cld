@@ -189,6 +189,7 @@ export default function SeriesPage() {
   const [editing, setEditing] = useState<SeriesItem | null>(null)
   const [importing, setImporting] = useState(false)
   const [importingAlloha, setImportingAlloha] = useState(false)
+  const [playersRefreshKey, setPlayersRefreshKey] = useState(0)
   const [form] = Form.useForm()
   const [filterForm] = Form.useForm<SeriesListFilters>()
   const posterUrl = Form.useWatch('poster_url', form)
@@ -353,25 +354,28 @@ export default function SeriesPage() {
   }
 
   async function save(values: Record<string, unknown>) {
-    const payload = { ...values }
-    const premiereDate = values.premiere_date
+    const allValues = form.getFieldsValue(true) as Record<string, unknown>
+    const payload = { ...allValues, ...values }
+    const premiereDate = payload.premiere_date
     if (premiereDate && dayjs.isDayjs(premiereDate)) {
       payload.premiere_date = premiereDate.format('YYYY-MM-DD')
     } else {
       payload.premiere_date = null
     }
 
-    const durationMinutes = values.duration_minutes
+    const durationMinutes = payload.duration_minutes
     if (durationMinutes === null || durationMinutes === undefined || Number(durationMinutes) < 1) {
       payload.duration_minutes = null
     }
 
     try {
-      await api('/api/admin/series/upsert', {
+      const res = await api<{ item: SeriesItem }>('/api/admin/series/upsert', {
         method: 'POST',
         body: JSON.stringify(payload),
       })
       message.success(editing ? 'Сохранено' : 'Создано')
+      setEditing(res.item)
+      form.setFieldsValue(seriesToFormValues(res.item))
       setDrawerOpen(false)
       await loadSeries()
     } catch (e) {
@@ -394,6 +398,7 @@ export default function SeriesPage() {
         }),
       })
       await applyImportedItem(res.item)
+      setPlayersRefreshKey((key) => key + 1)
       message.success('Данные загружены из KinoPoisk')
       await loadSeries()
     } catch (e) {
@@ -415,11 +420,11 @@ export default function SeriesPage() {
         method: 'POST',
         body: JSON.stringify({
           download_poster: true,
-          sync_players: true,
           sync_metadata: true,
         }),
       })
       await applyImportedItem(res.item)
+      setPlayersRefreshKey((key) => key + 1)
       message.success('Данные загружены из Alloha')
       await loadSeries()
     } catch (e) {
@@ -752,18 +757,20 @@ export default function SeriesPage() {
           </Space>
         }
       >
+        <Form form={form} layout="vertical" onFinish={save} preserve>
         <Tabs
           activeKey={drawerTab}
           onChange={setDrawerTab}
+          destroyInactiveTabPane={false}
           items={[
             {
               key: 'main',
               label: 'Основное',
               children: (
-        <Form form={form} layout="vertical" onFinish={save}>
           <Tabs
             activeKey={mainSubTab}
             onChange={setMainSubTab}
+            destroyInactiveTabPane={false}
             items={[
               {
                 key: 'basic',
@@ -943,7 +950,6 @@ export default function SeriesPage() {
               },
             ]}
           />
-        </Form>
               ),
             },
             {
@@ -952,7 +958,8 @@ export default function SeriesPage() {
               children: (
                 <SeriesPlayersEditor
                   kpId={editing?.kp_id ?? form.getFieldValue('kp_id')}
-                  open={drawerOpen && drawerTab === 'players'}
+                  drawerOpen={drawerOpen}
+                  refreshKey={playersRefreshKey}
                 />
               ),
             },
@@ -968,6 +975,7 @@ export default function SeriesPage() {
             },
           ]}
         />
+        </Form>
       </Drawer>
     </div>
   )

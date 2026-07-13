@@ -996,6 +996,13 @@ export default function SettingsPage() {
             </Typography.Paragraph>
           ) : null}
         </Card>
+        <Card title="CDN VideoHub — автоплеер" loading={loading} bordered={false} style={{ marginTop: 16 }}>
+          <Typography.Paragraph type="secondary">
+            При импорте сериала автоматически добавляется вкладка с плеером <code>&lt;video-player&gt;</code>.
+            В атрибут <code>data-title-id</code> подставляется KP ID сериала.
+          </Typography.Paragraph>
+          <SiteConfigFields fields={configSchema.players?.fields ?? []} />
+        </Card>
         </>
       ),
     },

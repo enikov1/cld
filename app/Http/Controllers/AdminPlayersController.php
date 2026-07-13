@@ -14,7 +14,6 @@ class AdminPlayersController extends Controller
     public function show(string $kpId)
     {
         $series = Series::query()->where('kp_id', $kpId)->firstOrFail();
-        $this->ensureLegacyPlayerMigrated($series);
 
         $items = $series->playerSources()
             ->orderByDesc('priority')
@@ -40,7 +39,7 @@ class AdminPlayersController extends Controller
             'players' => ['nullable', 'array'],
             'players.*.id' => ['nullable', 'integer'],
             'players.*.provider' => ['nullable', 'string', 'max:120'],
-            'players.*.iframe_url' => ['required', 'string', 'max:2000'],
+            'players.*.iframe_url' => ['required', 'string', 'max:5000'],
             'players.*.is_active' => ['nullable', 'boolean'],
             'players.*.priority' => ['nullable', 'integer'],
         ]);
@@ -50,7 +49,7 @@ class AdminPlayersController extends Controller
             $keptIds = [];
 
             foreach ($data['players'] ?? [] as $i => $row) {
-                $url = PlayerUrlHelper::sanitize($row['iframe_url'] ?? '');
+                $url = PlayerUrlHelper::normalizePlayerContent($row['iframe_url'] ?? '');
                 if ($url === '') {
                     continue;
                 }
@@ -90,8 +89,12 @@ class AdminPlayersController extends Controller
             }
 
             $series->refresh();
-            $firstUrl = PlayerUrlHelper::activePlayersForSeries($series)[0]['url'] ?? null;
-            $series->update(['player_url' => $firstUrl]);
+            $activePlayers = PlayerUrlHelper::activePlayersForSeries($series);
+            if ($activePlayers === []) {
+                $series->update(['player_url' => null]);
+            } else {
+                $series->update(['player_url' => PlayerUrlHelper::firstIframeUrlForSeries($series)]);
+            }
         });
 
         TplCache::forgetSeries($series->id);
@@ -112,26 +115,6 @@ class AdminPlayersController extends Controller
                     'priority' => $source->priority,
                 ])
                 ->all(),
-        ]);
-    }
-
-    private function ensureLegacyPlayerMigrated(Series $series): void
-    {
-        if ($series->playerSources()->exists()) {
-            return;
-        }
-
-        $url = PlayerUrlHelper::sanitize($series->player_url);
-        if ($url === '') {
-            return;
-        }
-
-        PlayerSource::query()->create([
-            'series_id' => $series->id,
-            'provider' => 'Смотреть онлайн',
-            'iframe_url' => $url,
-            'is_active' => true,
-            'priority' => 100,
         ]);
     }
 }

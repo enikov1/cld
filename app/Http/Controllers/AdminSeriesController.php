@@ -6,6 +6,7 @@ use App\Models\Series;
 use App\Models\Studio;
 use App\Models\StudioItem;
 use App\Services\ImageOptimizer;
+use App\Services\CdnVideoHubPlayerSync;
 use App\Services\KinoPoiskClient;
 use App\Services\KinoPoiskMapper;
 use App\Services\KinoPoiskStaffMapper;
@@ -15,6 +16,7 @@ use App\Services\PosterStorage;
 use App\Services\SeriesViewService;
 use App\Services\TaxonomyService;
 use App\Support\AdminSeriesFilter;
+use App\Support\SiteConfig;
 use App\Support\SlugHelper;
 use App\Support\TplCache;
 use Illuminate\Http\Request;
@@ -117,6 +119,7 @@ class AdminSeriesController extends Controller
         $kpId = (string)$data['kp_id'];
 
         $existing = Series::query()->where('kp_id', $kpId)->first();
+        $isNew = !$existing;
         $oldSeason = $existing?->season_number;
         $oldEpisode = $existing?->last_episode_number;
 
@@ -124,55 +127,57 @@ class AdminSeriesController extends Controller
             $slug = Str::slug($slug . '-' . $kpId);
         }
 
-        $isPinned = (bool)($data['is_pinned'] ?? false);
-
         $attrs = [
-            'studio_id' => $data['studio_id'] ?? null,
             'slug' => $slug,
             'title' => $data['title'],
-            'meta_title' => $data['meta_title'] ?? null,
-            'meta_description' => $data['meta_description'] ?? null,
-            'title_en' => $data['title_en'] ?? null,
-            'title_original' => $data['title_original'] ?? null,
-            'description' => $data['description'] ?? null,
-            'short_description' => $data['short_description'] ?? null,
-            'slogan' => $data['slogan'] ?? null,
-            'year' => $data['year'] ?? null,
-            'start_year' => $data['start_year'] ?? null,
-            'end_year' => $data['end_year'] ?? null,
-            'duration_minutes' => $data['duration_minutes'] ?? null,
-            'kp_rating' => $data['kp_rating'] ?? null,
-            'imdb_rating' => $data['imdb_rating'] ?? null,
-            'kp_votes_count' => $data['kp_votes_count'] ?? null,
-            'imdb_votes_count' => $data['imdb_votes_count'] ?? null,
-            'imdb_id' => $data['imdb_id'] ?? null,
-            'tmdb_id' => $data['tmdb_id'] ?? null,
-            'content_type' => $data['content_type'] ?? null,
-            'broadcast_status' => $data['broadcast_status'] ?? null,
-            'season_number' => $data['season_number'] ?? null,
-            'last_episode_number' => $data['last_episode_number'] ?? null,
-            'premiere_date' => $data['premiere_date'] ?? null,
-            'translation' => $data['translation'] ?? null,
-            'channel_name' => $data['channel_name'] ?? null,
-            'channel_url' => $data['channel_url'] ?? null,
-            'channel_logo_url' => $data['channel_logo_url'] ?? null,
-            'age_limit' => $data['age_limit'] ?? null,
-            'kp_web_url' => $data['kp_web_url'] ?? null,
-            'is_active' => $data['is_active'] ?? true,
-            'is_hidden' => $data['is_hidden'] ?? false,
-            'noindex' => $data['noindex'] ?? false,
-            'is_pinned' => $isPinned,
-            'pinned_at' => $isPinned ? now() : null,
-            'is_coming_soon' => (bool)($data['is_coming_soon'] ?? false),
-            'sort_order' => $data['sort_order'] ?? 0,
         ];
+
+        $nullableScalars = [
+            'studio_id', 'meta_title', 'meta_description', 'title_en', 'title_original',
+            'description', 'short_description', 'slogan', 'year', 'start_year', 'end_year',
+            'duration_minutes', 'kp_rating', 'imdb_rating', 'kp_votes_count', 'imdb_votes_count',
+            'imdb_id', 'tmdb_id', 'content_type', 'broadcast_status', 'season_number',
+            'last_episode_number', 'premiere_date', 'translation', 'channel_name', 'channel_url',
+            'channel_logo_url', 'age_limit', 'kp_web_url',
+        ];
+
+        foreach ($nullableScalars as $key) {
+            if (array_key_exists($key, $data)) {
+                $attrs[$key] = $data[$key];
+            } elseif ($isNew) {
+                $attrs[$key] = null;
+            }
+        }
+
+        foreach (['is_active', 'is_hidden', 'noindex', 'is_coming_soon'] as $boolKey) {
+            if (array_key_exists($boolKey, $data)) {
+                $attrs[$boolKey] = (bool)$data[$boolKey];
+            } elseif ($isNew) {
+                $attrs[$boolKey] = false;
+            }
+        }
+
+        if (array_key_exists('is_pinned', $data)) {
+            $isPinned = (bool)$data['is_pinned'];
+            $attrs['is_pinned'] = $isPinned;
+            $attrs['pinned_at'] = $isPinned ? now() : null;
+        } elseif ($isNew) {
+            $attrs['is_pinned'] = false;
+            $attrs['pinned_at'] = null;
+        }
+
+        if (array_key_exists('sort_order', $data)) {
+            $attrs['sort_order'] = (int)($data['sort_order'] ?? 0);
+        } elseif ($isNew) {
+            $attrs['sort_order'] = 0;
+        }
 
         if (array_key_exists('player_url', $data)) {
             $attrs['player_url'] = trim((string)$data['player_url']) ?: null;
         }
 
-        if (!empty($data['poster_url'])) {
-            $attrs['poster_url'] = $data['poster_url'];
+        if (array_key_exists('poster_url', $data)) {
+            $attrs['poster_url'] = trim((string)$data['poster_url']) ?: null;
         }
 
         if (!empty($data['download_poster']) && !empty($data['poster_url'])) {
@@ -194,14 +199,19 @@ class AdminSeriesController extends Controller
             $series->restore();
         }
 
-        app(TaxonomyService::class)->syncSeriesRelations($series, [
-            'genre_ids' => $data['genre_ids'] ?? null,
-            'country_ids' => $data['country_ids'] ?? null,
-            'actor_ids' => $data['actor_ids'] ?? null,
-            'director_ids' => $data['director_ids'] ?? null,
-        ]);
+        $relations = [];
+        foreach (['genre_ids', 'country_ids', 'actor_ids', 'director_ids'] as $relationKey) {
+            if (array_key_exists($relationKey, $data)) {
+                $relations[$relationKey] = $data[$relationKey];
+            }
+        }
+        if ($relations !== []) {
+            app(TaxonomyService::class)->syncSeriesRelations($series, $relations);
+        }
 
-        $this->syncStudioMembership($series, $existing?->studio_id, $data['studio_id'] ?? null);
+        if (array_key_exists('studio_id', $data)) {
+            $this->syncStudioMembership($series, $existing?->studio_id, $data['studio_id']);
+        }
 
         $series->refresh();
         \App\Services\EpisodeNotifier::fromSeriesProgress($series, $oldSeason, $oldEpisode);
@@ -281,12 +291,15 @@ class AdminSeriesController extends Controller
 
         unset($mapped['poster_source_url']);
 
+        $existing = Series::query()->withTrashed()->where('kp_id', (string)$kp_id)->first();
+
         $series = Series::query()->withTrashed()->updateOrCreate(
             ['kp_id' => (string)$kp_id],
             array_merge($mapped, [
                 'slug' => $slug,
                 'poster_url' => $posterUrl,
-                'is_active' => true,
+            ], $existing ? [] : [
+                'is_active' => false,
             ])
         );
 
@@ -304,6 +317,9 @@ class AdminSeriesController extends Controller
             $people['_director_people'],
         );
 
+        app(CdnVideoHubPlayerSync::class)->syncIfEnabled($series);
+        TplCache::forgetSeries($series->id);
+
         return response()->json([
             'ok' => true,
             'item' => $this->serializeSeries($series->fresh()->load(['genres', 'countries', 'actors', 'directors'])),
@@ -320,11 +336,12 @@ class AdminSeriesController extends Controller
 
         $result = app(AllohaImportService::class)->importByKpId($kp_id, [
             'download_poster' => (bool)($data['download_poster'] ?? true),
-            'sync_players' => (bool)($data['sync_players'] ?? true),
+            'sync_players' => (bool)($data['sync_players'] ?? SiteConfig::bool('player_alloha_sync_enabled')),
             'sync_metadata' => (bool)($data['sync_metadata'] ?? true),
             'sync_genres_countries' => true,
             'sync_people' => true,
             'fill_empty_only' => false,
+            'is_active' => false,
         ]);
 
         if ($result['ok'] && $result['series']) {

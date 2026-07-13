@@ -19,8 +19,37 @@ class PlayerUrlHelper
         return $url;
     }
 
+    public static function isEmbedHtml(?string $content): bool
+    {
+        if (!$content) {
+            return false;
+        }
+
+        $content = trim($content);
+
+        return (bool)preg_match('/^<(?:video-player|script|div|iframe)/i', $content);
+    }
+
+    public static function normalizePlayerContent(?string $content): string
+    {
+        if (!$content) {
+            return '';
+        }
+
+        $content = trim($content);
+        if ($content === '') {
+            return '';
+        }
+
+        if (self::isEmbedHtml($content)) {
+            return $content;
+        }
+
+        return self::sanitize($content);
+    }
+
     /**
-     * @return list<array{id: int|null, label: string, url: string, index: int, is_first: bool}>
+     * @return list<array{id: int|null, label: string, url: string, html: string, is_embed: bool, index: int, is_first: bool}>
      */
     public static function activePlayersForSeries(\App\Models\Series $series): array
     {
@@ -31,15 +60,19 @@ class PlayerUrlHelper
             ->get();
 
         if ($sources->isEmpty()) {
-            $fallback = self::sanitize($series->player_url);
+            $fallback = self::normalizePlayerContent($series->player_url);
             if ($fallback === '') {
                 return [];
             }
 
+            $isEmbed = self::isEmbedHtml($fallback);
+
             return [[
                 'id' => null,
                 'label' => 'Смотреть онлайн',
-                'url' => $fallback,
+                'url' => $isEmbed ? '' : $fallback,
+                'html' => $isEmbed ? $fallback : '',
+                'is_embed' => $isEmbed,
                 'index' => 0,
                 'is_first' => true,
             ]];
@@ -49,10 +82,12 @@ class PlayerUrlHelper
         $index = 0;
 
         foreach ($sources as $source) {
-            $url = self::sanitize($source->iframe_url);
-            if ($url === '') {
+            $content = self::normalizePlayerContent($source->iframe_url);
+            if ($content === '') {
                 continue;
             }
+
+            $isEmbed = self::isEmbedHtml($content);
 
             $label = trim((string)$source->provider);
             if ($label === '') {
@@ -62,7 +97,9 @@ class PlayerUrlHelper
             $players[] = [
                 'id' => $source->id,
                 'label' => $label,
-                'url' => $url,
+                'url' => $isEmbed ? '' : $content,
+                'html' => $isEmbed ? $content : '',
+                'is_embed' => $isEmbed,
                 'index' => $index,
                 'is_first' => $index === 0,
             ];
@@ -70,5 +107,16 @@ class PlayerUrlHelper
         }
 
         return $players;
+    }
+
+    public static function firstIframeUrlForSeries(\App\Models\Series $series): ?string
+    {
+        foreach (self::activePlayersForSeries($series) as $player) {
+            if (!($player['is_embed'] ?? false) && !empty($player['url'])) {
+                return $player['url'];
+            }
+        }
+
+        return null;
     }
 }

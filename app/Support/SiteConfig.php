@@ -149,6 +149,74 @@ class SiteConfig
             'card_badge_popular_label' => ['type' => 'string', 'default' => 'Популярно', 'group' => 'engagement', 'label' => 'Текст бейджа популярности'],
             'card_reaction_min_votes' => ['type' => 'int', 'default' => '1', 'group' => 'engagement', 'label' => 'Мин. голосов для эмоджи на карточке', 'min' => 1, 'max' => 100],
 
+            // CDN VideoHub auto-player
+            'player_cdnvideohub_auto_enabled' => [
+                'type' => 'bool',
+                'default' => '0',
+                'group' => 'players',
+                'label' => 'Автодобавление при импорте',
+                'description' => 'Автоматически создавать вкладку плеера при импорте из KinoPoisk и Alloha',
+            ],
+            'player_cdnvideohub_tab_name' => [
+                'type' => 'string',
+                'default' => 'Coldfilm',
+                'group' => 'players',
+                'label' => 'Название вкладки',
+            ],
+            'player_cdnvideohub_priority' => [
+                'type' => 'int',
+                'default' => '100',
+                'group' => 'players',
+                'label' => 'Приоритет вкладки',
+                'description' => 'Чем выше — тем левее вкладка',
+                'min' => 0,
+                'max' => 1000,
+            ],
+            'player_cdnvideohub_element_id' => [
+                'type' => 'string',
+                'default' => 'cdnvideohubvideoplayer',
+                'group' => 'players',
+                'label' => 'id элемента <video-player>',
+            ],
+            'player_cdnvideohub_publisher_id' => [
+                'type' => 'string',
+                'default' => '15',
+                'group' => 'players',
+                'label' => 'data-publisher-id',
+            ],
+            'player_cdnvideohub_is_show_banner' => [
+                'type' => 'bool',
+                'default' => '0',
+                'group' => 'players',
+                'label' => 'is-show-banner',
+            ],
+            'player_cdnvideohub_is_show_voice_only' => [
+                'type' => 'bool',
+                'default' => '0',
+                'group' => 'players',
+                'label' => 'is-show-voice-only',
+            ],
+            'player_cdnvideohub_aggregator' => [
+                'type' => 'string',
+                'default' => 'kp',
+                'group' => 'players',
+                'label' => 'data-aggregator',
+                'description' => 'Источник ID: kp — KinoPoisk',
+            ],
+            'player_cdnvideohub_script_url' => [
+                'type' => 'string',
+                'default' => 'https://player.cdnvideohub.com/s2/stable/video-player.umd.js',
+                'group' => 'players',
+                'label' => 'URL скрипта плеера',
+            ],
+            'player_alloha_sync_enabled' => [
+                'type' => 'bool',
+                'default' => '1',
+                'group' => 'players',
+                'label' => 'Импорт плееров из Alloha',
+                'description' => 'Если выключено — при импорте Alloha плееры не добавляются (CDN VideoHub работает отдельно)',
+            ],
+
             // Catalog & navigation
             'catalog_per_page' => ['type' => 'int', 'default' => '18', 'group' => 'catalog', 'label' => 'Сериалов на странице каталога', 'min' => 6, 'max' => 60],
             'catalog_heading' => ['type' => 'string', 'default' => 'Все сериалы', 'group' => 'catalog', 'label' => 'Заголовок страницы каталога'],
@@ -431,6 +499,7 @@ class SiteConfig
             'engagement' => ['title' => 'Списки и уведомления', 'fields' => []],
             'catalog' => ['title' => 'Каталог и навигация', 'fields' => []],
             'optimization' => ['title' => 'Оптимизация изображений', 'fields' => []],
+            'players' => ['title' => 'CDN VideoHub', 'fields' => []],
             'general' => ['title' => 'Общие сообщения', 'fields' => []],
         ];
 

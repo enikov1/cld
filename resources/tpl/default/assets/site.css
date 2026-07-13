@@ -1175,6 +1175,15 @@ body.bookmark-lock {
     background: #000;
 }
 
+.trailer-frame .player-embed,
+.trailer-frame .player-embed video-player {
+    display: block;
+    width: 100%;
+    min-height: 420px;
+    aspect-ratio: 16 / 9;
+    background: #000;
+}
+
 .trailer-box__top {
     min-width: 0;
 }

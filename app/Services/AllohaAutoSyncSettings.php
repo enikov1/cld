@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\SiteSetting;
 
+use App\Support\SiteConfig;
+
 class AllohaAutoSyncSettings
 {
     public const SETTING_KEY = 'alloha_auto_sync';
@@ -153,10 +155,12 @@ class AllohaAutoSyncSettings
      */
     public static function toImportFlags(array $settings, bool $isNew): array
     {
+        $allohaPlayersEnabled = SiteConfig::bool('player_alloha_sync_enabled');
+
         if ($isNew) {
             return [
                 'sync_ratings' => true,
-                'sync_players' => true,
+                'sync_players' => $allohaPlayersEnabled,
                 'sync_metadata' => true,
                 'sync_poster' => $settings['download_poster_new'],
                 'sync_genres_countries' => true,
@@ -166,7 +170,7 @@ class AllohaAutoSyncSettings
 
         return [
             'sync_ratings' => $settings['update_ratings'],
-            'sync_players' => $settings['update_players'],
+            'sync_players' => $allohaPlayersEnabled && $settings['update_players'],
             'sync_metadata' => $settings['update_metadata'],
             'sync_poster' => $settings['update_poster'],
             'sync_genres_countries' => $settings['update_genres_countries'],

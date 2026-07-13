@@ -21,7 +21,7 @@ class AllohaPlayerSync
                 continue;
             }
 
-            $iframe = PlayerUrlHelper::sanitize((string)($translation['iframe'] ?? ''));
+            $iframe = PlayerUrlHelper::normalizePlayerContent((string)($translation['iframe'] ?? ''));
             if ($iframe === '') {
                 continue;
             }
@@ -62,7 +62,7 @@ class AllohaPlayerSync
         }
 
         if ($defaultIframe) {
-            $defaultIframe = PlayerUrlHelper::sanitize($defaultIframe);
+            $defaultIframe = PlayerUrlHelper::normalizePlayerContent($defaultIframe);
             if ($defaultIframe !== '' && !$series->playerSources()->exists()) {
                 PlayerSource::query()->create([
                     'series_id' => $series->id,
@@ -75,9 +75,7 @@ class AllohaPlayerSync
         }
 
         $series->refresh();
-        $firstUrl = PlayerUrlHelper::activePlayersForSeries($series)[0]['url'] ?? null;
-        if ($firstUrl) {
-            $series->update(['player_url' => $firstUrl]);
-        }
+        $firstUrl = PlayerUrlHelper::firstIframeUrlForSeries($series);
+        $series->update(['player_url' => $firstUrl]);
     }
 }

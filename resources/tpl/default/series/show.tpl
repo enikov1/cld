@@ -1,4 +1,4 @@
-[meta-title]{series.title} {season-type-1} смотреть онлайн в хорошем HD качестве бесплатно[/meta-title]
+[meta-title]{series.title} (сериал {series.year}) {season-type-4} смотреть онлайн в хорошем HD качестве бесплатно[/meta-title]
 [meta-description][series.short_description]{series.short_description}[/series.short_description][not-series.short_description][series.description]{series.description}[/series.description][/not-series.short_description][/meta-description]
 [meta-image]{series.poster_url|raw}[/meta-image]
 [meta-canonical]{seo.canonical|raw}[/meta-canonical]
@@ -8,7 +8,7 @@
         <div class="serial-view__inner">
             <div class="serial-view__content">
                 <header class="serial-titleline">
-                    <h1>{series.title} {season-type-1} смотреть онлайн</h1>
+                    <h1>{series.title} {series.year} {season-type-4} смотреть онлайн</h1>
                     [auth.is_admin]
                         [series.kp_id]
                             <div class="usp-edit">
@@ -105,7 +105,7 @@
                                 <div class="serial-detail__name">Режиссёр:</div>
                                 <div class="serial-detail__value serial-detail__links">
                                     [loop series.directors]
-                                        <a href="{item.url|raw}" class="serial-detail__link">{item.name}</a>[not-item.is_last]<span class="serial-detail__sep">, </span>[/not-item.is_last]
+                                        <span class="serial-detail__link">{item.name}</span>[not-item.is_last]<span class="serial-detail__sep">, </span>[/not-item.is_last]
                                     [/loop]
                                 </div>
                             </div>
@@ -161,7 +161,7 @@
                                 <div class="serial-detail__name">Актёры:</div>
                                 <div class="serial-detail__value serial-detail__links">
                                     [loop series.actors]
-                                        <a href="{item.url|raw}" class="serial-detail__link serial-detail__link--person"[item.photo_url] data-person-photo="{item.photo_url|raw}"[/item.photo_url]>{item.name}</a>[not-item.is_last]<span class="serial-detail__sep">, </span>[/not-item.is_last]
+                                        <span class="serial-detail__link serial-detail__link--person"[item.photo_url] data-person-photo="{item.photo_url|raw}"[/item.photo_url]>{item.name}</span>[not-item.is_last]<span class="serial-detail__sep">, </span>[/not-item.is_last]
                                     [/loop]
                                 </div>
                             </div>
@@ -319,23 +319,33 @@
                 [item.is_first]
                     <div class="trailer-panel is-active" data-player-panel="{item.index}">
                         <div class="trailer-frame">
-                            <iframe class="player-iframe"
-                                    src="{item.url|raw}"
-                                    data-player-url="{item.url|raw}"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                    allowfullscreen
-                                    referrerpolicy="no-referrer"></iframe>
+                            [item.is_embed]
+                                <div class="player-embed">{item.html|raw}</div>
+                            [/item.is_embed]
+                            [not-item.is_embed]
+                                <iframe class="player-iframe"
+                                        src="{item.url|raw}"
+                                        data-player-url="{item.url|raw}"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                        allowfullscreen
+                                        referrerpolicy="no-referrer"></iframe>
+                            [/not-item.is_embed]
                         </div>
                     </div>
                 [/item.is_first]
                 [not-item.is_first]
                     <div class="trailer-panel" data-player-panel="{item.index}" hidden>
                         <div class="trailer-frame">
-                            <iframe class="player-iframe"
-                                    data-player-url="{item.url|raw}"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                    allowfullscreen
-                                    referrerpolicy="no-referrer"></iframe>
+                            [item.is_embed]
+                                <div class="player-embed">{item.html|raw}</div>
+                            [/item.is_embed]
+                            [not-item.is_embed]
+                                <iframe class="player-iframe"
+                                        data-player-url="{item.url|raw}"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                        allowfullscreen
+                                        referrerpolicy="no-referrer"></iframe>
+                            [/not-item.is_embed]
                         </div>
                     </div>
                 [/not-item.is_first]
