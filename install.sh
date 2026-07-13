@@ -124,6 +124,10 @@ install_nodejs() {
 
 ensure_git_safe() {
     git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
+    # composer/npm могут вызывать git от имени www-data
+    if id www-data &>/dev/null; then
+        sudo -u www-data git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
+    fi
 }
 
 set_app_permissions() {
@@ -279,35 +283,36 @@ chown -R www-data:www-data "$APP_DIR/storage" "$APP_DIR/bootstrap/cache" 2>/dev/
 chmod -R ug+rwx "$APP_DIR/storage" "$APP_DIR/bootstrap/cache" 2>/dev/null || true
 
 log "Composer install (production)..."
-sudo -u www-data composer install --no-dev --optimize-autoloader --no-interaction
+export COMPOSER_ALLOW_SUPERUSER=1
+composer install --no-dev --optimize-autoloader --no-interaction
 
 if ! grep -q '^APP_KEY=base64:' .env 2>/dev/null; then
-    sudo -u www-data php artisan key:generate --force
+    php artisan key:generate --force
 fi
 
 # ─── Зависимости и сборка ─────────────────────────────────────────────────────
 
 if [[ "$SKIP_BUILD" != "1" ]]; then
     log "Миграции БД..."
-    sudo -u www-data php artisan migrate --force
+    php artisan migrate --force
 
     log "Storage link..."
-    sudo -u www-data php artisan storage:link 2>/dev/null || true
+    php artisan storage:link 2>/dev/null || true
 
     log "Сборка темы (npm)..."
-    sudo -u www-data npm ci
-    sudo -u www-data npm run build:theme
+    npm ci
+    npm run build:theme
 
     log "Сборка админки (admin-ui)..."
     pushd admin-ui >/dev/null
-    sudo -u www-data npm ci
-    sudo -u www-data npm run build
+    npm ci
+    npm run build
     popd >/dev/null
 
     log "Кэширование конфигурации..."
-    sudo -u www-data php artisan config:cache
-    sudo -u www-data php artisan route:cache
-    sudo -u www-data php artisan view:cache
+    php artisan config:cache
+    php artisan route:cache
+    php artisan view:cache
 else
     warn "SKIP_BUILD=1 — пропущены composer/npm и миграции"
 fi

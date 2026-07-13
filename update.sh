@@ -41,6 +41,9 @@ require_root() {
 
 ensure_git_safe() {
     git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
+    if id www-data &>/dev/null; then
+        sudo -u www-data git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
+    fi
 }
 
 set_app_permissions() {
@@ -71,13 +74,13 @@ log "Ветка:   ${GIT_BRANCH}"
 
 maintenance_up() {
     if [[ "$SKIP_MAINTENANCE" != "1" ]]; then
-        sudo -u www-data php artisan up 2>/dev/null || true
+        php artisan up 2>/dev/null || true
     fi
 }
 
 if [[ "$SKIP_MAINTENANCE" != "1" ]]; then
     log "Включение режима обслуживания..."
-    sudo -u www-data php artisan down --retry=60 --secret="lordserial-update" || true
+    php artisan down --retry=60 --secret="lordserial-update" || true
     trap maintenance_up EXIT
 fi
 
@@ -108,16 +111,17 @@ fi
 
 if [[ "$SKIP_BUILD" != "1" ]]; then
     log "Composer install (production)..."
-    sudo -u www-data composer install --no-dev --optimize-autoloader --no-interaction
+    export COMPOSER_ALLOW_SUPERUSER=1
+    composer install --no-dev --optimize-autoloader --no-interaction
 
     log "Сборка темы (npm)..."
-    sudo -u www-data npm ci
-    sudo -u www-data npm run build:theme
+    npm ci
+    npm run build:theme
 
     log "Сборка админки (admin-ui)..."
     pushd admin-ui >/dev/null
-    sudo -u www-data npm ci
-    sudo -u www-data npm run build
+    npm ci
+    npm run build
     popd >/dev/null
 else
     warn "SKIP_BUILD=1 — пропущены composer и npm"
@@ -127,21 +131,21 @@ fi
 
 if [[ "$SKIP_MIGRATE" != "1" ]]; then
     log "Миграции БД..."
-    sudo -u www-data php artisan migrate --force
+    php artisan migrate --force
 else
     warn "SKIP_MIGRATE=1 — миграции пропущены"
 fi
 
 log "Storage link..."
-sudo -u www-data php artisan storage:link 2>/dev/null || true
+php artisan storage:link 2>/dev/null || true
 
 # ─── Кэш Laravel ──────────────────────────────────────────────────────────────
 
 log "Очистка и пересборка кэша..."
-sudo -u www-data php artisan optimize:clear
-sudo -u www-data php artisan config:cache
-sudo -u www-data php artisan route:cache
-sudo -u www-data php artisan view:cache
+php artisan optimize:clear
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
 
 # ─── Права ────────────────────────────────────────────────────────────────────
 
@@ -172,7 +176,7 @@ fi
 
 if [[ "$SKIP_MAINTENANCE" != "1" ]]; then
     log "Выключение режима обслуживания..."
-    sudo -u www-data php artisan up
+    php artisan up
     trap - EXIT
 fi
 
