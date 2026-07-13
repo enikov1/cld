@@ -393,10 +393,12 @@ chmod 644 "$CRON_FILE"
 
 if command -v ufw &>/dev/null; then
     log "Настройка UFW (22, 80, 443)..."
-    ufw --force enable 2>/dev/null || true
-    ufw allow OpenSSH 2>/dev/null || ufw allow 22/tcp 2>/dev/null || true
-    ufw allow 80/tcp  2>/dev/null || true
-    ufw allow 443/tcp 2>/dev/null || true
+    ufw allow 22/tcp comment 'SSH' || true
+    ufw allow 80/tcp comment 'HTTP' || true
+    ufw allow 443/tcp comment 'HTTPS' || true
+    ufw --force enable || true
+    ufw reload || true
+    ufw status verbose || true
 fi
 
 # ─── Сохранение учётных данных ────────────────────────────────────────────────
