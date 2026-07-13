@@ -21,6 +21,7 @@ use App\Services\AllohaAutoSyncSettings;
 use App\Services\TmdbConfig;
 use App\Services\TmdbAutoSyncSettings;
 use App\Services\TmdbPopularitySyncService;
+use App\Support\AdminAccess;
 use App\Support\AdminPath;
 use App\Support\CommentModeration;
 use App\Support\RobotsTxt;
@@ -44,6 +45,17 @@ Route::get('/site/admin-path', function () {
 });
 
 Route::middleware('admin.token')->prefix('admin')->group(function () {
+    Route::post('/site-access', function () {
+        $cookie = AdminAccess::makeCookie();
+        $response = response()->json(['ok' => true]);
+
+        return $cookie ? $response->withCookie($cookie) : $response;
+    });
+
+    Route::delete('/site-access', function () {
+        return response()->json(['ok' => true])->withCookie(AdminAccess::forgetCookie());
+    });
+
     Route::get('/stats', function () {
         return response()->json([
             'series_total' => Series::query()->count(),

@@ -20,6 +20,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin.token' => \App\Http\Middleware\VerifyAdminToken::class,
             'site.feature' => \App\Http\Middleware\EnsureSiteFeature::class,
         ]);
+        $middleware->web(prepend: [
+            \App\Http\Middleware\CheckMaintenanceMode::class,
+        ]);
+        $middleware->api(prepend: [
+            \App\Http\Middleware\CheckMaintenanceMode::class,
+        ]);
         $middleware->web(append: [
             \App\Http\Middleware\EnsureUserNotBlocked::class,
         ]);

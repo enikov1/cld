@@ -27,6 +27,7 @@ import {
   SkinOutlined,
   TagOutlined,
   ThunderboltOutlined,
+  ToolOutlined,
   UserOutlined,
 } from '@ant-design/icons'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -47,6 +48,7 @@ type SettingsSection =
   | 'engagement'
   | 'catalog'
   | 'optimization'
+  | 'maintenance'
   | 'general'
   | 'admin'
   | 'moderation'
@@ -63,6 +65,7 @@ const SECTION_LABELS: Record<SettingsSection, string> = {
   engagement: 'Списки и уведомления',
   catalog: 'Каталог',
   optimization: 'Оптимизация',
+  maintenance: 'Обслуживание',
   general: 'Общие',
   admin: 'Админ-панель',
   moderation: 'Модерация',
@@ -699,6 +702,27 @@ export default function SettingsPage() {
             Сейчас по умолчанию: <Typography.Text code>/storage/posters/kp-357.jpg</Typography.Text>
           </Typography.Paragraph>
           <SiteConfigFields fields={configSchema.optimization?.fields ?? []} />
+        </Card>
+      ),
+    },
+    {
+      key: 'maintenance',
+      label: (
+        <span className="settings-tab-label">
+          <ToolOutlined />
+          Обслуживание
+        </span>
+      ),
+      children: (
+        <Card title={configSchema.maintenance?.title ?? 'Техническое обслуживание'} loading={loading} bordered={false}>
+          <Alert
+            type="warning"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message="При включении сайт полностью закрыт для посетителей и поисковиков"
+            description="robots.txt запрещает индексацию, sitemap.xml недоступен. Администраторы с действующим токеном продолжают видеть сайт после входа в админку."
+          />
+          <SiteConfigFields fields={configSchema.maintenance?.fields ?? []} />
         </Card>
       ),
     },

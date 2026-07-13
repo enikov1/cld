@@ -59,7 +59,8 @@ class AdminPath
             return 'URL админки: только латиница, цифры и дефис (2–50 символов, без слэшей).';
         }
 
-        if (in_array($path, ReservedPaths::slugs(), true)) {
+        $current = self::path();
+        if ($path !== $current && in_array($path, ReservedPaths::slugs(), true)) {
             return 'Этот путь зарезервирован системой.';
         }
 

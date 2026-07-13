@@ -3,12 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Services\SitemapService;
+use App\Support\SiteConfig;
 use Illuminate\Support\Facades\File;
 
 class SitemapController extends Controller
 {
     public function index(SitemapService $sitemap)
     {
+        if (SiteConfig::bool('maintenance_enabled')) {
+            abort(404);
+        }
+
         $sitemap->ensureFresh();
 
         $path = $sitemap->path();

@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\AdminAccess;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -15,7 +16,7 @@ class VerifyAdminToken
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $expected = (string)env('ADMIN_TOKEN', '');
+        $expected = AdminAccess::expectedToken();
 
         if ($expected === '') {
             if (app()->environment('local')) {
@@ -27,8 +28,7 @@ class VerifyAdminToken
             ], 503);
         }
 
-        $provided = (string)$request->header('X-ADMIN-TOKEN', '');
-        if (!hash_equals($expected, $provided)) {
+        if (!AdminAccess::hasValidToken($request)) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 

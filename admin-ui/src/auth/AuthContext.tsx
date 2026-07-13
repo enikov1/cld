@@ -11,6 +11,19 @@ import {
 import { clearAdminToken, getAdminToken, setAdminToken } from './tokenStorage'
 import { setUnauthorizedHandler } from './unauthorized'
 
+async function syncSiteAccess(method: 'POST' | 'DELETE', token?: string): Promise<void> {
+  const headers: Record<string, string> = { Accept: 'application/json' }
+  if (token) {
+    headers['X-ADMIN-TOKEN'] = token
+  }
+
+  await fetch(`/api/admin/site-access`, {
+    method,
+    headers,
+    credentials: 'same-origin',
+  })
+}
+
 export type AuthStatus = 'loading' | 'authenticated' | 'login'
 
 type AuthContextValue = {
@@ -41,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (token && (await verifyToken(token))) {
       setTokenRequired(true)
       setStatus('authenticated')
+      await syncSiteAccess('POST', token).catch(() => {})
       return
     }
 
@@ -51,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (await verifyToken('')) {
       setTokenRequired(false)
       setStatus('authenticated')
+      await syncSiteAccess('POST').catch(() => {})
       return
     }
 
@@ -89,9 +104,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setTokenRequired(true)
     setStatus('authenticated')
+    await syncSiteAccess('POST', trimmed).catch(() => {})
   }, [])
 
   const logout = useCallback(async () => {
+    await syncSiteAccess('DELETE', getAdminToken() || undefined).catch(() => {})
     clearAdminToken()
     if (await verifyToken('')) {
       setTokenRequired(false)

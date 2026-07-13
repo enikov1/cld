@@ -23,10 +23,23 @@ class RobotsTxt
 
     public static function content(): string
     {
+        if (SiteConfig::bool('maintenance_enabled')) {
+            return self::maintenanceContent();
+        }
+
         $custom = trim((string)SiteSetting::get(self::SETTING_KEY, ''));
         $template = $custom !== '' ? $custom : self::defaultTemplate();
 
         return self::render($template);
+    }
+
+    public static function maintenanceContent(): string
+    {
+        return implode("\n", [
+            'User-agent: *',
+            'Disallow: /',
+            '',
+        ]) . "\n";
     }
 
     public static function render(string $template): string

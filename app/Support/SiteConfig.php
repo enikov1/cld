@@ -296,6 +296,27 @@ class SiteConfig
                 'max' => 20480,
             ],
 
+            // Maintenance
+            'maintenance_enabled' => [
+                'type' => 'bool',
+                'default' => '0',
+                'group' => 'maintenance',
+                'label' => 'Режим технического обслуживания',
+                'description' => 'Сайт закрыт для посетителей и поисковиков. Доступ остаётся только у администраторов.',
+            ],
+            'maintenance_title' => [
+                'type' => 'string',
+                'default' => 'Сайт на техническом обслуживании',
+                'group' => 'maintenance',
+                'label' => 'Заголовок заглушки',
+            ],
+            'maintenance_message' => [
+                'type' => 'string',
+                'default' => 'Мы проводим технические работы. Скоро вернёмся!',
+                'group' => 'maintenance',
+                'label' => 'Текст заглушки',
+            ],
+
             // General UI
             'ui_msg_server_error' => ['type' => 'string', 'default' => 'Ошибка сервера. Попробуйте позже.', 'group' => 'general', 'label' => 'Ошибка сервера'],
             'ui_msg_generic_error' => ['type' => 'string', 'default' => 'Произошла ошибка', 'group' => 'general', 'label' => 'Общая ошибка'],
@@ -403,6 +424,7 @@ class SiteConfig
     public static function adminGroups(): array
     {
         $groups = [
+            'maintenance' => ['title' => 'Техническое обслуживание', 'fields' => []],
             'auth' => ['title' => 'Авторизация', 'fields' => []],
             'comments' => ['title' => 'Комментарии', 'fields' => []],
             'ratings' => ['title' => 'Рейтинги и реакции', 'fields' => []],
