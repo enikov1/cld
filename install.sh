@@ -260,6 +260,9 @@ env_set ADMIN_TOKEN     "${ADMIN_TOKEN}"          .env
 chown -R www-data:www-data "$APP_DIR"
 chmod -R ug+rwx "$APP_DIR/storage" "$APP_DIR/bootstrap/cache" 2>/dev/null || true
 
+log "Composer install (production)..."
+sudo -u www-data composer install --no-dev --optimize-autoloader --no-interaction
+
 if ! grep -q '^APP_KEY=base64:' .env 2>/dev/null; then
     sudo -u www-data php artisan key:generate --force
 fi
@@ -267,9 +270,6 @@ fi
 # ─── Зависимости и сборка ─────────────────────────────────────────────────────
 
 if [[ "$SKIP_BUILD" != "1" ]]; then
-    log "Composer install (production)..."
-    sudo -u www-data composer install --no-dev --optimize-autoloader --no-interaction
-
     log "Миграции БД..."
     sudo -u www-data php artisan migrate --force
 
