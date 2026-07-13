@@ -25,8 +25,8 @@ import { useSearchParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { api } from '../api/client'
 import { apiUpload } from '../api/upload'
-import SeriesScheduleEditor from '../components/SeriesScheduleEditor'
-import SeriesPlayersEditor from '../components/SeriesPlayersEditor'
+import SeriesScheduleEditor, { type SeriesScheduleEditorHandle } from '../components/SeriesScheduleEditor'
+import SeriesPlayersEditor, { type SeriesPlayersEditorHandle } from '../components/SeriesPlayersEditor'
 import type { SeriesItem, StudioItem, TaxonomyOption } from '../types'
 import { BROADCAST_STATUSES, CONTENT_TYPES } from '../types'
 import { resolveMediaUrl } from '../utils/mediaUrl'
@@ -192,6 +192,9 @@ export default function SeriesPage() {
   const [importing, setImporting] = useState(false)
   const [importingAlloha, setImportingAlloha] = useState(false)
   const [playersRefreshKey, setPlayersRefreshKey] = useState(0)
+  const [saving, setSaving] = useState(false)
+  const playersEditorRef = useRef<SeriesPlayersEditorHandle>(null)
+  const scheduleEditorRef = useRef<SeriesScheduleEditorHandle>(null)
   const [form] = Form.useForm()
   const [filterForm] = Form.useForm<SeriesListFilters>()
   const posterUrl = Form.useWatch('poster_url', form)
@@ -355,9 +358,8 @@ export default function SeriesPage() {
     form.setFieldsValue(seriesToFormValues(item))
   }
 
-  async function save(values: Record<string, unknown>) {
-    const allValues = form.getFieldsValue(true) as Record<string, unknown>
-    const payload = { ...allValues, ...values }
+  function buildSeriesPayload(values: Record<string, unknown>): Record<string, unknown> {
+    const payload = { ...values }
     const premiereDate = payload.premiere_date
     if (premiereDate && dayjs.isDayjs(premiereDate)) {
       payload.premiere_date = premiereDate.format('YYYY-MM-DD')
@@ -370,18 +372,50 @@ export default function SeriesPage() {
       payload.duration_minutes = null
     }
 
+    return payload
+  }
+
+  async function saveAll() {
+    setSaving(true)
     try {
+      const values = await form.validateFields()
+      const allValues = form.getFieldsValue(true) as Record<string, unknown>
+      const payload = buildSeriesPayload({ ...allValues, ...values })
+
       const res = await api<{ item: SeriesItem }>('/api/admin/series/upsert', {
         method: 'POST',
         body: JSON.stringify(payload),
       })
-      message.success(editing ? 'Сохранено' : 'Создано')
+
       setEditing(res.item)
       form.setFieldsValue(seriesToFormValues(res.item))
+
+      const kpId = String(res.item.kp_id ?? payload.kp_id ?? '')
+      if (kpId) {
+        const playersSaved = await playersEditorRef.current?.save({ silent: true })
+        if (playersSaved === false) {
+          message.error('Сериал сохранён, но не удалось сохранить плееры')
+          return
+        }
+
+        const scheduleSaved = await scheduleEditorRef.current?.save({ silent: true })
+        if (scheduleSaved === false) {
+          message.error('Сериал сохранён, но не удалось сохранить расписание')
+          return
+        }
+      }
+
+      message.success(editing ? 'Сохранено' : 'Создано')
       setDrawerOpen(false)
       await loadSeries()
     } catch (e) {
+      if (e && typeof e === 'object' && 'errorFields' in e) {
+        message.warning('Проверьте обязательные поля на вкладке «Основное»')
+        return
+      }
       message.error(String((e as Error).message))
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -788,13 +822,11 @@ export default function SeriesPage() {
           <Space>
             <Button onClick={importKp} loading={importing}>Импорт KP</Button>
             <Button onClick={importAlloha} loading={importingAlloha}>Импорт Alloha</Button>
-            {drawerTab === 'main' ? (
-              <Button type="primary" onClick={() => form.submit()}>Сохранить</Button>
-            ) : null}
+            <Button type="primary" loading={saving} onClick={saveAll}>Сохранить</Button>
           </Space>
         }
       >
-        <Form form={form} layout="vertical" onFinish={save} preserve>
+        <Form form={form} layout="vertical" onFinish={() => void saveAll()} preserve>
         <Tabs
           activeKey={drawerTab}
           onChange={setDrawerTab}
@@ -1004,6 +1036,7 @@ export default function SeriesPage() {
               label: 'Плееры',
               children: (
                 <SeriesPlayersEditor
+                  ref={playersEditorRef}
                   kpId={editing?.kp_id ?? form.getFieldValue('kp_id')}
                   drawerOpen={drawerOpen}
                   refreshKey={playersRefreshKey}
@@ -1015,8 +1048,9 @@ export default function SeriesPage() {
               label: 'Расписание',
               children: (
                 <SeriesScheduleEditor
+                  ref={scheduleEditorRef}
                   kpId={editing?.kp_id ?? form.getFieldValue('kp_id')}
-                  open={drawerOpen && drawerTab === 'schedule'}
+                  drawerOpen={drawerOpen}
                 />
               ),
             },

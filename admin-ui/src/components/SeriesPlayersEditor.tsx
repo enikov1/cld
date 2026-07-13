@@ -1,6 +1,6 @@
 import { Button, Input, InputNumber, Space, Spin, Switch, Table, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { useCallback, useEffect, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react'
 import { api } from '../api/client'
 
 type PlayerRow = {
@@ -12,13 +12,20 @@ type PlayerRow = {
   priority: number
 }
 
+export type SeriesPlayersEditorHandle = {
+  save: (options?: { silent?: boolean }) => Promise<boolean>
+}
+
 type Props = {
   kpId?: string | null
   drawerOpen: boolean
   refreshKey?: number
 }
 
-export default function SeriesPlayersEditor({ kpId, drawerOpen, refreshKey = 0 }: Props) {
+const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(function SeriesPlayersEditor(
+  { kpId, drawerOpen, refreshKey = 0 },
+  ref,
+) {
   const [rows, setRows] = useState<PlayerRow[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -50,6 +57,54 @@ export default function SeriesPlayersEditor({ kpId, drawerOpen, refreshKey = 0 }
     load()
   }, [kpId, drawerOpen, refreshKey, load])
 
+  const savePlayers = useCallback(
+    async (options?: { silent?: boolean }) => {
+      if (!kpId) return true
+
+      const players = rows
+        .map((row) => ({
+          id: row.id ?? undefined,
+          provider: row.provider.trim(),
+          iframe_url: row.iframe_url.trim(),
+          is_active: row.is_active,
+          priority: row.priority,
+        }))
+        .filter((row) => row.iframe_url !== '')
+
+      setSaving(true)
+      try {
+        const res = await api<{ players: Array<Omit<PlayerRow, 'key'>> }>(`/api/admin/series/${kpId}/players`, {
+          method: 'POST',
+          body: JSON.stringify({ players }),
+        })
+        setRows(
+          (res.players ?? []).map((item, index) => ({
+            ...item,
+            key: String(item.id ?? `new-${index}`),
+            provider: item.provider ?? '',
+            iframe_url: item.iframe_url ?? '',
+            is_active: item.is_active ?? true,
+            priority: item.priority ?? 100 - index,
+          })),
+        )
+        if (!options?.silent) {
+          message.success('Плееры сохранены')
+        }
+        return true
+      } catch (e) {
+        if (!options?.silent) {
+          message.error(String((e as Error).message))
+        }
+        return false
+      } finally {
+        setSaving(false)
+      }
+    },
+    [kpId, rows],
+  )
+
+  useImperativeHandle(ref, () => ({ save: savePlayers }), [savePlayers])
+
   function addPlayer() {
     const nextPriority = rows.length ? Math.min(...rows.map((r) => r.priority)) - 10 : 100
     setRows([
@@ -70,42 +125,6 @@ export default function SeriesPlayersEditor({ kpId, drawerOpen, refreshKey = 0 }
 
   function removeRow(key: string) {
     setRows(rows.filter((row) => row.key !== key))
-  }
-
-  async function save() {
-    if (!kpId) return
-    const players = rows
-      .map((row) => ({
-        id: row.id ?? undefined,
-        provider: row.provider.trim(),
-        iframe_url: row.iframe_url.trim(),
-        is_active: row.is_active,
-        priority: row.priority,
-      }))
-      .filter((row) => row.iframe_url !== '')
-
-    setSaving(true)
-    try {
-      const res = await api<{ players: Array<Omit<PlayerRow, 'key'>> }>(`/api/admin/series/${kpId}/players`, {
-        method: 'POST',
-        body: JSON.stringify({ players }),
-      })
-      setRows(
-        (res.players ?? []).map((item, index) => ({
-          ...item,
-          key: String(item.id ?? `new-${index}`),
-          provider: item.provider ?? '',
-          iframe_url: item.iframe_url ?? '',
-          is_active: item.is_active ?? true,
-          priority: item.priority ?? 100 - index,
-        })),
-      )
-      message.success('Плееры сохранены')
-    } catch (e) {
-      message.error(String((e as Error).message))
-    } finally {
-      setSaving(false)
-    }
   }
 
   const columns: ColumnsType<PlayerRow> = [
@@ -173,16 +192,18 @@ export default function SeriesPlayersEditor({ kpId, drawerOpen, refreshKey = 0 }
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
         <p className="admin-empty-hint">
           Добавьте один или несколько embed-плееров. На сайте они отображаются вкладками. Чем выше приоритет — тем левее вкладка.
-          Не забудьте нажать «Сохранить плееры» перед закрытием редактора.
+          Изменения сохраняются кнопкой «Сохранить» в шапке редактора.
         </p>
         <Space wrap>
           <Button onClick={addPlayer}>Добавить плеер</Button>
-          <Button type="primary" loading={saving} onClick={save}>
-            Сохранить плееры
+          <Button loading={saving} onClick={() => savePlayers()}>
+            Сохранить только плееры
           </Button>
         </Space>
         <Table rowKey="key" columns={columns} dataSource={rows} pagination={false} scroll={{ x: 900 }} />
       </Space>
     </Spin>
   )
-}
+})
+
+export default SeriesPlayersEditor

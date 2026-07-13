@@ -1,5 +1,5 @@
 import { Button, Collapse, Input, InputNumber, Select, Space, Spin, message } from 'antd'
-import { useCallback, useEffect, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react'
 import { api } from '../api/client'
 
 type ScheduleEpisode = {
@@ -17,18 +17,25 @@ type ScheduleSeason = {
   episodes: ScheduleEpisode[]
 }
 
-type Props = {
-  kpId?: string | null
-  open: boolean
+export type SeriesScheduleEditorHandle = {
+  save: (options?: { silent?: boolean }) => Promise<boolean>
 }
 
-export default function SeriesScheduleEditor({ kpId, open }: Props) {
+type Props = {
+  kpId?: string | null
+  drawerOpen: boolean
+}
+
+const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(function SeriesScheduleEditor(
+  { kpId, drawerOpen },
+  ref,
+) {
   const [seasons, setSeasons] = useState<ScheduleSeason[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
-    if (!kpId || !open) return
+    if (!kpId || !drawerOpen) return
     setLoading(true)
     try {
       const data = await api<{ seasons: ScheduleSeason[] }>(`/api/admin/series/${kpId}/schedule`)
@@ -38,11 +45,54 @@ export default function SeriesScheduleEditor({ kpId, open }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [kpId, open])
+  }, [kpId, drawerOpen])
 
   useEffect(() => {
+    if (!drawerOpen || !kpId) return
     load()
-  }, [load])
+  }, [kpId, drawerOpen, load])
+
+  const saveSchedule = useCallback(
+    async (options?: { silent?: boolean }) => {
+      if (!kpId) return true
+
+      setSaving(true)
+      try {
+        const payload = {
+          seasons: seasons.map((s) => ({
+            season_number: s.season_number,
+            title: s.title,
+            episodes: s.episodes.map((e) => ({
+              episode_number: e.episode_number,
+              title: e.title,
+              release_at: e.release_at_iso || null,
+              status: e.status,
+              voice: e.voice || null,
+            })),
+          })),
+        }
+        const res = await api<{ seasons: ScheduleSeason[] }>(`/api/admin/series/${kpId}/schedule`, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        })
+        setSeasons(res.seasons ?? [])
+        if (!options?.silent) {
+          message.success('Расписание сохранено')
+        }
+        return true
+      } catch (e) {
+        if (!options?.silent) {
+          message.error(String((e as Error).message))
+        }
+        return false
+      } finally {
+        setSaving(false)
+      }
+    },
+    [kpId, seasons],
+  )
+
+  useImperativeHandle(ref, () => ({ save: saveSchedule }), [saveSchedule])
 
   function addSeason() {
     const nextNum = seasons.length ? Math.max(...seasons.map((s) => s.season_number)) + 1 : 1
@@ -59,36 +109,6 @@ export default function SeriesScheduleEditor({ kpId, open }: Props) {
     setSeasons(next)
   }
 
-  async function save() {
-    if (!kpId) return
-    setSaving(true)
-    try {
-      const payload = {
-        seasons: seasons.map((s) => ({
-          season_number: s.season_number,
-          title: s.title,
-          episodes: s.episodes.map((e) => ({
-            episode_number: e.episode_number,
-            title: e.title,
-            release_at: e.release_at_iso || null,
-            status: e.status,
-            voice: e.voice || null,
-          })),
-        })),
-      }
-      const res = await api<{ seasons: ScheduleSeason[] }>(`/api/admin/series/${kpId}/schedule`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      })
-      setSeasons(res.seasons ?? [])
-      message.success('Расписание сохранено')
-    } catch (e) {
-      message.error(String((e as Error).message))
-    } finally {
-      setSaving(false)
-    }
-  }
-
   if (!kpId) {
     return <p className="admin-empty-hint">Сначала укажите KP ID и сохраните сериал.</p>
   }
@@ -97,7 +117,9 @@ export default function SeriesScheduleEditor({ kpId, open }: Props) {
     <div style={{ marginTop: 16 }}>
       <Space style={{ marginBottom: 12 }}>
         <Button onClick={addSeason} disabled={loading}>Добавить сезон</Button>
-        <Button type="primary" onClick={save} loading={saving} disabled={loading}>Сохранить расписание</Button>
+        <Button onClick={() => saveSchedule()} loading={saving} disabled={loading}>
+          Сохранить только расписание
+        </Button>
       </Space>
 
       <Spin spinning={loading}>
@@ -222,4 +244,6 @@ export default function SeriesScheduleEditor({ kpId, open }: Props) {
       </Spin>
     </div>
   )
-}
+})
+
+export default SeriesScheduleEditor

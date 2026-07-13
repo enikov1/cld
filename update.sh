@@ -13,7 +13,7 @@
 #   GIT_BRANCH=main
 #   SKIP_BUILD=1        # пропустить composer/npm
 #   SKIP_MIGRATE=1      # пропустить миграции
-#   SKIP_MAINTENANCE=1  # не включать режим обслуживания
+#   SKIP_MAINTENANCE=0  # включить режим обслуживания на время update
 #   SKIP_SERVICES=1     # не перезапускать php-fpm/caddy/queue
 #
 set -euo pipefail
@@ -26,7 +26,7 @@ GIT_BRANCH="${GIT_BRANCH:-main}"
 PHP_VERSION="8.3"
 SKIP_BUILD="${SKIP_BUILD:-0}"
 SKIP_MIGRATE="${SKIP_MIGRATE:-0}"
-SKIP_MAINTENANCE="${SKIP_MAINTENANCE:-0}"
+SKIP_MAINTENANCE="${SKIP_MAINTENANCE:-1}"
 SKIP_SERVICES="${SKIP_SERVICES:-0}"
 
 # ─── Утилиты ──────────────────────────────────────────────────────────────────
