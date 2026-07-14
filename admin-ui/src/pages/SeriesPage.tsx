@@ -198,6 +198,7 @@ export default function SeriesPage() {
   const [form] = Form.useForm()
   const [filterForm] = Form.useForm<SeriesListFilters>()
   const posterUrl = Form.useWatch('poster_url', form)
+  const watchedTmdbId = Form.useWatch('tmdb_id', form)
 
   const loadStudios = useCallback(async () => {
     const data = await api<{ items: StudioItem[] }>('/api/admin/studios')
@@ -859,7 +860,7 @@ export default function SeriesPage() {
                         <Form.Item label="TMDB ID" name="tmdb_id"><Input placeholder="66732" /></Form.Item>
                       </Col>
                     </Row>
-                    <Form.Item label="Популярность TMDB" name="tmdb_popularity" extra="Обновляется автоматически из TMDB API">
+                    <Form.Item label="Популярность TMDB" name="tmdb_popularity" extra="Обновляется автоматически из TMDB API вместе со статусом эфира">
                       <Input disabled placeholder="—" />
                     </Form.Item>
                     <Form.Item label="Студия" name="studio_id" extra="Опционально — сериал появится в каталоге студии">
@@ -1050,7 +1051,14 @@ export default function SeriesPage() {
                 <SeriesScheduleEditor
                   ref={scheduleEditorRef}
                   kpId={editing?.kp_id ?? form.getFieldValue('kp_id')}
+                  tmdbId={watchedTmdbId ?? editing?.tmdb_id}
                   drawerOpen={drawerOpen}
+                  onBroadcastStatusChange={(status) => {
+                    form.setFieldsValue({ broadcast_status: status })
+                    if (editing) {
+                      setEditing({ ...editing, broadcast_status: status ?? undefined })
+                    }
+                  }}
                 />
               ),
             },

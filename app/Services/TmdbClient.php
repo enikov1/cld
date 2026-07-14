@@ -25,11 +25,27 @@ class TmdbClient
     }
 
     /**
+     * @param  list<string>  $append
      * @return array<string,mixed>
      */
-    public function getTvDetails(int|string $tmdbId): array
+    public function getTvDetails(int|string $tmdbId, array $append = []): array
     {
-        return $this->getJson('/tv/' . rawurlencode((string)$tmdbId));
+        $query = [];
+        if ($append !== []) {
+            $query['append_to_response'] = implode(',', $append);
+        }
+
+        return $this->getJson('/tv/' . rawurlencode((string)$tmdbId), $query);
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    public function getTvSeasonDetails(int|string $tmdbId, int $seasonNumber): array
+    {
+        return $this->getJson(
+            '/tv/' . rawurlencode((string)$tmdbId) . '/season/' . $seasonNumber
+        );
     }
 
     /**
@@ -41,9 +57,10 @@ class TmdbClient
     }
 
     /**
+     * @param  array<string, mixed>  $query
      * @return array<string,mixed>
      */
-    private function getJson(string $path): array
+    private function getJson(string $path, array $query = []): array
     {
         if (!$this->isConfigured()) {
             return [];
@@ -51,10 +68,10 @@ class TmdbClient
 
         $response = Http::timeout($this->timeout)
             ->acceptJson()
-            ->get($this->baseUrl . $path, [
+            ->get($this->baseUrl . $path, array_merge([
                 'api_key' => $this->apiKey,
                 'language' => $this->language,
-            ]);
+            ], $query));
 
         if (!$response->ok()) {
             return [];

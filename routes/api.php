@@ -88,6 +88,7 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
     Route::post('/series/{kp_id}/restore', [AdminSeriesController::class, 'restore']);
     Route::get('/series/{kp_id}/schedule', [AdminScheduleController::class, 'show']);
     Route::post('/series/{kp_id}/schedule', [AdminScheduleController::class, 'save']);
+    Route::post('/series/{kp_id}/schedule/import-tmdb', [AdminScheduleController::class, 'importFromTmdb']);
     Route::get('/series/{kp_id}/players', [AdminPlayersController::class, 'show']);
     Route::post('/series/{kp_id}/players', [AdminPlayersController::class, 'save']);
 

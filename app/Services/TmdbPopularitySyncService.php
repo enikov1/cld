@@ -69,16 +69,18 @@ class TmdbPopularitySyncService
             return 'skipped';
         }
 
-        $details = $series->content_type === 'film'
-            ? $this->client->getMovieDetails($tmdbId)
-            : $this->client->getTvDetails($tmdbId);
+        $preferTv = $series->content_type !== 'film';
+        $details = $preferTv
+            ? $this->client->getTvDetails($tmdbId)
+            : $this->client->getMovieDetails($tmdbId);
+
+        $usedTvEndpoint = $preferTv;
 
         if ($details === [] || !isset($details['popularity'])) {
-            if ($series->content_type === 'film') {
-                $details = $this->client->getTvDetails($tmdbId);
-            } else {
-                $details = $this->client->getMovieDetails($tmdbId);
-            }
+            $details = $preferTv
+                ? $this->client->getMovieDetails($tmdbId)
+                : $this->client->getTvDetails($tmdbId);
+            $usedTvEndpoint = !$preferTv;
         }
 
         if ($details === [] || !isset($details['popularity'])) {
@@ -87,6 +89,16 @@ class TmdbPopularitySyncService
 
         $series->tmdb_popularity = round((float)$details['popularity'], 4);
         $series->tmdb_popularity_refreshed_at = now();
+
+        $mappedStatus = TmdbBroadcastStatusMapper::fromDetails(
+            $details,
+            $usedTvEndpoint ? 'series' : 'film',
+        );
+        $nextStatus = TmdbBroadcastStatusMapper::resolve($series->broadcast_status, $mappedStatus);
+        if ($nextStatus !== null) {
+            $series->broadcast_status = $nextStatus;
+        }
+
         $series->save();
 
         TplCache::forgetSeries($series->id);

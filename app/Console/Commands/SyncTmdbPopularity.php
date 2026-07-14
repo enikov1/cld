@@ -10,7 +10,7 @@ class SyncTmdbPopularity extends Command
 {
     protected $signature = 'tmdb:sync-popularity {--force : Run even if auto-sync is disabled} {--only-missing : Update only rows without popularity}';
 
-    protected $description = 'Sync TMDB popularity for series with tmdb_id';
+    protected $description = 'Sync TMDB popularity and broadcast status for series with tmdb_id';
 
     public function handle(TmdbPopularitySyncService $service): int
     {

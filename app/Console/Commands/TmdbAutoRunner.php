@@ -10,7 +10,7 @@ class TmdbAutoRunner extends Command
 {
     protected $signature = 'tmdb:auto';
 
-    protected $description = 'Run TMDB popularity sync once per day when enabled';
+    protected $description = 'Run TMDB popularity + broadcast status sync once per day when enabled';
 
     public function handle(): int
     {

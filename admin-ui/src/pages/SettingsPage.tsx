@@ -932,7 +932,8 @@ export default function SettingsPage() {
         </Card>
         <Card title="TMDB API" loading={loading} bordered={false} style={{ marginTop: 16 }}>
           <Typography.Paragraph type="secondary">
-            Ключ для получения популярности из The Movie Database. Запасной вариант — переменная <code>TMDB_API_KEY</code> в .env.
+            Ключ для синхронизации популярности и статуса эфира из The Movie Database. Запасной вариант — переменная{' '}
+            <code>TMDB_API_KEY</code> в .env.
             Документация:{' '}
             <a href="https://developer.themoviedb.org/reference/tv-series-details" target="_blank" rel="noreferrer">
               сериалы
@@ -961,11 +962,11 @@ export default function SettingsPage() {
           {tmdbApiKeySet ? (
             <Alert type="success" showIcon message="API-ключ TMDB настроен" style={{ marginBottom: 16 }} />
           ) : (
-            <Alert type="warning" showIcon message="API-ключ TMDB не задан — синхронизация популярности недоступна" style={{ marginBottom: 16 }} />
+            <Alert type="warning" showIcon message="API-ключ TMDB не задан — синхронизация популярности и статуса недоступна" style={{ marginBottom: 16 }} />
           )}
           <Form.Item
-            label="Автообновление популярности"
-            extra="Раз в сутки обновляет поле «Популярность TMDB» для всех сериалов с TMDB ID."
+            label="Автообновление TMDB"
+            extra="Раз в сутки обновляет популярность TMDB и статус сериала (идёт / завершён) для всех записей с TMDB ID. Ручной статус «На паузе» не перезаписывается, пока TMDB считает шоу продолжающимся."
           >
             <Space wrap>
               <Switch
