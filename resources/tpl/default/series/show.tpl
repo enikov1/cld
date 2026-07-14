@@ -266,6 +266,8 @@
         </div>
     </section>
 
+    <h2 class="serial-watch-title">«{series.title}» смотреть онлайн бесплатно в хорошем качестве</h2>
+
     [has_notifications]
         <div class="series-subscribe-box[notification_subscribed] is-subscribed[/notification_subscribed]" id="seriesSubscribeBox" data-subscribed="{notification_subscribed}">
             <div class="series-subscribe-box__icon"><span class="fa fa-bell"></span></div>
@@ -321,6 +323,17 @@
                     <span class="fa fa-angle-right"></span>
                 </button>
             </div>
+            <div class="trailer-actions">
+                <label class="trailer-light">
+                    <input type="checkbox" data-player-light>
+                    <span></span>
+                    Свет
+                </label>
+                <button type="button" class="trailer-report dontusebuttonclass" data-player-report>
+                    <span class="fa fa-exclamation-triangle" aria-hidden="true"></span>
+                    Есть жалоба?
+                </button>
+            </div>
         </div>
         <div class="trailer-box__body">
             [loop players]
@@ -365,6 +378,17 @@
             <div class="trailer-tabs" role="tablist">
                 <button type="button" class="trailer-tabs__btn dontusebuttonclass is-active" disabled>Смотреть онлайн</button>
             </div>
+            <div class="trailer-actions">
+                <label class="trailer-light">
+                    <input type="checkbox" data-player-light>
+                    <span></span>
+                    Свет
+                </label>
+                <button type="button" class="trailer-report dontusebuttonclass" data-player-report>
+                    <span class="fa fa-exclamation-triangle" aria-hidden="true"></span>
+                    Есть жалоба?
+                </button>
+            </div>
         </div>
         <div class="trailer-box__body">
             <div class="trailer-panel is-active">
@@ -392,6 +416,51 @@
             </button>
         [/not-series_share_widget_code]
     </section>
+
+    <div class="light-overlay" data-light-overlay></div>
+
+    <div id="ps-overlay-wrap" data-player-report-modal hidden>
+        <button type="button" id="ps-close" class="dontusebuttonclass" data-player-report-close aria-label="Закрыть"></button>
+        <div id="ps-content-holder">
+            <div id="ps-report-content">
+                <div id="ps-report-title">Сообщить о проблеме с плеером</div>
+                <div id="ps-report-title-info">
+                    Прежде чем оставлять жалобу, попробуйте другой плеер (например «Плеер 2»).
+                    Также AdBlock и похожие расширения часто мешают загрузке — попробуйте отключить их на время.
+                </div>
+                <div id="ps-report-issues" data-player-report-issues>
+                    <button type="button" class="report-item dontusebuttonclass" data-reason="player_not_shown">
+                        Плеер не отображается (только колесо загрузки либо сообщение)
+                    </button>
+                    <button type="button" class="report-item dontusebuttonclass" data-reason="video_not_start">
+                        Видео не запускается или черный экран после запуска
+                    </button>
+                    <button type="button" class="report-item dontusebuttonclass" data-reason="audio_desync">
+                        Звук и видео не совпадают
+                    </button>
+                    <button type="button" class="report-item dontusebuttonclass" data-reason="description_error">
+                        Ошибка в описании
+                    </button>
+                    <button type="button" class="report-item dontusebuttonclass" data-reason="other">
+                        Другое
+                    </button>
+                </div>
+                <div id="ps-report-issues-comment">
+                    <textarea
+                        name="message"
+                        rows="3"
+                        maxlength="2000"
+                        placeholder="Опишите проблему подробнее (необязательно, для «Другое» — обязательно)"
+                        data-player-report-message
+                    ></textarea>
+                    <button type="button" class="report-item report-item--submit dontusebuttonclass" data-player-report-submit>
+                        Отправить жалобу
+                    </button>
+                    <div class="player-report-feedback" data-player-report-feedback hidden></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="bookmark-modal" data-bookmark-modal hidden>
         <div class="bookmark-modal__overlay" data-bookmark-close></div>

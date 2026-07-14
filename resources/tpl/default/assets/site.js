@@ -2228,6 +2228,203 @@
         });
     }
 
+    function initPlayerLight() {
+        var toggles = document.querySelectorAll('[data-player-light]');
+        if (!toggles.length) return;
+
+        var overlay = document.querySelector('[data-light-overlay]');
+
+        function setLightsOff(on) {
+            document.body.classList.toggle('light-off', on);
+            toggles.forEach(function (input) {
+                input.checked = on;
+            });
+        }
+
+        toggles.forEach(function (input) {
+            input.addEventListener('change', function () {
+                setLightsOff(!!input.checked);
+            });
+        });
+
+        if (overlay) {
+            overlay.addEventListener('click', function () {
+                setLightsOff(false);
+            });
+        }
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && document.body.classList.contains('light-off')) {
+                setLightsOff(false);
+            }
+        });
+    }
+
+    function initPlayerReport() {
+        var openBtns = document.querySelectorAll('[data-player-report]');
+        var modal = document.querySelector('[data-player-report-modal]');
+        if (!openBtns.length || !modal) return;
+
+        var closeBtns = modal.querySelectorAll('[data-player-report-close]');
+        var issues = modal.querySelector('[data-player-report-issues]');
+        var messageEl = modal.querySelector('[data-player-report-message]');
+        var submitBtn = modal.querySelector('[data-player-report-submit]');
+        var feedbackEl = modal.querySelector('[data-player-report-feedback]');
+        var selectedReason = null;
+        var sending = false;
+
+        var reasonLabels = {
+            player_not_shown: 'Плеер не отображается (только колесо загрузки либо сообщение)',
+            video_not_start: 'Видео не запускается или черный экран после запуска',
+            audio_desync: 'Звук и видео не совпадают',
+            description_error: 'Ошибка в описании',
+            other: 'Другое',
+        };
+
+        function seriesId() {
+            var root = document.querySelector('[data-series-id]');
+            return root ? root.getAttribute('data-series-id') : '';
+        }
+
+        function activePlayerLabel() {
+            var active = document.querySelector('[data-trailer-box] [data-player-tabs] .trailer-tabs__btn.is-active');
+            return active ? String(active.textContent || '').trim() : '';
+        }
+
+        function setFeedback(text, isError) {
+            if (!feedbackEl) return;
+            if (!text) {
+                feedbackEl.hidden = true;
+                feedbackEl.textContent = '';
+                feedbackEl.classList.remove('is-error', 'is-success');
+                return;
+            }
+            feedbackEl.hidden = false;
+            feedbackEl.textContent = text;
+            feedbackEl.classList.toggle('is-error', !!isError);
+            feedbackEl.classList.toggle('is-success', !isError);
+        }
+
+        function resetForm() {
+            selectedReason = null;
+            if (issues) {
+                issues.querySelectorAll('.report-item').forEach(function (item) {
+                    item.classList.remove('active');
+                });
+            }
+            if (messageEl) {
+                messageEl.value = '';
+                messageEl.classList.remove('error');
+            }
+            setFeedback('');
+        }
+
+        function openModal() {
+            resetForm();
+            modal.hidden = false;
+            document.body.style.overflow = 'hidden';
+            if (messageEl) {
+                window.setTimeout(function () {
+                    messageEl.focus();
+                }, 50);
+            }
+        }
+
+        function closeModal() {
+            modal.hidden = true;
+            document.body.style.overflow = '';
+            resetForm();
+        }
+
+        openBtns.forEach(function (btn) {
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                openModal();
+            });
+        });
+
+        closeBtns.forEach(function (btn) {
+            btn.addEventListener('click', closeModal);
+        });
+
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) closeModal();
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && !modal.hidden) closeModal();
+        });
+
+        if (issues) {
+            issues.addEventListener('click', function (e) {
+                var item = e.target.closest('[data-reason]');
+                if (!item || !issues.contains(item)) return;
+                selectedReason = item.getAttribute('data-reason');
+                issues.querySelectorAll('.report-item').forEach(function (el) {
+                    el.classList.toggle('active', el === item);
+                });
+                setFeedback('');
+                if (messageEl) {
+                    messageEl.classList.remove('error');
+                    if (selectedReason === 'other') messageEl.focus();
+                }
+            });
+        }
+
+        function submitReport() {
+            if (sending) return;
+            var id = seriesId();
+            if (!id) {
+                setFeedback('Не удалось определить сериал', true);
+                return;
+            }
+            if (!selectedReason) {
+                setFeedback('Выберите причину жалобы', true);
+                return;
+            }
+            var message = messageEl ? String(messageEl.value || '').trim() : '';
+            if (selectedReason === 'other' && !message) {
+                if (messageEl) messageEl.classList.add('error');
+                setFeedback('Для пункта «Другое» опишите проблему в поле ниже', true);
+                return;
+            }
+            if (messageEl) messageEl.classList.remove('error');
+
+            sending = true;
+            if (submitBtn) submitBtn.disabled = true;
+            setFeedback('Отправка…', false);
+
+            postJson('/api/series/' + encodeURIComponent(id) + '/player-report', {
+                reason: selectedReason,
+                reason_label: reasonLabels[selectedReason] || selectedReason,
+                message: message,
+                player_label: activePlayerLabel(),
+            })
+                .then(readJsonResponse)
+                .then(function (res) {
+                    if (!res.ok) {
+                        var msg = (res.data && (res.data.message || (res.data.errors && Object.values(res.data.errors)[0]))) || 'Не удалось отправить жалобу';
+                        if (Array.isArray(msg)) msg = msg[0];
+                        setFeedback(String(msg), true);
+                        return;
+                    }
+                    setFeedback((res.data && res.data.message) || 'Спасибо! Жалоба отправлена.', false);
+                    window.setTimeout(closeModal, 1200);
+                })
+                .catch(function () {
+                    setFeedback('Не удалось отправить жалобу', true);
+                })
+                .then(function () {
+                    sending = false;
+                    if (submitBtn) submitBtn.disabled = false;
+                });
+        }
+
+        if (submitBtn) {
+            submitBtn.addEventListener('click', submitReport);
+        }
+    }
+
     function initNotifyModal() {
         var notifyOverlay = document.getElementById('notifyOverlay');
         var notifyBtn = document.getElementById('notifyOpenBtn');
@@ -3112,6 +3309,8 @@
         initEpisodesModal();
         initReactionsWidget();
         initPlayerTabs();
+        initPlayerLight();
+        initPlayerReport();
         initNotifyModal();
         initBookmarkHint();
         initHeaderNotifications();

@@ -7,6 +7,7 @@ import {
   DashboardOutlined,
   ExportOutlined,
   FolderOpenOutlined,
+  HistoryOutlined,
   LogoutOutlined,
   MenuOutlined,
   MoonOutlined,
@@ -16,13 +17,19 @@ import {
   SunOutlined,
   TeamOutlined,
   VideoCameraOutlined,
+  WarningOutlined,
 } from '@ant-design/icons'
 import { Button, Layout, Menu, Space, Tooltip, Typography } from 'antd'
 import type { MenuProps } from 'antd'
+import { useEffect, useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import AdminCacheControl from '../components/AdminCacheControl'
+import AdminCronControl from '../components/AdminCronControl'
+import AdminSystemControl from '../components/AdminSystemControl'
 import { ADMIN_ROUTES, pageKeyFromPath, pageMeta } from '../routes/adminRoutes'
-import type { AdminPageKey } from '../types'
+import type { AdminPageKey, AdminStats } from '../types'
 import { siteOrigin } from '../utils/mediaUrl'
 
 const { Sider, Header, Content } = Layout
@@ -34,7 +41,23 @@ type AdminLayoutProps = {
 
 const SITE_MENU_KEY = 'open-site'
 
-function buildMenuItems(): MenuProps['items'] {
+function formatCount(value: number | null | undefined): string {
+  if (value == null) return '…'
+  return new Intl.NumberFormat('ru-RU').format(value)
+}
+
+function MenuLabel({ text, count }: { text: string; count?: number | null }) {
+  return (
+    <span className="admin-menu-label">
+      <span className="admin-menu-label__text">{text}</span>
+      {count !== undefined ? (
+        <span className="admin-menu-label__count">{formatCount(count)}</span>
+      ) : null}
+    </span>
+  )
+}
+
+function buildMenuItems(stats: AdminStats | null): MenuProps['items'] {
   const origin = siteOrigin() || '/'
 
   return [
@@ -52,12 +75,30 @@ function buildMenuItems(): MenuProps['items'] {
     { key: 'nav-menu', icon: <MenuOutlined />, label: 'Меню' },
     { key: 'reactions', icon: <SmileOutlined />, label: 'Реакции' },
     { key: 'taxonomy', icon: <BookOutlined />, label: 'Справочники' },
-    { key: 'series', icon: <VideoCameraOutlined />, label: 'Сериалы' },
+    {
+      key: 'series',
+      icon: <VideoCameraOutlined />,
+      label: <MenuLabel text="Сериалы" count={stats?.series_total ?? null} />,
+    },
     { key: 'collections', icon: <FolderOpenOutlined />, label: 'Подборки' },
     { key: 'studios', icon: <BankOutlined />, label: 'Студии' },
     { type: 'divider' },
-    { key: 'comments', icon: <CommentOutlined />, label: 'Комментарии' },
-    { key: 'users', icon: <TeamOutlined />, label: 'Пользователи' },
+    {
+      key: 'comments',
+      icon: <CommentOutlined />,
+      label: <MenuLabel text="Комментарии" count={stats?.comments_total ?? null} />,
+    },
+    {
+      key: 'player-reports',
+      icon: <WarningOutlined />,
+      label: <MenuLabel text="Жалобы" count={stats?.player_reports_total ?? null} />,
+    },
+    { key: 'cron-runs', icon: <HistoryOutlined />, label: 'История задач' },
+    {
+      key: 'users',
+      icon: <TeamOutlined />,
+      label: <MenuLabel text="Пользователи" count={stats?.users_total ?? null} />,
+    },
     { key: 'search-stats', icon: <SearchOutlined />, label: 'Поиск' },
     { key: 'settings', icon: <SettingOutlined />, label: 'Настройки' },
     { key: 'templates', icon: <CodeOutlined />, label: 'Шаблоны' },
@@ -70,10 +111,25 @@ export default function AdminLayout({ isDark, onToggleTheme }: AdminLayoutProps)
   const location = useLocation()
   const navigate = useNavigate()
   const { logout, tokenRequired } = useAuth()
+  const [stats, setStats] = useState<AdminStats | null>(null)
 
   const page = pageKeyFromPath(location.pathname)
   const meta = pageMeta[page]
-  const menuItems = buildMenuItems()
+  const menuItems = useMemo(() => buildMenuItems(stats), [stats])
+
+  useEffect(() => {
+    let cancelled = false
+    api<AdminStats>('/api/admin/stats')
+      .then((data) => {
+        if (!cancelled) setStats(data)
+      })
+      .catch(() => {
+        /* меню работает и без счётчиков */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [location.pathname])
 
   return (
     <Layout className="admin-shell">
@@ -116,7 +172,10 @@ export default function AdminLayout({ isDark, onToggleTheme }: AdminLayoutProps)
             ) : null}
           </div>
           <div className="admin-header__extra">
-            <Space>
+            <Space wrap>
+              <AdminCronControl />
+              <AdminSystemControl />
+              <AdminCacheControl />
               <Tooltip title={isDark ? 'Светлая тема' : 'Тёмная тема'}>
                 <Button
                   type="text"

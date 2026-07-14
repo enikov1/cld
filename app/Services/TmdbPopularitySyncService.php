@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\CronRun;
 use App\Models\Series;
 use App\Support\TplCache;
 
@@ -218,6 +219,14 @@ class TmdbPopularitySyncService
                 ->where('tmdb_id', '!=', '')
                 ->count();
 
+            $cronRun = CronRunLogger::start(
+                CronRunLogger::JOB_TMDB_POPULARITY,
+                'tmdb:sync-popularity',
+                CronRun::TRIGGER_ADMIN,
+                ['mode' => 'progressive', 'total' => $total],
+                'Прогрессивная синхронизация TMDB',
+            );
+
             $progress = TmdbSyncProgress::normalize([
                 'status' => 'running',
                 'after_id' => 0,
@@ -232,6 +241,7 @@ class TmdbPopularitySyncService
                 'message' => 'Синхронизация запущена',
                 'started_at' => time(),
                 'finished_at' => null,
+                'cron_run_id' => $cronRun->id,
             ]);
             TmdbSyncProgress::save($progress);
         }
@@ -270,6 +280,29 @@ class TmdbPopularitySyncService
                 $progress['studio_logos'],
             );
             TmdbAutoSyncSettings::markRun();
+
+            if (!empty($progress['cron_run_id'])) {
+                $cronRun = CronRun::query()->find((int)$progress['cron_run_id']);
+                if ($cronRun && $cronRun->status === CronRun::STATUS_RUNNING) {
+                    CronRunLogger::finish(
+                        $cronRun,
+                        ((int)$progress['failed'] > 0 && (int)$progress['updated'] === 0)
+                            ? CronRun::STATUS_FAILED
+                            : CronRun::STATUS_SUCCESS,
+                        [
+                            'processed' => (int)$progress['processed'],
+                            'total' => (int)$progress['total'],
+                            'updated' => (int)$progress['updated'],
+                            'failed' => (int)$progress['failed'],
+                            'status_changed' => (int)$progress['status_changed'],
+                            'schedule_synced' => (int)$progress['schedule_synced'],
+                            'studios_linked' => (int)$progress['studios_linked'],
+                            'studio_logos' => (int)$progress['studio_logos'],
+                        ],
+                        (string)$progress['message'],
+                    );
+                }
+            }
         } else {
             $progress['status'] = 'running';
         }

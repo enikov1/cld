@@ -58,6 +58,40 @@ html[data-admin-theme='dark'] #app {
   overflow: auto;
 }
 
+.admin-menu-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.admin-menu-label__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-menu-label__count {
+  flex: 0 0 auto;
+  min-width: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+
+.ant-menu-item-selected .admin-menu-label__count {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
 .admin-brand {
   display: flex;
   align-items: center;
@@ -122,6 +156,193 @@ html[data-admin-theme='dark'] #app {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.admin-cache-popover {
+  width: 320px;
+}
+
+.admin-system-popover {
+  width: 380px;
+  max-height: min(70vh, 640px);
+  overflow-y: auto;
+}
+
+.admin-cron-popover {
+  width: 380px;
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+}
+
+.admin-cron-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-cron-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1px solid #f0f0f0;
+  background: transparent;
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.admin-cron-row:hover,
+.admin-cron-row.is-active {
+  border-color: #91caff;
+  background: rgba(22, 119, 255, 0.04);
+}
+
+.admin-cron-row__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.admin-cron-row__title {
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-cron-row__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.admin-cron-row__msg {
+  margin-top: 4px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.65);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-cron-detail {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.admin-cron-detail__log {
+  margin: 0;
+  max-height: 160px;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 6px;
+  background: #fafafa;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+html[data-admin-theme='dark'] .admin-cron-row {
+  border-color: #303030;
+}
+
+html[data-admin-theme='dark'] .admin-cron-row:hover,
+html[data-admin-theme='dark'] .admin-cron-row.is-active {
+  border-color: #1668dc;
+  background: rgba(22, 119, 255, 0.12);
+}
+
+html[data-admin-theme='dark'] .admin-cron-row__meta {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+html[data-admin-theme='dark'] .admin-cron-row__msg {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+html[data-admin-theme='dark'] .admin-cron-detail {
+  border-top-color: #303030;
+}
+
+html[data-admin-theme='dark'] .admin-cron-detail__log {
+  background: #141414;
+}
+
+.admin-system-section {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.admin-system-tables {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed #f0f0f0;
+}
+
+html[data-admin-theme='dark'] .admin-system-tables {
+  border-top-color: #303030;
+}
+
+.admin-cache-stat {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.admin-cache-stat__label {
+  color: rgba(0, 0, 0, 0.45);
+  flex: 0 0 auto;
+}
+
+.admin-cache-stat__value {
+  text-align: right;
+  word-break: break-word;
+}
+
+.admin-cache-popover__actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+
+html[data-admin-theme='dark'] .admin-cache-stat__label {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+html[data-admin-theme='dark'] .admin-cache-popover__actions {
+  border-top-color: #303030;
+}
+
+.admin-cron-log {
+  margin: 0;
+  padding: 12px;
+  max-height: 420px;
+  overflow: auto;
+  border-radius: 8px;
+  background: #0f172a0d;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+html[data-admin-theme='dark'] .admin-cron-log {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .admin-content {

@@ -55,6 +55,16 @@ export default function DashboardPage() {
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
             <Statistic
+              title="Жалобы на плеер"
+              value={stats?.player_reports_today ?? 0}
+              suffix={`сегодня / ${stats?.player_reports_total ?? 0} всего`}
+              valueStyle={stats?.player_reports_today ? { color: '#cf1322' } : undefined}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading}>
+            <Statistic
               title="Пользователи"
               value={stats?.users_total ?? 0}
               suffix={stats?.users_blocked ? `/ ${stats.users_blocked} заблок.` : undefined}
@@ -86,6 +96,8 @@ export default function DashboardPage() {
               <Link to={ADMIN_ROUTES['search-stats']}>Статистика поиска</Link>
               {' · '}
               <Link to={ADMIN_ROUTES.comments}>Модерация комментариев</Link>
+              {' · '}
+              <Link to={ADMIN_ROUTES['player-reports']}>Жалобы на плеер</Link>
             </Typography.Paragraph>
             <Typography.Paragraph>
               <Link to={ADMIN_ROUTES.users}>Пользователи сайта</Link>

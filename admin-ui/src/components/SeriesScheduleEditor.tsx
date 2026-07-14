@@ -19,7 +19,7 @@ type ScheduleSeason = {
 }
 
 export type SeriesScheduleEditorHandle = {
-  save: (options?: { silent?: boolean }) => Promise<boolean>
+  save: (options?: { silent?: boolean; kpId?: string }) => Promise<boolean>
 }
 
 type Props = {
@@ -72,8 +72,9 @@ const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(funct
   }, [tmdbId])
 
   const saveSchedule = useCallback(
-    async (options?: { silent?: boolean }) => {
-      if (!kpId) return true
+    async (options?: { silent?: boolean; kpId?: string }) => {
+      const targetKpId = options?.kpId ?? kpId
+      if (!targetKpId) return true
 
       setSaving(true)
       try {
@@ -90,7 +91,7 @@ const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(funct
             })),
           })),
         }
-        const res = await api<{ seasons: ScheduleSeason[] }>(`/api/admin/series/${kpId}/schedule`, {
+        const res = await api<{ seasons: ScheduleSeason[] }>(`/api/admin/series/${targetKpId}/schedule`, {
           method: 'POST',
           body: JSON.stringify(payload),
         })

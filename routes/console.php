@@ -10,5 +10,5 @@ Artisan::command('inspire', function () {
 
 Schedule::command('alloha:auto')->everyMinute();
 Schedule::command('tmdb:auto')->everyMinute();
-Schedule::command('series:refresh-popularity-badges')->hourly();
-Schedule::command('sitemap:generate')->everyThirtyMinutes();
+Schedule::command('series:refresh-popularity-badges', ['--trigger' => 'schedule'])->hourly();
+Schedule::command('sitemap:generate', ['--trigger' => 'schedule'])->everyThirtyMinutes();

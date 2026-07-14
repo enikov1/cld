@@ -932,19 +932,19 @@ body.bookmark-lock {
 .trailer-box__actions {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 16px;
+    justify-content: flex-start;
+    gap: 12px;
     background: #171917;
 }
 
 .trailer-box__actions--split .trailer-box__bottom {
     width: auto;
-    flex: 0 1 auto;
-    max-width: min(100%, 420px);
+    flex: 1 1 auto;
+    max-width: none;
 }
 
 .trailer-box__share {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     min-width: 0;
     padding: 10px 0 10px 18px;
     display: flex;
@@ -956,7 +956,7 @@ body.bookmark-lock {
 }
 
 .trailer-box__bookmark {
-    margin-left: auto;
+    margin-left: 0;
     padding: 14px 18px;
     display: inline-flex;
     align-items: center;
@@ -1246,9 +1246,8 @@ body.bookmark-lock {
 .trailer-tabs-wrap {
     display: flex;
     align-items: stretch;
-    flex: 1;
+    flex: 1 1 auto;
     min-width: 0;
-    width: 100%;
 }
 
 .trailer-tabs {

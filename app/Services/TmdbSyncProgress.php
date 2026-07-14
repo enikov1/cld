@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\SiteSetting;
+use App\Models\CronRun;
 
 class TmdbSyncProgress
 {
@@ -72,6 +73,7 @@ class TmdbSyncProgress
             'message' => (string)($input['message'] ?? ''),
             'started_at' => isset($input['started_at']) && is_numeric($input['started_at']) ? (int)$input['started_at'] : null,
             'finished_at' => isset($input['finished_at']) && is_numeric($input['finished_at']) ? (int)$input['finished_at'] : null,
+            'cron_run_id' => isset($input['cron_run_id']) && is_numeric($input['cron_run_id']) ? (int)$input['cron_run_id'] : null,
         ];
     }
 

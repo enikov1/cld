@@ -15,12 +15,23 @@ import {
   Table,
   Tabs,
   Tag,
+  Tooltip,
   Upload,
   message,
 } from 'antd'
-import { CopyOutlined } from '@ant-design/icons'
+import {
+  CopyOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  EyeInvisibleOutlined,
+  EyeOutlined,
+  ExportOutlined,
+  PushpinFilled,
+  PushpinOutlined,
+  UndoOutlined,
+} from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { api } from '../api/client'
@@ -29,8 +40,22 @@ import SeriesScheduleEditor, { type SeriesScheduleEditorHandle } from '../compon
 import SeriesPlayersEditor, { type SeriesPlayersEditorHandle } from '../components/SeriesPlayersEditor'
 import type { SeriesItem, StudioItem, TaxonomyOption } from '../types'
 import { BROADCAST_STATUSES, CONTENT_TYPES } from '../types'
-import { resolveMediaUrl } from '../utils/mediaUrl'
+import { resolveMediaUrl, siteOrigin } from '../utils/mediaUrl'
 import { buildDescriptionAiPrompt } from '../utils/descriptionAiPrompt'
+
+function seriesPublicPath(item: SeriesItem): string {
+  const yearNum = Number(item.year || item.start_year || 0)
+  let year = yearNum >= 1900 && yearNum <= 2100 ? String(yearNum) : ''
+  if (!year && item.premiere_date) {
+    const premiereYear = Number(String(item.premiere_date).slice(0, 4))
+    if (premiereYear >= 1900 && premiereYear <= 2100) {
+      year = String(premiereYear)
+    }
+  }
+  if (!year) year = '0000'
+  const slug = (item.slug || '').trim() || 'series'
+  return `/${item.id}-${slug}-${year}.html`
+}
 
 type SelectOption = { value: number; label: string }
 
@@ -70,17 +95,43 @@ const BOOL_FILTER_OPTIONS = [
 const SORT_OPTIONS = [
   { value: 'default', label: 'По умолчанию (закреплённые, порядок)' },
   { value: 'created_desc', label: 'Сначала новые в базе' },
+  { value: 'created_asc', label: 'Сначала старые в базе' },
   { value: 'title_asc', label: 'Название А→Я' },
   { value: 'title_desc', label: 'Название Я→А' },
   { value: 'year_desc', label: 'Год: новые → старые' },
   { value: 'year_asc', label: 'Год: старые → новые' },
+  { value: 'kp_id_asc', label: 'KP ID ↑' },
+  { value: 'kp_id_desc', label: 'KP ID ↓' },
   { value: 'kp_rating_desc', label: 'Рейтинг KP ↓' },
+  { value: 'kp_rating_asc', label: 'Рейтинг KP ↑' },
   { value: 'imdb_rating_desc', label: 'Рейтинг IMDb ↓' },
   { value: 'tmdb_popularity_desc', label: 'Популярность TMDB ↓' },
   { value: 'tmdb_popularity_asc', label: 'Популярность TMDB ↑' },
   { value: 'views_desc', label: 'Просмотры ↓' },
   { value: 'views_asc', label: 'Просмотры ↑' },
 ]
+
+const COLUMN_SORT: Record<string, { asc: string; desc: string }> = {
+  kp_id: { asc: 'kp_id_asc', desc: 'kp_id_desc' },
+  title: { asc: 'title_asc', desc: 'title_desc' },
+  content_type: { asc: 'content_type_asc', desc: 'content_type_desc' },
+  broadcast_status: { asc: 'broadcast_status_asc', desc: 'broadcast_status_desc' },
+  kp_rating: { asc: 'kp_rating_asc', desc: 'kp_rating_desc' },
+  tmdb_popularity: { asc: 'tmdb_popularity_asc', desc: 'tmdb_popularity_desc' },
+  views_count: { asc: 'views_asc', desc: 'views_desc' },
+  popular_badge_active: { asc: 'popular_badge_asc', desc: 'popular_badge_desc' },
+  is_active: { asc: 'is_active_asc', desc: 'is_active_desc' },
+}
+
+function columnSortOrder(sort: string | undefined, columnKey: string): 'ascend' | 'descend' | undefined {
+  const cfg = COLUMN_SORT[columnKey]
+  if (!cfg || !sort) return undefined
+  if (sort === cfg.asc) return 'ascend'
+  if (sort === cfg.desc) return 'descend'
+  return undefined
+}
+
+const cellNowrap: CSSProperties = { whiteSpace: 'nowrap' }
 
 function appendFilterParams(params: URLSearchParams, filters: SeriesListFilters) {
   const set = (key: string, value: string | number | boolean | undefined | null) => {
@@ -211,6 +262,7 @@ export default function SeriesPage() {
   const [importing, setImporting] = useState(false)
   const [importingAlloha, setImportingAlloha] = useState(false)
   const [playersRefreshKey, setPlayersRefreshKey] = useState(0)
+  const [posterCacheBust, setPosterCacheBust] = useState<number | undefined>(undefined)
   const [saving, setSaving] = useState(false)
   const playersEditorRef = useRef<SeriesPlayersEditorHandle>(null)
   const scheduleEditorRef = useRef<SeriesScheduleEditorHandle>(null)
@@ -218,6 +270,7 @@ export default function SeriesPage() {
   const [filterForm] = Form.useForm<SeriesListFilters>()
   const posterUrl = Form.useWatch('poster_url', form)
   const watchedTmdbId = Form.useWatch('tmdb_id', form)
+  const currentSort = (Form.useWatch('sort', filterForm) as string | undefined) ?? 'default'
 
   const loadStudios = useCallback(async () => {
     const data = await api<{ items: StudioItem[] }>('/api/admin/studios')
@@ -407,6 +460,11 @@ export default function SeriesPage() {
       const allValues = form.getFieldsValue(true) as Record<string, unknown>
       const payload = buildSeriesPayload({ ...allValues, ...values })
 
+      if (editing) {
+        payload.id = editing.id
+        payload.original_kp_id = editing.kp_id
+      }
+
       const res = await api<{ item: SeriesItem }>('/api/admin/series/upsert', {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -417,13 +475,13 @@ export default function SeriesPage() {
 
       const kpId = String(res.item.kp_id ?? payload.kp_id ?? '')
       if (kpId) {
-        const playersSaved = await playersEditorRef.current?.save({ silent: true })
+        const playersSaved = await playersEditorRef.current?.save({ silent: true, kpId })
         if (playersSaved === false) {
           message.error('Сериал сохранён, но не удалось сохранить плееры')
           return
         }
 
-        const scheduleSaved = await scheduleEditorRef.current?.save({ silent: true })
+        const scheduleSaved = await scheduleEditorRef.current?.save({ silent: true, kpId })
         if (scheduleSaved === false) {
           message.error('Сериал сохранён, но не удалось сохранить расписание')
           return
@@ -441,6 +499,32 @@ export default function SeriesPage() {
       message.error(String((e as Error).message))
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function copyKpId(kpId: string | number) {
+    try {
+      await navigator.clipboard.writeText(String(kpId))
+      message.success('KP ID скопирован')
+    } catch {
+      message.error('Не удалось скопировать')
+    }
+  }
+
+  async function validateKpIdUnique(_: unknown, value: unknown) {
+    const kpId = String(value ?? '').trim()
+    if (!kpId) return
+
+    const params = new URLSearchParams({ kp_id: kpId })
+    if (editing?.id) {
+      params.set('except_id', String(editing.id))
+    }
+
+    const res = await api<{ exists: boolean; item?: { title?: string } }>(
+      `/api/admin/series/check-kp?${params}`,
+    )
+    if (res.exists) {
+      throw new Error(`KP ID уже занят${res.item?.title ? `: ${res.item.title}` : ''}`)
     }
   }
 
@@ -541,6 +625,7 @@ export default function SeriesPage() {
     try {
       const res = await apiUpload<{ poster_url: string }>(`/api/admin/series/${kpId}/poster`, fd)
       form.setFieldValue('poster_url', res.poster_url)
+      setPosterCacheBust(Date.now())
       message.success('Постер загружен')
       await loadSeries()
     } catch (e) {
@@ -584,33 +669,81 @@ export default function SeriesPage() {
   }
 
   const columns: ColumnsType<SeriesItem> = [
-    { title: 'KP', dataIndex: 'kp_id', width: 80 },
     {
-      title: '',
-      key: 'poster',
-      width: 56,
-      render: (_, r) =>
-        r.poster_url ? (
-          <img src={resolveMediaUrl(r.poster_url)} alt="" style={{ width: 36, height: 52, objectFit: 'cover', borderRadius: 4 }} />
-        ) : '—',
+      title: 'KP',
+      dataIndex: 'kp_id',
+      key: 'kp_id',
+      width: 108,
+      sorter: true,
+      sortOrder: columnSortOrder(currentSort, 'kp_id'),
+      onHeaderCell: () => ({ style: cellNowrap }),
+      onCell: () => ({ style: cellNowrap }),
+      render: (v) => (
+        <Button
+          type="link"
+          size="small"
+          icon={<CopyOutlined />}
+          onClick={() => void copyKpId(v)}
+          style={{ padding: 0, height: 'auto', whiteSpace: 'nowrap' }}
+          title="Скопировать KP ID"
+        >
+          {v}
+        </Button>
+      ),
     },
     {
       title: 'Название',
       dataIndex: 'title',
+      key: 'title',
       ellipsis: true,
+      sorter: true,
+      sortOrder: columnSortOrder(currentSort, 'title'),
       render: (t, r) => (
-        <Space direction="vertical" size={0}>
-          <span>{t}{r.deleted_at ? ' (удалён)' : ''}</span>
-          {r.is_pinned ? <Tag color="orange">Закреплён</Tag> : null}
+        <Space size={8} align="start" style={{ maxWidth: '100%' }}>
+          {r.poster_url ? (
+            <img
+              src={resolveMediaUrl(r.poster_url, posterCacheBust)}
+              alt=""
+              style={{ width: 36, height: 52, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
+            />
+          ) : null}
+          <Space direction="vertical" size={0} style={{ minWidth: 0 }}>
+            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', maxWidth: 280 }}>
+              {t}{r.deleted_at ? ' (удалён)' : ''}
+            </span>
+            {r.is_pinned ? <Tag color="orange">Закреплён</Tag> : null}
+          </Space>
         </Space>
       ),
     },
-    { title: 'Тип', dataIndex: 'content_type', width: 90, render: (v) => CONTENT_TYPES.find((x) => x.value === v)?.label ?? '—' },
-    { title: 'Статус', dataIndex: 'broadcast_status', width: 110, render: (v) => statusTag(v) },
+    {
+      title: 'Тип',
+      dataIndex: 'content_type',
+      key: 'content_type',
+      width: 88,
+      sorter: true,
+      sortOrder: columnSortOrder(currentSort, 'content_type'),
+      onHeaderCell: () => ({ style: cellNowrap }),
+      onCell: () => ({ style: cellNowrap }),
+      render: (v) => CONTENT_TYPES.find((x) => x.value === v)?.label ?? '—',
+    },
+    {
+      title: 'Статус',
+      dataIndex: 'broadcast_status',
+      key: 'broadcast_status',
+      width: 110,
+      sorter: true,
+      sortOrder: columnSortOrder(currentSort, 'broadcast_status'),
+      onHeaderCell: () => ({ style: cellNowrap }),
+      onCell: () => ({ style: cellNowrap }),
+      render: (v) => statusTag(v),
+    },
     {
       title: 'Серии',
       key: 'episodes',
-      width: 90,
+      width: 84,
+      onHeaderCell: () => ({ style: cellNowrap }),
+      onCell: () => ({ style: cellNowrap }),
       render: (_, r) => {
         if (!r.season_number && !r.last_episode_number) return '—'
         const parts: string[] = []
@@ -619,36 +752,115 @@ export default function SeriesPage() {
         return parts.join(' ')
       },
     },
-    { title: 'KP', dataIndex: 'kp_rating', width: 60 },
-    { title: 'TMDB поп.', dataIndex: 'tmdb_popularity', width: 90, render: (v) => (v != null ? Number(v).toFixed(1) : '—') },
-    { title: 'Просмотры', dataIndex: 'views_count', width: 90, render: (v) => v ?? 0 },
-    { title: '3 дня', dataIndex: 'views_3d', width: 70, render: (v) => v ?? 0 },
+    {
+      title: 'KP ★',
+      dataIndex: 'kp_rating',
+      key: 'kp_rating',
+      width: 72,
+      sorter: true,
+      sortOrder: columnSortOrder(currentSort, 'kp_rating'),
+      onHeaderCell: () => ({ style: cellNowrap }),
+      onCell: () => ({ style: cellNowrap }),
+    },
+    {
+      title: 'TMDB',
+      dataIndex: 'tmdb_popularity',
+      key: 'tmdb_popularity',
+      width: 80,
+      sorter: true,
+      sortOrder: columnSortOrder(currentSort, 'tmdb_popularity'),
+      onHeaderCell: () => ({ style: cellNowrap }),
+      onCell: () => ({ style: cellNowrap }),
+      render: (v) => (v != null ? Number(v).toFixed(1) : '—'),
+    },
+    {
+      title: 'Просмотры',
+      dataIndex: 'views_count',
+      key: 'views_count',
+      width: 96,
+      sorter: true,
+      sortOrder: columnSortOrder(currentSort, 'views_count'),
+      onHeaderCell: () => ({ style: cellNowrap }),
+      onCell: () => ({ style: cellNowrap }),
+      render: (v) => v ?? 0,
+    },
+    {
+      title: '3 дня',
+      dataIndex: 'views_3d',
+      key: 'views_3d',
+      width: 72,
+      onHeaderCell: () => ({ style: cellNowrap }),
+      onCell: () => ({ style: cellNowrap }),
+      render: (v) => v ?? 0,
+    },
     {
       title: 'Популярно',
       dataIndex: 'popular_badge_active',
-      width: 90,
+      key: 'popular_badge_active',
+      width: 100,
+      sorter: true,
+      sortOrder: columnSortOrder(currentSort, 'popular_badge_active'),
+      onHeaderCell: () => ({ style: cellNowrap }),
+      onCell: () => ({ style: cellNowrap }),
       render: (v) => (v ? <Tag color="gold">Да</Tag> : '—'),
     },
     {
       title: 'Сайт',
       dataIndex: 'is_active',
-      width: 90,
+      key: 'is_active',
+      width: 84,
+      sorter: true,
+      sortOrder: columnSortOrder(currentSort, 'is_active'),
+      onHeaderCell: () => ({ style: cellNowrap }),
+      onCell: () => ({ style: cellNowrap }),
       render: (v) => (v ? <Tag color="green">Виден</Tag> : <Tag>Скрыт</Tag>),
     },
     {
       title: 'Действия',
       key: 'actions',
-      width: 280,
+      width: 168,
+      fixed: 'right',
+      onCell: () => ({ style: cellNowrap }),
       render: (_, row) => (
-        <Space wrap size="small">
-          <Button size="small" onClick={() => openEdit(row)}>Изменить</Button>
-          <Button size="small" onClick={() => togglePin(row)}>{row.is_pinned ? 'Открепить' : 'Закрепить'}</Button>
-          <Button size="small" onClick={() => toggleVisibility(row)}>{row.is_active ? 'Скрыть' : 'Показать'}</Button>
+        <Space size={2} wrap={false}>
+          <Tooltip title="Изменить">
+            <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(row)} aria-label="Изменить" />
+          </Tooltip>
+          <Tooltip title={row.is_pinned ? 'Открепить' : 'Закрепить'}>
+            <Button
+              size="small"
+              icon={row.is_pinned ? <PushpinFilled /> : <PushpinOutlined />}
+              onClick={() => togglePin(row)}
+              aria-label={row.is_pinned ? 'Открепить' : 'Закрепить'}
+            />
+          </Tooltip>
+          <Tooltip title={row.is_active ? 'Скрыть' : 'Показать'}>
+            <Button
+              size="small"
+              icon={row.is_active ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+              onClick={() => toggleVisibility(row)}
+              aria-label={row.is_active ? 'Скрыть' : 'Показать'}
+            />
+          </Tooltip>
+          <Tooltip title="Открыть на сайте">
+            <Button
+              size="small"
+              icon={<ExportOutlined />}
+              href={`${siteOrigin()}${seriesPublicPath(row)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Открыть на сайте"
+            />
+          </Tooltip>
           {row.deleted_at ? (
-            <Button size="small" onClick={() => restore(row)}>Восстановить</Button>
+            <Tooltip title="Восстановить">
+              <Button size="small" icon={<UndoOutlined />} onClick={() => restore(row)} aria-label="Восстановить" />
+            </Tooltip>
           ) : (
             <Popconfirm title="Удалить сериал?" onConfirm={() => remove(row)}>
-              <Button size="small" danger>Удалить</Button>
+              <Tooltip title="Удалить">
+                <Button size="small" danger icon={<DeleteOutlined />} aria-label="Удалить" />
+              </Tooltip>
             </Popconfirm>
           )}
         </Space>
@@ -824,6 +1036,7 @@ export default function SeriesPage() {
         loading={loading}
         columns={columns}
         dataSource={items}
+        size="middle"
         pagination={{
           current: page,
           pageSize: perPage,
@@ -831,11 +1044,31 @@ export default function SeriesPage() {
           showSizeChanger: true,
           pageSizeOptions: ['20', '50', '100'],
           showTotal: (value) => `Показано ${items.length} из ${value}`,
-          onChange: (nextPage, nextPerPage) => {
-            loadSeries(nextPage, nextPerPage)
-          },
         }}
-        scroll={{ x: 1100 }}
+        scroll={{ x: 1280 }}
+        onChange={(pagination, _filters, sorter) => {
+          const nextPage = pagination.current ?? 1
+          const nextPerPage = pagination.pageSize ?? perPage
+          const single = Array.isArray(sorter) ? sorter[0] : sorter
+          const columnKey = String(single?.columnKey ?? single?.field ?? '')
+          const cfg = COLUMN_SORT[columnKey]
+          let nextSort = currentSort
+
+          if (cfg && single?.order === 'ascend') {
+            nextSort = cfg.asc
+          } else if (cfg && single?.order === 'descend') {
+            nextSort = cfg.desc
+          } else if (cfg && !single?.order) {
+            nextSort = 'default'
+          }
+
+          if (nextSort !== currentSort) {
+            filterForm.setFieldsValue({ sort: nextSort })
+          }
+
+          const values = { ...filterForm.getFieldsValue(), sort: nextSort } as SeriesListFilters
+          void loadSeries(nextPage, nextPerPage, values)
+        }}
       />
 
       <Drawer
@@ -873,8 +1106,29 @@ export default function SeriesPage() {
                   <>
                     <Row gutter={16}>
                       <Col span={8}>
-                        <Form.Item label="KP ID" name="kp_id" rules={[{ required: true }]}>
-                          <Input disabled={!!editing} />
+                        <Form.Item
+                          label="KP ID"
+                          name="kp_id"
+                          validateDebounce={400}
+                          rules={[
+                            { required: true, message: 'Укажите KP ID' },
+                            { validator: validateKpIdUnique },
+                          ]}
+                          extra={editing ? 'Можно заменить, если добавили не тот сериал' : undefined}
+                        >
+                          <Input
+                            placeholder="915196"
+                            suffix={
+                              <CopyOutlined
+                                onClick={() => {
+                                  const value = form.getFieldValue('kp_id')
+                                  if (value) void copyKpId(value)
+                                }}
+                                style={{ cursor: 'pointer', color: 'rgba(0,0,0,0.45)' }}
+                                title="Скопировать"
+                              />
+                            }
+                          />
                         </Form.Item>
                       </Col>
                       <Col span={8}>
@@ -1022,7 +1276,8 @@ export default function SeriesPage() {
                     <Form.Item label="URL постера" name="poster_url"><Input placeholder="/storage/posters/... или https://..." /></Form.Item>
                     {posterUrl ? (
                       <img
-                        src={resolveMediaUrl(posterUrl)}
+                        key={posterCacheBust ?? posterUrl}
+                        src={resolveMediaUrl(posterUrl, posterCacheBust)}
                         alt="Превью постера"
                         style={{ width: 120, height: 172, objectFit: 'cover', borderRadius: 6, marginBottom: 16 }}
                       />

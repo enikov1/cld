@@ -10,14 +10,19 @@ use App\Http\Controllers\AdminSearchController;
 use App\Http\Controllers\AdminSeriesController;
 use App\Http\Controllers\AdminTaxonomyController;
 use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\AdminCacheController;
+use App\Http\Controllers\AdminSystemController;
 use App\Models\Collection;
 use App\Models\CollectionItem;
+use App\Models\CronRun;
 use App\Models\Series;
 use App\Models\Studio;
 use App\Models\StudioItem;
 use App\Services\KinoPoiskConfig;
 use App\Services\AllohaConfig;
 use App\Services\AllohaAutoSyncSettings;
+use App\Services\AllohaLatestSyncService;
+use App\Services\CronRunLogger;
 use App\Services\TmdbConfig;
 use App\Services\TmdbAutoSyncSettings;
 use App\Services\TmdbPopularitySyncService;
@@ -69,6 +74,8 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
             'studios_active' => Studio::query()->where('is_active', true)->count(),
             'comments_total' => \App\Models\Comment::query()->count(),
             'comments_pending' => \App\Models\Comment::query()->where('status', 'pending')->count(),
+            'player_reports_total' => \App\Models\PlayerReport::query()->count(),
+            'player_reports_today' => \App\Models\PlayerReport::query()->where('created_at', '>=', now()->startOfDay())->count(),
             'users_total' => \App\Models\User::query()->count(),
             'users_blocked' => \App\Models\User::query()->where('is_blocked', true)->count(),
             'series_with_player' => Series::query()
@@ -79,7 +86,101 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
         ]);
     });
 
+    Route::get('/cache', [AdminCacheController::class, 'info']);
+    Route::post('/cache/clear', [AdminCacheController::class, 'clear']);
+    Route::get('/system', [AdminSystemController::class, 'info']);
+
+    Route::get('/cron-runs', function (Request $request) {
+        $perPage = min(100, max(10, (int)$request->query('per_page', 50)));
+        $page = max(1, (int)$request->query('page', 1));
+        $jobKey = trim((string)$request->query('job_key', ''));
+        $status = trim((string)$request->query('status', ''));
+        $trigger = trim((string)$request->query('trigger', ''));
+
+        $query = CronRun::query()->orderByDesc('id');
+        if ($jobKey !== '') {
+            $query->where('job_key', $jobKey);
+        }
+        if ($status !== '' && $status !== 'all') {
+            $query->where('status', $status);
+        }
+        if ($trigger !== '' && $trigger !== 'all') {
+            $query->where('trigger', $trigger);
+        }
+
+        $paginator = $query->paginate($perPage, ['*'], 'page', $page);
+
+        $items = collect($paginator->items())->map(function (CronRun $run) {
+            return [
+                'id' => $run->id,
+                'job_key' => $run->job_key,
+                'job_label' => CronRunLogger::jobLabel($run->job_key),
+                'command' => $run->command,
+                'trigger' => $run->trigger,
+                'status' => $run->status,
+                'started_at' => optional($run->started_at)?->toIso8601String(),
+                'finished_at' => optional($run->finished_at)?->toIso8601String(),
+                'duration_ms' => $run->duration_ms,
+                'counts' => $run->counts,
+                'message' => $run->message,
+                'error' => $run->error,
+                'has_log' => $run->log !== null && $run->log !== '',
+                'meta' => $run->meta,
+                'created_at' => optional($run->created_at)?->toIso8601String(),
+            ];
+        })->values()->all();
+
+        return response()->json([
+            'items' => $items,
+            'total' => $paginator->total(),
+            'page' => $paginator->currentPage(),
+            'per_page' => $paginator->perPage(),
+            'last_page' => $paginator->lastPage(),
+            'job_options' => [
+                ['value' => CronRunLogger::JOB_ALLOHA_LATEST, 'label' => CronRunLogger::jobLabel(CronRunLogger::JOB_ALLOHA_LATEST)],
+                ['value' => CronRunLogger::JOB_TMDB_POPULARITY, 'label' => CronRunLogger::jobLabel(CronRunLogger::JOB_TMDB_POPULARITY)],
+                ['value' => CronRunLogger::JOB_POPULAR_BADGES, 'label' => CronRunLogger::jobLabel(CronRunLogger::JOB_POPULAR_BADGES)],
+                ['value' => CronRunLogger::JOB_SITEMAP, 'label' => CronRunLogger::jobLabel(CronRunLogger::JOB_SITEMAP)],
+                ['value' => CronRunLogger::JOB_KP_SYNC, 'label' => CronRunLogger::jobLabel(CronRunLogger::JOB_KP_SYNC)],
+                ['value' => CronRunLogger::JOB_ALLOHA_SYNC, 'label' => CronRunLogger::jobLabel(CronRunLogger::JOB_ALLOHA_SYNC)],
+                ['value' => CronRunLogger::JOB_ALLOHA_IMPORT, 'label' => CronRunLogger::jobLabel(CronRunLogger::JOB_ALLOHA_IMPORT)],
+                ['value' => CronRunLogger::JOB_TMDB_STUDIO_LOGOS, 'label' => CronRunLogger::jobLabel(CronRunLogger::JOB_TMDB_STUDIO_LOGOS)],
+            ],
+        ]);
+    });
+
+    Route::get('/cron-runs/{id}', function (int $id) {
+        $run = CronRun::query()->findOrFail($id);
+
+        return response()->json([
+            'item' => [
+                'id' => $run->id,
+                'job_key' => $run->job_key,
+                'job_label' => CronRunLogger::jobLabel($run->job_key),
+                'command' => $run->command,
+                'trigger' => $run->trigger,
+                'status' => $run->status,
+                'started_at' => optional($run->started_at)?->toIso8601String(),
+                'finished_at' => optional($run->finished_at)?->toIso8601String(),
+                'duration_ms' => $run->duration_ms,
+                'counts' => $run->counts,
+                'message' => $run->message,
+                'error' => $run->error,
+                'log' => $run->log,
+                'meta' => $run->meta,
+                'created_at' => optional($run->created_at)?->toIso8601String(),
+            ],
+        ]);
+    });
+
+    Route::delete('/cron-runs/{id}', function (int $id) {
+        CronRun::query()->where('id', $id)->delete();
+
+        return response()->json(['ok' => true]);
+    });
+
     Route::get('/series', [AdminSeriesController::class, 'index']);
+    Route::get('/series/check-kp', [AdminSeriesController::class, 'checkKp']);
     Route::post('/series/upsert', [AdminSeriesController::class, 'upsert']);
     Route::post('/series/{kp_id}/import-kp', [AdminSeriesController::class, 'importFromKp']);
     Route::post('/series/{kp_id}/import-alloha', [AdminSeriesController::class, 'importFromAlloha']);
@@ -441,6 +542,33 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
         ]);
     });
 
+    Route::get('/player-reports', function (Request $request) {
+        $perPage = min(100, max(10, (int)$request->query('per_page', 50)));
+        $page = max(1, (int)$request->query('page', 1));
+
+        $paginator = \App\Models\PlayerReport::query()
+            ->with([
+                'series:id,kp_id,title,slug,year,start_year',
+                'user:id,name,email',
+            ])
+            ->orderByDesc('id')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        return response()->json([
+            'items' => $paginator->items(),
+            'total' => $paginator->total(),
+            'page' => $paginator->currentPage(),
+            'per_page' => $paginator->perPage(),
+            'last_page' => $paginator->lastPage(),
+        ]);
+    });
+
+    Route::delete('/player-reports/{id}', function (int $id) {
+        \App\Models\PlayerReport::query()->where('id', $id)->delete();
+
+        return response()->json(['ok' => true]);
+    });
+
     Route::post('/comments/{id}/status', function (Request $request, int $id) {
         $data = $request->validate([
             'status' => ['required', 'in:approved,rejected,pending'],
@@ -738,11 +866,30 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
         if (!empty($data['download_poster'])) {
             $args['--download-poster'] = true;
         }
-        \Illuminate\Support\Facades\Artisan::call('kp:sync', $args);
+
+        $run = CronRunLogger::run(
+            CronRunLogger::JOB_KP_SYNC,
+            'kp:sync',
+            CronRun::TRIGGER_ADMIN,
+            function () use ($args) {
+                \Illuminate\Support\Facades\Artisan::call('kp:sync', $args);
+                $output = trim(\Illuminate\Support\Facades\Artisan::output());
+
+                return [
+                    'status' => CronRun::STATUS_SUCCESS,
+                    'message' => 'KinoPoisk sync завершён',
+                    'log' => $output,
+                    'counts' => ['limit' => (int)($args['--limit'] ?? 0)],
+                ];
+            },
+            ['keyword' => $data['keyword'], 'limit' => $limit],
+            'Импорт KinoPoisk',
+        );
 
         return response()->json([
             'ok' => true,
-            'output' => \Illuminate\Support\Facades\Artisan::output(),
+            'output' => (string)($run->log ?: $run->message),
+            'cron_run_id' => $run->id,
         ]);
     });
 
@@ -857,13 +1004,54 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
             $settings['latest_days'] = (int)$data['days'];
         }
 
-        $result = $service->run($settings);
-        AllohaAutoSyncSettings::markRun();
+        $result = CronRunLogger::run(
+            CronRunLogger::JOB_ALLOHA_LATEST,
+            'alloha:latest',
+            CronRun::TRIGGER_ADMIN,
+            function () use ($service, $settings) {
+                $result = $service->run($settings);
+                AllohaAutoSyncSettings::markRun();
+
+                if (($result['added'] + $result['updated']) > 0) {
+                    app(\App\Services\SitemapService::class)->markDirty();
+                }
+
+                return [
+                    'status' => $result['failed'] > 0 ? CronRun::STATUS_FAILED : CronRun::STATUS_SUCCESS,
+                    'counts' => [
+                        'added' => $result['added'],
+                        'updated' => $result['updated'],
+                        'skipped' => $result['skipped'],
+                        'failed' => $result['failed'],
+                        'kp_ids' => count($result['kp_ids']),
+                    ],
+                    'message' => sprintf(
+                        'Добавлено: %d, обновлено: %d, пропущено: %d, ошибок: %d',
+                        $result['added'],
+                        $result['updated'],
+                        $result['skipped'],
+                        $result['failed'],
+                    ),
+                    'log' => $result['log'],
+                ];
+            },
+            ['latest_days' => $settings['latest_days']],
+            'Проверка последних Alloha (админка)',
+        )->fresh();
+
+        $payload = [
+            'added' => (int)($result->counts['added'] ?? 0),
+            'updated' => (int)($result->counts['updated'] ?? 0),
+            'skipped' => (int)($result->counts['skipped'] ?? 0),
+            'failed' => (int)($result->counts['failed'] ?? 0),
+            'log' => $result->log ? explode("\n", $result->log) : [],
+        ];
 
         return response()->json([
             'ok' => true,
-            'result' => $result,
-            'output' => implode("\n", $result['log']),
+            'result' => $payload,
+            'output' => (string)$result->message,
+            'cron_run_id' => $result->id,
         ]);
     });
 
@@ -967,7 +1155,23 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
 
     Route::post('/sitemap/generate', function (SitemapService $sitemap) {
         try {
-            $sitemap->generate();
+            $run = CronRunLogger::run(
+                CronRunLogger::JOB_SITEMAP,
+                'sitemap:generate',
+                CronRun::TRIGGER_ADMIN,
+                function () use ($sitemap) {
+                    $sitemap->generate();
+                    $urlCount = $sitemap->urlCount();
+
+                    return [
+                        'status' => CronRun::STATUS_SUCCESS,
+                        'counts' => ['urls' => $urlCount],
+                        'message' => 'Sitemap обновлён (' . $urlCount . ' URL)',
+                    ];
+                },
+                ['force' => true],
+                'Генерация sitemap (админка)',
+            );
         } catch (\Throwable $e) {
             report($e);
 
@@ -984,7 +1188,8 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
             'ok' => true,
             'url_count' => $sitemap->urlCount(),
             'last_modified_at' => $mtime ? date('c', $mtime) : null,
-            'message' => 'Sitemap обновлён (' . $sitemap->urlCount() . ' URL)',
+            'message' => (string)$run->message,
+            'cron_run_id' => $run->id,
         ]);
     });
 });

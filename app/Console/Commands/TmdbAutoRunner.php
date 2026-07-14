@@ -22,7 +22,10 @@ class TmdbAutoRunner extends Command
             return self::SUCCESS;
         }
 
-        $exitCode = Artisan::call('tmdb:sync-popularity', ['--force' => true]);
+        $exitCode = Artisan::call('tmdb:sync-popularity', [
+            '--force' => true,
+            '--trigger' => 'schedule',
+        ]);
 
         return $exitCode === 0 ? self::SUCCESS : self::FAILURE;
     }

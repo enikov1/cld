@@ -22,7 +22,10 @@ class AllohaAutoRunner extends Command
             return self::SUCCESS;
         }
 
-        $exitCode = Artisan::call('alloha:latest', ['--force' => true]);
+        $exitCode = Artisan::call('alloha:latest', [
+            '--force' => true,
+            '--trigger' => 'schedule',
+        ]);
 
         return $exitCode === 0 ? self::SUCCESS : self::FAILURE;
     }

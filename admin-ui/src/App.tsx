@@ -6,6 +6,8 @@ import AdminLayout from './layout/AdminLayout'
 import CollectionsPage from './pages/CollectionsPage'
 import StudiosPage from './pages/StudiosPage'
 import CommentsPage from './pages/CommentsPage'
+import PlayerReportsPage from './pages/PlayerReportsPage'
+import CronRunsPage from './pages/CronRunsPage'
 import DashboardPage from './pages/DashboardPage'
 import NavMenuPage from './pages/NavMenuPage'
 import KinoPoiskSyncPage from './pages/KinoPoiskSyncPage'
@@ -55,6 +57,8 @@ function AppRoutes({ isDark, onToggleTheme }: AppRoutesProps) {
         <Route path="collections" element={<CollectionsPage />} />
         <Route path="studios" element={<StudiosPage />} />
         <Route path="comments" element={<CommentsPage />} />
+        <Route path="player-reports" element={<PlayerReportsPage />} />
+        <Route path="cron-runs" element={<CronRunsPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="search-stats" element={<SearchStatsPage />} />
         <Route path="settings" element={<SettingsPage />} />

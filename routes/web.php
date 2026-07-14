@@ -128,6 +128,7 @@ Route::prefix('api/series/{seriesId}')->where(['seriesId' => '[0-9]+'])->group(f
     Route::post('/anticipation', [SeriesAnticipationController::class, 'vote']);
     Route::get('/reactions', [SeriesReactionController::class, 'show']);
     Route::post('/reactions', [SeriesReactionController::class, 'vote']);
+    Route::post('/player-report', [SeriesEngagementController::class, 'storePlayerReport']);
     Route::post('/watchlist', [SeriesEngagementController::class, 'watchlist'])
         ->middleware(['auth', 'site.feature:watchlists_enabled']);
     Route::post('/favourite', [UserLibraryController::class, 'toggleFavourite'])

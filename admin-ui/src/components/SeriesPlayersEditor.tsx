@@ -13,7 +13,7 @@ type PlayerRow = {
 }
 
 export type SeriesPlayersEditorHandle = {
-  save: (options?: { silent?: boolean }) => Promise<boolean>
+  save: (options?: { silent?: boolean; kpId?: string }) => Promise<boolean>
 }
 
 type Props = {
@@ -58,8 +58,9 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
   }, [kpId, drawerOpen, refreshKey, load])
 
   const savePlayers = useCallback(
-    async (options?: { silent?: boolean }) => {
-      if (!kpId) return true
+    async (options?: { silent?: boolean; kpId?: string }) => {
+      const targetKpId = options?.kpId ?? kpId
+      if (!targetKpId) return true
 
       const players = rows
         .map((row) => ({
@@ -73,7 +74,7 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
 
       setSaving(true)
       try {
-        const res = await api<{ players: Array<Omit<PlayerRow, 'key'>> }>(`/api/admin/series/${kpId}/players`, {
+        const res = await api<{ players: Array<Omit<PlayerRow, 'key'>> }>(`/api/admin/series/${targetKpId}/players`, {
           method: 'POST',
           body: JSON.stringify({ players }),
         })

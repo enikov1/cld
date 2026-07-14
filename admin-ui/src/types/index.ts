@@ -190,10 +190,56 @@ export type AdminStats = {
   studios_active: number
   comments_total: number
   comments_pending: number
+  player_reports_total: number
+  player_reports_today: number
   users_total: number
   users_blocked: number
   series_with_player: number
   active_theme: string
+}
+
+export type PlayerReportItem = {
+  id: number
+  series_id: number
+  reason: string
+  reason_label?: string | null
+  message?: string | null
+  player_label?: string | null
+  ip?: string | null
+  created_at?: string
+  series?: {
+    id: number
+    kp_id?: string | null
+    title: string
+    slug?: string | null
+    year?: number | null
+    start_year?: number | null
+  } | null
+  user?: { id: number; name?: string | null; email?: string | null } | null
+}
+
+export type CronRunItem = {
+  id: number
+  job_key: string
+  job_label?: string
+  command: string
+  trigger: string
+  status: string
+  started_at?: string | null
+  finished_at?: string | null
+  duration_ms?: number | null
+  counts?: Record<string, number | string> | null
+  message?: string | null
+  error?: string | null
+  log?: string | null
+  has_log?: boolean
+  meta?: Record<string, unknown> | null
+  created_at?: string | null
+}
+
+export type CronRunJobOption = {
+  value: string
+  label: string
 }
 
 export type SearchStatItem = {
@@ -230,6 +276,8 @@ export type AdminPageKey =
   | 'collections'
   | 'studios'
   | 'comments'
+  | 'player-reports'
+  | 'cron-runs'
   | 'users'
   | 'search-stats'
   | 'settings'

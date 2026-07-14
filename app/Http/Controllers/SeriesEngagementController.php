@@ -7,6 +7,7 @@ use App\Models\Comment;
 use App\Models\CommentVote;
 use App\Models\GuestVote;
 use App\Models\NotificationSetting;
+use App\Models\PlayerReport;
 use App\Models\Series;
 use App\Models\UserVote;
 use App\Models\Watchlist;
@@ -20,6 +21,7 @@ use App\Support\TplCache;
 use App\Support\WatchlistDefaults;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class SeriesEngagementController extends Controller
@@ -396,6 +398,53 @@ class SeriesEngagementController extends Controller
             'voices' => $setting?->voices ?? [],
             'notify_any' => $setting?->notify_any ?? true,
             'subscribed' => (bool)$setting,
+        ]);
+    }
+
+    public function storePlayerReport(Request $request, int $seriesId)
+    {
+        $series = $this->resolveActiveSeries($seriesId);
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'in:player_not_shown,video_not_start,audio_desync,description_error,other'],
+            'reason_label' => ['nullable', 'string', 'max:255'],
+            'message' => ['nullable', 'string', 'max:2000'],
+            'player_label' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $message = trim((string)($data['message'] ?? ''));
+        if ($data['reason'] === 'other' && $message === '') {
+            throw ValidationException::withMessages([
+                'message' => 'Для пункта «Другое» опишите проблему.',
+            ]);
+        }
+
+        $recent = PlayerReport::query()
+            ->where('series_id', $series->id)
+            ->where('ip', $request->ip())
+            ->where('created_at', '>=', now()->subMinutes(2))
+            ->exists();
+
+        if ($recent) {
+            throw ValidationException::withMessages([
+                'reason' => 'Вы недавно уже отправляли жалобу. Подождите пару минут.',
+            ]);
+        }
+
+        PlayerReport::query()->create([
+            'series_id' => $series->id,
+            'user_id' => Auth::id(),
+            'reason' => $data['reason'],
+            'reason_label' => trim((string)($data['reason_label'] ?? '')) ?: null,
+            'message' => $message !== '' ? $message : null,
+            'player_label' => trim((string)($data['player_label'] ?? '')) ?: null,
+            'ip' => $request->ip(),
+            'user_agent' => Str::limit((string)$request->userAgent(), 500, ''),
+        ]);
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Спасибо! Жалоба отправлена.',
         ]);
     }
 

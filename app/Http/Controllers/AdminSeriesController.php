@@ -54,6 +54,34 @@ class AdminSeriesController extends Controller
         ]);
     }
 
+    public function checkKp(Request $request)
+    {
+        $data = $request->validate([
+            'kp_id' => ['required', 'string'],
+            'except_id' => ['nullable', 'integer'],
+        ]);
+
+        $kpId = trim((string)$data['kp_id']);
+        $exceptId = isset($data['except_id']) ? (int)$data['except_id'] : null;
+
+        $query = Series::query()->withTrashed()->where('kp_id', $kpId);
+        if ($exceptId) {
+            $query->where('id', '!=', $exceptId);
+        }
+
+        $existing = $query->first(['id', 'kp_id', 'title']);
+
+        return response()->json([
+            'ok' => true,
+            'exists' => (bool)$existing,
+            'item' => $existing ? [
+                'id' => $existing->id,
+                'kp_id' => $existing->kp_id,
+                'title' => $existing->title,
+            ] : null,
+        ]);
+    }
+
     public function upsert(Request $request)
     {
         $durationMinutes = $request->input('duration_minutes');
@@ -63,6 +91,8 @@ class AdminSeriesController extends Controller
 
         $data = $request->validate([
             'kp_id' => ['required', 'string'],
+            'original_kp_id' => ['nullable', 'string'],
+            'id' => ['nullable', 'integer'],
             'title' => ['required', 'string'],
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:65535'],
@@ -116,20 +146,71 @@ class AdminSeriesController extends Controller
         ]);
 
         $slug = SlugHelper::make($data['slug'] ?? null, $data['title']);
-        $kpId = (string)$data['kp_id'];
+        $kpId = trim((string)$data['kp_id']);
+        $originalKpId = trim((string)($data['original_kp_id'] ?? ''));
+        $seriesId = isset($data['id']) ? (int)$data['id'] : 0;
 
-        $existing = Series::query()->where('kp_id', $kpId)->first();
-        $isNew = !$existing;
+        if ($seriesId > 0) {
+            $existing = Series::query()->withTrashed()->where('id', $seriesId)->first();
+            if (!$existing) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'Сериал не найден',
+                ], 404);
+            }
+            $isNew = false;
+        } elseif ($originalKpId !== '') {
+            $existing = Series::query()->withTrashed()->where('kp_id', $originalKpId)->first();
+            if (!$existing) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'Исходный сериал с KP ID ' . $originalKpId . ' не найден',
+                ], 404);
+            }
+            $isNew = false;
+        } else {
+            $existing = null;
+            $isNew = true;
+        }
+
+        if ($existing) {
+            $conflict = Series::query()
+                ->withTrashed()
+                ->where('kp_id', $kpId)
+                ->where('id', '!=', $existing->id)
+                ->first(['id', 'title']);
+
+            if ($conflict) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'KP ID ' . $kpId . ' уже занят: ' . $conflict->title,
+                ], 422);
+            }
+        } else {
+            $taken = Series::query()->withTrashed()->where('kp_id', $kpId)->first(['id', 'title']);
+            if ($taken) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'KP ID ' . $kpId . ' уже занят: ' . $taken->title,
+                ], 422);
+            }
+        }
+
         $oldSeason = $existing?->season_number;
         $oldEpisode = $existing?->last_episode_number;
 
-        if (Series::query()->where('slug', $slug)->where('kp_id', '!=', $kpId)->exists()) {
+        $slugConflictQuery = Series::query()->where('slug', $slug);
+        if ($existing) {
+            $slugConflictQuery->where('id', '!=', $existing->id);
+        }
+        if ($slugConflictQuery->exists()) {
             $slug = Str::slug($slug . '-' . $kpId);
         }
 
         $attrs = [
             'slug' => $slug,
             'title' => $data['title'],
+            'kp_id' => $kpId,
         ];
 
         $nullableScalars = [
@@ -190,10 +271,13 @@ class AdminSeriesController extends Controller
             }
         }
 
-        $series = Series::query()->withTrashed()->updateOrCreate(
-            ['kp_id' => $kpId],
-            $attrs
-        );
+        if ($existing) {
+            $existing->fill($attrs);
+            $existing->save();
+            $series = $existing;
+        } else {
+            $series = Series::query()->create($attrs);
+        }
 
         if ($series->trashed()) {
             $series->restore();

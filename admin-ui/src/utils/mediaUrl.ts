@@ -19,14 +19,23 @@ function backendOrigin(): string {
 }
 
 /** Превращает /storage/... в полный URL при dev-сервере Vite (админка на другом порту). */
-export function resolveMediaUrl(url: string | null | undefined): string {
+export function resolveMediaUrl(
+  url: string | null | undefined,
+  cacheBust?: string | number | null,
+): string {
   if (!url) return ''
   const trimmed = url.trim()
   if (!trimmed) return ''
-  if (/^https?:\/\//i.test(trimmed)) return trimmed
-  if (trimmed.startsWith('/') && import.meta.env.DEV) {
+  let resolved = trimmed
+  if (/^https?:\/\//i.test(trimmed)) {
+    resolved = trimmed
+  } else if (trimmed.startsWith('/') && import.meta.env.DEV) {
     const origin = backendOrigin()
-    if (origin) return `${origin}${trimmed}`
+    if (origin) resolved = `${origin}${trimmed}`
   }
-  return trimmed
+  if (cacheBust != null && cacheBust !== '') {
+    const sep = resolved.includes('?') ? '&' : '?'
+    resolved = `${resolved}${sep}v=${encodeURIComponent(String(cacheBust))}`
+  }
+  return resolved
 }

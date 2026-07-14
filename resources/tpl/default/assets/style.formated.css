@@ -4767,42 +4767,19 @@ a.knopka:active {
     padding-top: 15px;
 }
 
-#ps-report-issues .report-item,
-#ps-report-issues-comment .report-item {
-    -webkit-border-radius: 3px;
-    -khtml-border-radius: 3px;
-    -moz-border-radius: 3px;
-    -o-border-radius: 3px;
-    border-radius: 3px;
-    background-color: #222;
-    color: #fff;
-    cursor: pointer;
-    display: block;
-    font-size: 20px;
-    line-height: 20px;
-    margin-bottom: 10px;
-    padding: 20px;
-    position: relative;
-}
-
-#ps-report-issues .report-item:hover,
-#ps-report-issues-comment .report-item:hover {
-    background-color: #444;
-    color: #fff;
-}
-
 #ps-close {
     border: 0;
     width: 3.5em;
     height: 3.5em;
-    background: #222;
+    background: #79c142;
     border-radius: 50%;
     z-index: 10002;
     top: 2.5em;
     right: 2.5em;
-    -webkit-transition: color 0.3s;
-    transition: color 0.3s;
+    -webkit-transition: background 0.3s, color 0.3s;
+    transition: background 0.3s, color 0.3s;
     outline: 0;
+    cursor: pointer;
 }
 
 #ps-close:before {
@@ -4837,57 +4814,40 @@ a.knopka:active {
 }
 
 #ps-close:focus,
-#ps-close:hover,
+#ps-close:hover {
+    background-color: #fff;
+}
+
 .highslide-html {
     background-color: #fff;
+}
+
+#ps-report-issues .report-item,
+#ps-report-issues-comment .report-item {
+    -webkit-border-radius: 3px;
+    -khtml-border-radius: 3px;
+    -moz-border-radius: 3px;
+    -o-border-radius: 3px;
+    border-radius: 3px;
+    border: 0;
+    width: 100%;
+    text-align: left;
+    background-color: #222;
+    color: #fff;
+    cursor: pointer;
+    display: block;
+    font-size: 20px;
+    line-height: 1.35;
+    margin-bottom: 10px;
+    padding: 20px;
+    position: relative;
+    font-family: inherit;
 }
 
 #ps-report-issues,
 #ps-report-issues-comment,
 .screens img {
     padding-top: 20px;
-}
-
-#ps-report-issues .report-item.active,
-#ps-report-issues-comment .report-item.active {
-    background-color: #fff;
-    color: #000;
-}
-
-#ps-report-issues .report-item i,
-#ps-report-issues-comment .report-item i {
-    background: #fff;
-    display: none;
-    position: absolute;
-    top: 30px;
-    left: -15px;
-    height: 66px;
-    width: 5px;
-}
-
-#ps-report-issues .report-item i:after,
-#ps-report-issues .report-item i:before,
-#ps-report-issues-comment .report-item i:after,
-#ps-report-issues-comment .report-item i:before {
-    background: #fff;
-    content: "";
-    display: block;
-    position: absolute;
-    width: 13px;
-}
-
-#ps-report-issues .report-item i:before,
-#ps-report-issues-comment .report-item i:before {
-    height: 7px;
-    top: 0;
-    right: -13px;
-}
-
-#ps-report-issues .report-item i:after,
-#ps-report-issues-comment .report-item i:after {
-    height: 3px;
-    bottom: 0;
-    right: -13px;
 }
 
 #ps-report-issues .report-item:hover,
@@ -4902,14 +4862,44 @@ a.knopka:active {
     color: #000;
 }
 
-#ps-report-issues .report-item.active i,
-#ps-report-issues-comment .report-item.active i {
-    display: block;
-}
-
 #ps-report-issues .report-item.active:hover,
 #ps-report-issues-comment .report-item.active:hover {
+    background-color: #fff;
+    color: #000;
     cursor: default;
+}
+
+#ps-report-issues-comment .report-item--submit {
+    background-color: #79c142;
+    font-weight: 700;
+    text-align: center;
+    cursor: pointer;
+}
+
+#ps-report-issues-comment .report-item--submit:hover {
+    background-color: #6aad36;
+    color: #fff;
+    cursor: pointer;
+}
+
+#ps-report-issues-comment .report-item--submit:disabled {
+    opacity: .7;
+    cursor: wait;
+}
+
+.player-report-feedback {
+    margin-top: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #79c142;
+}
+
+.player-report-feedback.is-error {
+    color: #ff6b6b;
+}
+
+.player-report-feedback.is-success {
+    color: #79c142;
 }
 
 #ps-report-issues textarea,
@@ -4919,14 +4909,17 @@ a.knopka:active {
     box-sizing: border-box;
     background: #fff;
     border: 3px solid #333;
+    border-radius: 3px;
     color: #000;
     font-size: 14px;
-    height: 48px;
-    line-height: 16px;
+    min-height: 96px;
+    height: auto;
+    line-height: 1.4;
     margin-bottom: 10px;
-    padding: 5px;
-    resize: none;
+    padding: 12px;
+    resize: vertical;
     width: 100%;
+    font-family: inherit;
 }
 
 #ps-report-issues textarea.error,
@@ -5545,6 +5538,31 @@ a.knopka:active {
     background-position: center center;
     background-size: 20px;
     background-repeat: no-repeat;
+}
+
+.serial-watch-title {
+    margin: 0;
+    padding: 18px 20px;
+    text-align: center;
+    color: #24303a;
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: -.01em;
+    background: #fff;
+    border-top: 1px solid #e5e5e5;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.serial-watch-title + .series-subscribe-box {
+    border-top: 0;
+}
+
+.dt .serial-watch-title {
+    color: #f2f5f7;
+    background: transparent;
+    border-top-color: #2a3139;
+    border-bottom-color: #2a3139;
 }
 
 .series-subscribe-box {
@@ -12179,6 +12197,7 @@ body.episodes-lock {
     display: flex;
     align-items: center;
     gap: 18px;
+    flex: 0 0 auto;
     padding: 0 16px;
     white-space: nowrap;
     color: #e7e7e7;
@@ -12232,8 +12251,12 @@ body.episodes-lock {
     display: inline-flex;
     align-items: center;
     gap: 7px;
+    padding: 0;
+    border: 0;
+    background: transparent;
     color: #e7e7e7;
     font-size: 14px;
+    cursor: pointer;
     text-decoration: none;
     transition: color .2s ease;
 }
