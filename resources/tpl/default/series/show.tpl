@@ -244,7 +244,7 @@
                                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Zm0 16H5V10h14v10ZM5 8V6h14v2H5Zm7 4h5v5h-5v-5Z"/></svg>
                             </span>
                             <span class="serial-side-btn__text">Расписание серий</span>
-                            <span class="serial-side-btn__arrow"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6H9V6Z"/></svg></span>
+                            <span class="serial-side-btn__arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9.29 6.71a1 1 0 0 0 0 1.41L13.17 12l-3.88 3.88a1 1 0 1 0 1.41 1.41l4.59-4.59a1 1 0 0 0 0-1.41L10.7 6.7a1 1 0 0 0-1.41.01Z"/></svg></span>
                         </button>
                     [/has_schedule]
 
@@ -487,4 +487,15 @@
         </div>
     </section>
     [/has_comments]
+
+    [has_related]
+    <section class="sect related-sect" aria-label="Рекомендуем посмотреть">
+        <div class="sect-header fx-row fx-middle fx-start">
+            <span class="sect-title">Рекомендуем посмотреть</span>
+        </div>
+        <div class="sect-cont sect-items clearfix">
+            {related_cards_html|raw}
+        </div>
+    </section>
+    [/has_related]
 </div>

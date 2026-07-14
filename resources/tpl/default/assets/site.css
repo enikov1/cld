@@ -1273,6 +1273,32 @@ body.bookmark-lock {
     box-sizing: border-box;
 }
 
+.related-sect {
+    margin: 28px 0 8px;
+    padding: 0 20px 12px;
+    clear: both;
+    box-sizing: border-box;
+}
+
+.related-sect .sect-header {
+    margin-bottom: 14px;
+}
+
+.related-sect .sect-title {
+    cursor: default;
+}
+
+.dt .related-sect .sect-title {
+    color: #fff;
+}
+
+@media (max-width: 760px) {
+    .related-sect {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+}
+
 .comments-section__header {
     display: flex;
     align-items: baseline;
@@ -3277,10 +3303,15 @@ body.bookmark-lock {
 }
 
 .serial-side-btn--favourite {
+    grid-template-columns: 46px minmax(0, 1fr);
     width: 100%;
-    margin-bottom: 10px;
-    border: 0;
+    margin-bottom: 0;
     cursor: pointer;
+    transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease, color .18s ease;
+}
+
+.serial-side-btn--favourite .serial-side-btn__text {
+    font-weight: 600;
 }
 
 .serial-side-btn--favourite .serial-favourite-icon {
@@ -3289,10 +3320,33 @@ body.bookmark-lock {
     fill: none;
     stroke: currentColor;
     stroke-width: 1.8;
-    transition: fill .2s ease, stroke .2s ease, color .2s ease;
+    transition: fill .2s ease, stroke .2s ease, color .2s ease, transform .2s ease;
+}
+
+.serial-side-btn--favourite:hover {
+    border-color: #f0c4cd;
+    box-shadow: 0 8px 18px rgba(225, 29, 72, .1);
+}
+
+.serial-side-btn--favourite:hover .serial-side-btn__ico {
+    background: #fff1f3;
+    border-right-color: #f0c4cd;
+    color: #e11d48;
+}
+
+.serial-side-btn--favourite:hover .serial-favourite-icon {
+    transform: scale(1.08);
 }
 
 .serial-side-btn--favourite.is-active {
+    color: #e11d48;
+    border-color: #f3b8c4;
+    background: #fff8f9;
+}
+
+.serial-side-btn--favourite.is-active .serial-side-btn__ico {
+    background: #ffe4ea;
+    border-right-color: #f3b8c4;
     color: #e11d48;
 }
 
@@ -3301,6 +3355,25 @@ body.bookmark-lock {
     stroke: currentColor;
 }
 
+.dt .serial-side-btn--favourite:hover {
+    border-color: #5a3a44;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, .22);
+}
+
+.dt .serial-side-btn--favourite:hover .serial-side-btn__ico {
+    background: #3a2730;
+    border-right-color: #5a3a44;
+    color: #fb7185;
+}
+
 .dt .serial-side-btn--favourite.is-active {
+    color: #fb7185;
+    border-color: #5a3a44;
+    background: #261d22;
+}
+
+.dt .serial-side-btn--favourite.is-active .serial-side-btn__ico {
+    background: #3a2730;
+    border-right-color: #5a3a44;
     color: #fb7185;
 }

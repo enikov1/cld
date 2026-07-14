@@ -10749,28 +10749,51 @@ body.ls-menu-open {
 
 .serial-side-btn--schedule,
 .serial-side-btn--telegram {
-    grid-template-columns: 46px minmax(0, 1fr);
     border: 0;
     color: #fff;
 }
 
 .serial-side-btn--schedule {
-    background: #2d9845;
+    grid-template-columns: 46px minmax(0, 1fr) 34px;
+    background: linear-gradient(180deg, #34a84e 0%, #2d9845 100%);
+    box-shadow: 0 4px 14px rgba(45, 152, 69, .22);
 }
 
 .serial-side-btn--telegram {
-    background: #4e86bc;
+    grid-template-columns: 46px minmax(0, 1fr);
+    background: linear-gradient(180deg, #5a92c4 0%, #4e86bc 100%);
+    box-shadow: 0 4px 14px rgba(78, 134, 188, .22);
+}
+
+.serial-side-btn--schedule:hover {
+    border-color: transparent;
+    background: linear-gradient(180deg, #3bb557 0%, #318f47 100%);
+    box-shadow: 0 8px 20px rgba(45, 152, 69, .3);
+}
+
+.serial-side-btn--telegram:hover {
+    border-color: transparent;
+    background: linear-gradient(180deg, #6299c9 0%, #477cb0 100%);
+    box-shadow: 0 8px 20px rgba(78, 134, 188, .3);
 }
 
 .serial-side-btn--schedule .serial-side-btn__ico,
 .serial-side-btn--telegram .serial-side-btn__ico {
-    background: rgba(255, 255, 255, .12);
-    border-right-color: rgba(255, 255, 255, .2);
+    background: rgba(255, 255, 255, .14);
+    border-right-color: rgba(255, 255, 255, .18);
     color: #fff;
 }
 
 .serial-side-btn--schedule .serial-side-btn__text,
 .serial-side-btn--telegram .serial-side-btn__text {
+    color: #fff;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.serial-side-btn--schedule .serial-side-btn__arrow {
+    background: rgba(0, 0, 0, .08);
+    border-left-color: rgba(255, 255, 255, .16);
     color: #fff;
 }
 
@@ -11286,17 +11309,33 @@ body.ls-menu-open {
 }
 
 .dt .serial-side-btn--schedule {
-    background: #2f9d49;
+    background: linear-gradient(180deg, #36ab50 0%, #2f9d49 100%);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .28);
 }
 
 .dt .serial-side-btn--telegram {
-    background: #4c82b7;
+    background: linear-gradient(180deg, #5690c2 0%, #4c82b7 100%);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .28);
+}
+
+.dt .serial-side-btn--schedule:hover {
+    background: linear-gradient(180deg, #3db658 0%, #339548 100%);
+}
+
+.dt .serial-side-btn--telegram:hover {
+    background: linear-gradient(180deg, #6096c7 0%, #4779ad 100%);
 }
 
 .dt .serial-side-btn--schedule .serial-side-btn__ico,
 .dt .serial-side-btn--telegram .serial-side-btn__ico {
-    background: rgba(255, 255, 255, .1);
+    background: rgba(255, 255, 255, .12);
     border-right-color: rgba(255, 255, 255, .14);
+    color: #fff;
+}
+
+.dt .serial-side-btn--schedule .serial-side-btn__arrow {
+    background: rgba(0, 0, 0, .16);
+    border-left-color: rgba(255, 255, 255, .12);
     color: #fff;
 }
 

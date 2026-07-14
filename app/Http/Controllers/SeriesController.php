@@ -9,6 +9,8 @@ use App\Models\Year;
 use App\Services\AnticipationService;
 use App\Services\EpisodeProgressService;
 use App\Services\ReactionWidgetService;
+use App\Services\SeriesCardMapper;
+use App\Services\SeriesRelatedService;
 use App\Services\SeriesViewService;
 use App\Services\UserLibraryService;
 use App\Support\CommentTree;
@@ -201,6 +203,10 @@ class SeriesController extends TplController
             : [];
         $commentsCount = CommentView::countComments($commentItems);
 
+        $relatedSeries = SeriesRelatedService::forSeries($series);
+        $relatedMapped = SeriesCardMapper::mapSeries($relatedSeries);
+        $hasRelated = $relatedMapped !== [];
+
         $vars = array_merge($labelTags, [
             'series' => $seriesData,
             'notify_voices' => EpisodeProgressService::voicesForSeries($series),
@@ -250,6 +256,12 @@ class SeriesController extends TplController
                 ? $this->renderPartial('partials/reactions_widget.tpl', [
                     'series' => ['id' => $series->id, 'slug' => $series->slug],
                     'reactions' => $reactions,
+                ])
+                : '',
+            'has_related' => $hasRelated,
+            'related_cards_html' => $hasRelated
+                ? $this->renderPartial('partials/series_cards.tpl', [
+                    'series_list' => $relatedMapped,
                 ])
                 : '',
         ]);

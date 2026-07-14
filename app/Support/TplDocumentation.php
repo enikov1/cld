@@ -274,9 +274,11 @@ class TplDocumentation
                     self::docVar('active_player_url', 'URL iframe плеера'),
                     self::docVar('reactions_widget', 'HTML виджета реакций'),
                     self::docVar('episodes_modal', 'HTML модалки серий'),
+                    self::docVar('has_related', 'Есть блок рекомендаций'),
+                    self::docVar('related_cards_html', 'HTML карточек «Рекомендуем посмотреть»'),
                     self::docVar('seo.canonical', 'Canonical URL'),
                 ]),
-                ['series.description', 'series.year', 'series.year_url', 'series.studios', 'series.collections', 'has_player', 'has_reactions', 'has_schedule', 'episodes_modal', 'reactions_widget'],
+                ['series.description', 'series.year', 'series.year_url', 'series.studios', 'series.collections', 'has_player', 'has_reactions', 'has_schedule', 'episodes_modal', 'reactions_widget', 'has_related', 'related_cards_html'],
                 [
                     self::loop('series.genres', 'Жанры сериала (name, slug, url, is_last)'),
                     self::loop('series.countries', 'Страны (name, slug, url, is_last)'),
