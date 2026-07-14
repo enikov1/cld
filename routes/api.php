@@ -21,6 +21,8 @@ use App\Services\AllohaAutoSyncSettings;
 use App\Services\TmdbConfig;
 use App\Services\TmdbAutoSyncSettings;
 use App\Services\TmdbPopularitySyncService;
+use App\Services\TmdbStudioSyncService;
+use App\Services\TmdbSyncProgress;
 use App\Support\AdminAccess;
 use App\Support\AdminPath;
 use App\Support\CommentModeration;
@@ -889,18 +891,64 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
         return response()->json(['ok' => true, 'settings' => TmdbAutoSyncSettings::get()]);
     });
 
-    Route::post('/sync/tmdb-popularity', function (TmdbPopularitySyncService $service) {
+    Route::post('/sync/tmdb-popularity', function (\Illuminate\Http\Request $request, TmdbPopularitySyncService $service) {
         if (!TmdbConfig::isConfigured()) {
             return response()->json(['ok' => false, 'error' => 'API-ключ TMDB не настроен'], 422);
         }
 
-        $result = $service->syncAll();
-        TmdbAutoSyncSettings::markRun();
+        $data = $request->validate([
+            'restart' => ['nullable', 'boolean'],
+            'continue' => ['nullable', 'boolean'],
+        ]);
+
+        $restart = (bool)($data['restart'] ?? false);
+        $continue = (bool)($data['continue'] ?? false);
+
+        // Progressive batches — does not process all series in one HTTP request.
+        $progress = $service->runProgressiveBatch($restart || (!$continue), true);
+
+        return response()->json([
+            'ok' => true,
+            'progress' => $progress,
+            'done' => ($progress['status'] ?? '') === 'done',
+            'result' => [
+                'updated' => $progress['updated'] ?? 0,
+                'failed' => $progress['failed'] ?? 0,
+                'status_changed' => $progress['status_changed'] ?? 0,
+                'schedule_synced' => $progress['schedule_synced'] ?? 0,
+                'studios_linked' => $progress['studios_linked'] ?? 0,
+                'studio_logos' => $progress['studio_logos'] ?? 0,
+                'processed' => $progress['processed'] ?? 0,
+                'total' => $progress['total'] ?? 0,
+            ],
+            'output' => (string)($progress['message'] ?? ''),
+        ]);
+    });
+
+    Route::get('/sync/tmdb-popularity/progress', function () {
+        return response()->json([
+            'ok' => true,
+            'progress' => TmdbSyncProgress::get(),
+        ]);
+    });
+
+    Route::post('/sync/tmdb-studio-logos', function (TmdbStudioSyncService $studioSync) {
+        if (!TmdbConfig::isConfigured()) {
+            return response()->json(['ok' => false, 'error' => 'API-ключ TMDB не настроен'], 422);
+        }
+
+        @set_time_limit(120);
+        $result = $studioSync->fillMissingLogos(100);
 
         return response()->json([
             'ok' => true,
             'result' => $result,
-            'output' => implode("\n", $result['log']),
+            'output' => sprintf(
+                'Логотипы: проверено %d, скачано %d, без лого %d',
+                $result['checked'],
+                $result['downloaded'],
+                $result['failed'],
+            ),
         ]);
     });
 

@@ -57,6 +57,22 @@ class TmdbClient
     }
 
     /**
+     * @return array<string,mixed>
+     */
+    public function getNetworkDetails(int|string $networkId): array
+    {
+        return $this->getJson('/network/' . rawurlencode((string)$networkId));
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    public function getCompanyDetails(int|string $companyId): array
+    {
+        return $this->getJson('/company/' . rawurlencode((string)$companyId));
+    }
+
+    /**
      * @param  array<string, mixed>  $query
      * @return array<string,mixed>
      */

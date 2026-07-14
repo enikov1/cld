@@ -5,6 +5,7 @@ import {
   CodeOutlined,
   CommentOutlined,
   DashboardOutlined,
+  ExportOutlined,
   FolderOpenOutlined,
   LogoutOutlined,
   MenuOutlined,
@@ -22,6 +23,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { ADMIN_ROUTES, pageKeyFromPath, pageMeta } from '../routes/adminRoutes'
 import type { AdminPageKey } from '../types'
+import { siteOrigin } from '../utils/mediaUrl'
 
 const { Sider, Header, Content } = Layout
 
@@ -30,24 +32,39 @@ type AdminLayoutProps = {
   onToggleTheme: () => void
 }
 
-const menuItems: MenuProps['items'] = [
-  { key: 'dashboard', icon: <DashboardOutlined />, label: 'Обзор' },
-  { type: 'divider' },
-  { key: 'nav-menu', icon: <MenuOutlined />, label: 'Меню' },
-  { key: 'reactions', icon: <SmileOutlined />, label: 'Реакции' },
-  { key: 'taxonomy', icon: <BookOutlined />, label: 'Справочники' },
-  { key: 'series', icon: <VideoCameraOutlined />, label: 'Сериалы' },
-  { key: 'collections', icon: <FolderOpenOutlined />, label: 'Подборки' },
-  { key: 'studios', icon: <BankOutlined />, label: 'Студии' },
-  { type: 'divider' },
-  { key: 'comments', icon: <CommentOutlined />, label: 'Комментарии' },
-  { key: 'users', icon: <TeamOutlined />, label: 'Пользователи' },
-  { key: 'search-stats', icon: <SearchOutlined />, label: 'Поиск' },
-  { key: 'settings', icon: <SettingOutlined />, label: 'Настройки' },
-  { key: 'templates', icon: <CodeOutlined />, label: 'Шаблоны' },
-  { key: 'sync', icon: <CloudSyncOutlined />, label: 'KinoPoisk' },
-  { key: 'alloha-sync', icon: <CloudSyncOutlined />, label: 'Alloha' },
-]
+const SITE_MENU_KEY = 'open-site'
+
+function buildMenuItems(): MenuProps['items'] {
+  const origin = siteOrigin() || '/'
+
+  return [
+    { key: 'dashboard', icon: <DashboardOutlined />, label: 'Обзор' },
+    {
+      key: SITE_MENU_KEY,
+      icon: <ExportOutlined />,
+      label: (
+        <a href={origin} target="_blank" rel="noopener noreferrer">
+          На сайт
+        </a>
+      ),
+    },
+    { type: 'divider' },
+    { key: 'nav-menu', icon: <MenuOutlined />, label: 'Меню' },
+    { key: 'reactions', icon: <SmileOutlined />, label: 'Реакции' },
+    { key: 'taxonomy', icon: <BookOutlined />, label: 'Справочники' },
+    { key: 'series', icon: <VideoCameraOutlined />, label: 'Сериалы' },
+    { key: 'collections', icon: <FolderOpenOutlined />, label: 'Подборки' },
+    { key: 'studios', icon: <BankOutlined />, label: 'Студии' },
+    { type: 'divider' },
+    { key: 'comments', icon: <CommentOutlined />, label: 'Комментарии' },
+    { key: 'users', icon: <TeamOutlined />, label: 'Пользователи' },
+    { key: 'search-stats', icon: <SearchOutlined />, label: 'Поиск' },
+    { key: 'settings', icon: <SettingOutlined />, label: 'Настройки' },
+    { key: 'templates', icon: <CodeOutlined />, label: 'Шаблоны' },
+    { key: 'sync', icon: <CloudSyncOutlined />, label: 'KinoPoisk' },
+    { key: 'alloha-sync', icon: <CloudSyncOutlined />, label: 'Alloha' },
+  ]
+}
 
 export default function AdminLayout({ isDark, onToggleTheme }: AdminLayoutProps) {
   const location = useLocation()
@@ -56,6 +73,7 @@ export default function AdminLayout({ isDark, onToggleTheme }: AdminLayoutProps)
 
   const page = pageKeyFromPath(location.pathname)
   const meta = pageMeta[page]
+  const menuItems = buildMenuItems()
 
   return (
     <Layout className="admin-shell">
@@ -78,7 +96,12 @@ export default function AdminLayout({ isDark, onToggleTheme }: AdminLayoutProps)
           mode="inline"
           selectedKeys={[page]}
           items={menuItems}
-          onClick={({ key }) => navigate(ADMIN_ROUTES[key as AdminPageKey])}
+          onClick={({ key }) => {
+            if (key === SITE_MENU_KEY) {
+              return
+            }
+            navigate(ADMIN_ROUTES[key as AdminPageKey])
+          }}
         />
       </Sider>
 

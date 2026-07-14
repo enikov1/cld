@@ -7,6 +7,7 @@ use App\Models\Studio;
 use App\Models\StudioItem;
 use App\Support\SlugHelper;
 use App\Support\TplCache;
+use Illuminate\Support\Facades\Storage;
 
 class TmdbStudioSyncService
 {
@@ -106,9 +107,70 @@ class TmdbStudioSyncService
     }
 
     /**
+     * Download missing logos for studios that already have TMDB IDs.
+     *
+     * @return array{checked: int, downloaded: int, failed: int}
+     */
+    public function fillMissingLogos(int $limit = 100): array
+    {
+        $result = ['checked' => 0, 'downloaded' => 0, 'failed' => 0];
+
+        if (!$this->client->isConfigured()) {
+            return $result;
+        }
+
+        $studios = Studio::query()
+            ->whereNotNull('tmdb_id')
+            ->whereNotNull('tmdb_type')
+            ->where(function ($q) {
+                $q->whereNull('logo_url')
+                    ->orWhere('logo_url', '')
+                    ->orWhereRaw("TRIM(COALESCE(logo_url, '')) = ''");
+            })
+            ->orderBy('id')
+            ->limit(max(1, $limit))
+            ->get();
+
+        // Also pick studios whose logo_url points to a missing local file.
+        if ($studios->count() < $limit) {
+            $extra = Studio::query()
+                ->whereNotNull('tmdb_id')
+                ->whereNotNull('tmdb_type')
+                ->whereNotNull('logo_url')
+                ->where('logo_url', '!=', '')
+                ->where('logo_url', 'like', '/storage/%')
+                ->orderBy('id')
+                ->limit($limit)
+                ->get()
+                ->filter(fn (Studio $s) => !$this->hasStoredLogo($s));
+
+            $studios = $studios->merge($extra)->unique('id')->take($limit)->values();
+        }
+
+        foreach ($studios as $studio) {
+            $result['checked']++;
+            // Clear broken local path so ensureLogo will rewrite.
+            if (!$this->hasStoredLogo($studio) && trim((string)$studio->logo_url) !== '') {
+                $studio->logo_url = null;
+                $studio->save();
+            }
+
+            $logoPath = $this->fetchLogoPathForStudio($studio);
+            if ($this->ensureLogo($studio, $logoPath)) {
+                $result['downloaded']++;
+            } elseif (!$this->hasStoredLogo($studio->fresh() ?? $studio)) {
+                $result['failed']++;
+            }
+            usleep(150000);
+        }
+
+        return $result;
+    }
+
+    /**
      * Absolute TMDB image URL for a logo_path.
      */
-    public function logoUrl(?string $logoPath): ?string
+    public function logoUrl(?string $logoPath, ?string $size = null): ?string
     {
         $logoPath = trim((string)$logoPath);
         if ($logoPath === '') {
@@ -120,7 +182,7 @@ class TmdbStudioSyncService
         }
 
         $base = rtrim((string)config('tmdb.image_base_url', 'https://image.tmdb.org/t/p'), '/');
-        $size = trim((string)config('tmdb.logo_size', 'w500'), '/');
+        $size = trim((string)($size ?: config('tmdb.logo_size', 'w500')), '/');
         if ($size === '') {
             $size = 'w500';
         }
@@ -177,6 +239,10 @@ class TmdbStudioSyncService
             $seen[$key] = true;
 
             $logoPath = isset($item['logo_path']) ? trim((string)$item['logo_path']) : '';
+            // TMDB may return literal "null"
+            if ($logoPath === '' || strtolower($logoPath) === 'null') {
+                $logoPath = '';
+            }
 
             $out[] = [
                 'tmdb_id' => $tmdbId,
@@ -246,28 +312,100 @@ class TmdbStudioSyncService
 
     private function ensureLogo(Studio $studio, ?string $logoPath): bool
     {
-        if ($studio->logo_url) {
+        $studio->refresh();
+
+        // Already have a working logo — keep manual/custom uploads.
+        if ($this->hasStoredLogo($studio)) {
             return false;
         }
 
-        $remoteUrl = $this->logoUrl($logoPath);
-        if ($remoteUrl === null) {
+        // Broken or empty logo_url → clear and rewrite from TMDB.
+        if (trim((string)$studio->logo_url) !== '') {
+            $studio->logo_url = null;
+            $studio->save();
+        }
+
+        $paths = [];
+        $entryPath = $logoPath !== null ? trim($logoPath) : '';
+        if ($entryPath !== '' && strtolower($entryPath) !== 'null') {
+            $paths[] = $entryPath;
+        }
+
+        $fetched = $this->fetchLogoPathForStudio($studio);
+        if ($fetched !== null && !in_array($fetched, $paths, true)) {
+            $paths[] = $fetched;
+        }
+
+        if ($paths === []) {
             return false;
         }
 
-        $stored = $this->posterStorage->storeFromUrl(
-            $remoteUrl,
-            PosterContext::forStudioSlug($studio->slug),
-        );
+        $sizes = config('tmdb.logo_size_fallbacks', ['original', 'w500', 'w300', 'w185']);
+        if (!is_array($sizes) || $sizes === []) {
+            $sizes = ['w500'];
+        }
 
-        if (!$stored) {
+        foreach ($paths as $path) {
+            foreach ($sizes as $size) {
+                $remoteUrl = $this->logoUrl($path, is_string($size) ? $size : null);
+                if ($remoteUrl === null) {
+                    continue;
+                }
+
+                $stored = $this->posterStorage->storeFromUrl(
+                    $remoteUrl,
+                    PosterContext::forStudioSlug($studio->slug),
+                    false,
+                );
+
+                if ($stored) {
+                    $studio->logo_url = $stored;
+                    $studio->save();
+
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function hasStoredLogo(Studio $studio): bool
+    {
+        $url = trim((string)$studio->logo_url);
+        if ($url === '') {
             return false;
         }
 
-        $studio->logo_url = $stored;
-        $studio->save();
+        if (str_starts_with($url, '/storage/')) {
+            $relative = ltrim(substr($url, strlen('/storage/')), '/');
 
+            return $relative !== '' && Storage::disk('public')->exists($relative);
+        }
+
+        // External URL — treat as present.
         return true;
+    }
+
+    private function fetchLogoPathForStudio(Studio $studio): ?string
+    {
+        $tmdbId = (int)$studio->tmdb_id;
+        if ($tmdbId <= 0) {
+            return null;
+        }
+
+        $details = match ($studio->tmdb_type) {
+            self::TYPE_NETWORK => $this->client->getNetworkDetails($tmdbId),
+            self::TYPE_COMPANY => $this->client->getCompanyDetails($tmdbId),
+            default => [],
+        };
+
+        $logoPath = isset($details['logo_path']) ? trim((string)$details['logo_path']) : '';
+        if ($logoPath === '' || strtolower($logoPath) === 'null') {
+            return null;
+        }
+
+        return $logoPath;
     }
 
     /**
@@ -303,7 +441,6 @@ class TmdbStudioSyncService
             $series->studio_id = $primaryId;
             $series->save();
         } elseif ($primaryId && $series->studio_id && !in_array((int)$series->studio_id, $orderedIds, true)) {
-            // Primary was a removed TMDB studio — point to the first current one.
             $stillLinked = StudioItem::query()
                 ->where('series_id', $series->id)
                 ->where('studio_id', $series->studio_id)

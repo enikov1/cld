@@ -1,6 +1,6 @@
 const DEFAULT_BACKEND = 'http://127.0.0.1:8085'
 
-function backendOrigin(): string {
+export function siteOrigin(): string {
   const raw = import.meta.env.VITE_BACKEND_URL as string | undefined
   if (raw) {
     return raw.replace(/\/+$/, '')
@@ -12,6 +12,10 @@ function backendOrigin(): string {
     return window.location.origin
   }
   return ''
+}
+
+function backendOrigin(): string {
+  return siteOrigin()
 }
 
 /** Превращает /storage/... в полный URL при dev-сервере Vite (админка на другом порту). */

@@ -5,6 +5,8 @@ return [
     'base_url' => env('TMDB_BASE_URL', 'https://api.themoviedb.org/3'),
     'image_base_url' => env('TMDB_IMAGE_BASE_URL', 'https://image.tmdb.org/t/p'),
     'logo_size' => env('TMDB_LOGO_SIZE', 'w500'),
+    'logo_size_fallbacks' => ['original', 'w500', 'w300', 'w185'],
     'request_timeout' => (int)env('TMDB_REQUEST_TIMEOUT', 20),
     'language' => env('TMDB_LANGUAGE', 'ru-RU'),
+    'sync_batch_size' => (int)env('TMDB_SYNC_BATCH_SIZE', 25),
 ];
