@@ -93,7 +93,9 @@ export type SeriesItem = {
   deleted_at?: string | null
   category?: { id: number; slug: string; title: string } | null
   studio_id?: number | null
+  studio_ids?: number[]
   studio?: { id: number; slug: string; title: string } | null
+  studios?: { id: number; slug: string; title: string; logo_url?: string | null }[]
 }
 
 export type CollectionItem = {

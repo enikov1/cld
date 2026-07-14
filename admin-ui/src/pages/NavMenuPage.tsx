@@ -25,8 +25,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { TaxonomyOption, TaxonomyType } from '../types'
 
-type NavLinkType = 'home' | 'taxonomy' | 'collections' | 'catalog' | 'coming_soon' | 'custom'
-type NavSectionType = 'genres' | 'countries' | 'collections' | 'years' | 'custom'
+type NavLinkType = 'home' | 'taxonomy' | 'collections' | 'studios' | 'catalog' | 'coming_soon' | 'custom'
+type NavSectionType = 'genres' | 'countries' | 'collections' | 'studios' | 'years' | 'custom'
 
 type NavMegaLink = {
   id: number
@@ -94,6 +94,7 @@ const LINK_TYPES: { value: NavLinkType; label: string }[] = [
   { value: 'home', label: 'Главная' },
   { value: 'taxonomy', label: 'Справочник' },
   { value: 'collections', label: 'Подборки' },
+  { value: 'studios', label: 'Студии' },
   { value: 'catalog', label: 'Каталог' },
   { value: 'coming_soon', label: 'Скоро' },
   { value: 'custom', label: 'Своя ссылка' },
@@ -103,6 +104,7 @@ const SECTION_TYPES: { value: NavSectionType; label: string }[] = [
   { value: 'genres', label: 'Жанры (авто)' },
   { value: 'countries', label: 'Страны (авто)' },
   { value: 'collections', label: 'Подборки (авто)' },
+  { value: 'studios', label: 'Студии (авто)' },
   { value: 'years', label: 'Годы (авто)' },
   { value: 'custom', label: 'Свои ссылки' },
 ]

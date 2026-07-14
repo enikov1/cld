@@ -9,6 +9,8 @@ class Studio extends Model
     protected $table = 'studios';
 
     protected $fillable = [
+        'tmdb_id',
+        'tmdb_type',
         'slug',
         'title',
         'meta_title',
@@ -24,6 +26,7 @@ class Studio extends Model
     ];
 
     protected $casts = [
+        'tmdb_id' => 'integer',
         'is_active' => 'boolean',
         'is_hidden' => 'boolean',
         'noindex' => 'boolean',

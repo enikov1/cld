@@ -150,6 +150,7 @@ class SeriesController extends TplController
                 'slug' => $s->slug,
                 'title' => $s->title,
                 'name' => $s->title,
+                'logo_url' => $s->logo_url ?? '',
                 'url' => '/studios/' . $s->slug . '/',
             ]),
             'countries' => $this->mapLinkItems($series->countries, fn ($c) => [

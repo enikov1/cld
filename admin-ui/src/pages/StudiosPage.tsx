@@ -1,4 +1,4 @@
-import { Button, Col, Empty, Form, Input, InputNumber, Modal, Popconfirm, Row, Select, Switch, Table, Tag, Typography, Upload, message } from 'antd'
+import { Button, Col, Empty, Form, Input, InputNumber, Modal, Popconfirm, Row, Select, Switch, Table, Tag, Tooltip, Typography, Upload, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../api/client'
@@ -6,6 +6,58 @@ import { apiUpload } from '../api/upload'
 import TemplateCodeEditor from '../components/TemplateCodeEditor'
 import { useAdminTheme } from '../theme/useAdminTheme'
 import type { SeriesItem, StudioItem, StudioSeriesItem } from '../types'
+import { resolveMediaUrl } from '../utils/mediaUrl'
+
+function StudioLogoPreview({
+  url,
+  size = 40,
+  large = 120,
+}: {
+  url?: string | null
+  size?: number
+  large?: number
+}) {
+  if (!url?.trim()) {
+    return <span style={{ color: '#999' }}>—</span>
+  }
+
+  const src = resolveMediaUrl(url)
+
+  return (
+    <Tooltip
+      title={(
+        <img
+          src={src}
+          alt=""
+          style={{
+            width: large,
+            maxHeight: large,
+            objectFit: 'contain',
+            borderRadius: 6,
+            display: 'block',
+            background: '#fff',
+            padding: 8,
+          }}
+        />
+      )}
+    >
+      <img
+        src={src}
+        alt=""
+        style={{
+          width: size,
+          height: size,
+          objectFit: 'contain',
+          borderRadius: 4,
+          cursor: 'pointer',
+          background: 'rgba(0,0,0,0.04)',
+          padding: 4,
+          display: 'block',
+        }}
+      />
+    </Tooltip>
+  )
+}
 
 export default function StudiosPage() {
   const { isDark } = useAdminTheme()
@@ -19,7 +71,7 @@ export default function StudiosPage() {
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [form] = Form.useForm()
   const [addForm] = Form.useForm()
-
+  const logoUrl = Form.useWatch('logo_url', form)
   const seriesOptions = useMemo(
     () => series.map((s) => ({ value: s.kp_id, label: `${s.title} (${s.kp_id})` })),
     [series],
@@ -126,6 +178,12 @@ export default function StudiosPage() {
   }
 
   const studioColumns: ColumnsType<StudioItem> = [
+    {
+      title: 'Лого',
+      key: 'logo',
+      width: 72,
+      render: (_, row) => <StudioLogoPreview url={row.logo_url} />,
+    },
     { title: 'Slug (URL)', dataIndex: 'slug', key: 'slug', width: 160, render: (slug) => `/studios/${slug}/` },
     { title: 'Название', dataIndex: 'title', key: 'title' },
     { title: 'Порядок', dataIndex: 'sort_order', width: 80 },
@@ -170,7 +228,6 @@ export default function StudiosPage() {
       ),
     },
   ]
-
   const itemColumns: ColumnsType<StudioSeriesItem> = [
     { title: '#', dataIndex: 'rank_order', key: 'rank_order', width: 60 },
     { title: 'KP ID', key: 'kp_id', width: 100, render: (_, r) => r.series?.kp_id ?? '—' },
@@ -220,9 +277,25 @@ export default function StudiosPage() {
           ) : (
             <>
               <div className="admin-toolbar">
-                <div>
-                  <strong>{activeStudio?.title}</strong>
-                  <div className="admin-empty-hint">/studios/{activeSlug}/</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {activeStudio?.logo_url ? (
+                    <img
+                      src={resolveMediaUrl(activeStudio.logo_url)}
+                      alt=""
+                      style={{
+                        width: 48,
+                        height: 48,
+                        objectFit: 'contain',
+                        borderRadius: 6,
+                        background: 'rgba(0,0,0,0.04)',
+                        padding: 4,
+                      }}
+                    />
+                  ) : null}
+                  <div>
+                    <strong>{activeStudio?.title}</strong>
+                    <div className="admin-empty-hint">/studios/{activeSlug}/</div>
+                  </div>
                 </div>
                 <Button type="primary" onClick={() => setAddModalOpen(true)} disabled={!series.length}>
                   Добавить сериалы
@@ -272,8 +345,24 @@ export default function StudiosPage() {
             HTML-текст для SEO внизу страницы студии.
           </Typography.Paragraph>
           <Form.Item label="Логотип (URL)" name="logo_url">
-            <Input />
+            <Input placeholder="/storage/posters/... или https://..." />
           </Form.Item>
+          {logoUrl ? (
+            <img
+              src={resolveMediaUrl(logoUrl)}
+              alt="Превью логотипа"
+              style={{
+                maxWidth: 220,
+                maxHeight: 80,
+                objectFit: 'contain',
+                borderRadius: 6,
+                marginBottom: 12,
+                display: 'block',
+                background: 'rgba(0,0,0,0.04)',
+                padding: 8,
+              }}
+            />
+          ) : null}
           <Upload
             beforeUpload={async (file) => {
               const slug = logoSlug
@@ -284,9 +373,13 @@ export default function StudiosPage() {
               const fd = new FormData()
               fd.append('logo', file)
               try {
-                const res = await apiUpload<{ logo_url: string }>(`/api/admin/studios/${slug}/logo`, fd)
+                const res = await apiUpload<{ logo_url: string; item?: StudioItem }>(`/api/admin/studios/${slug}/logo`, fd)
                 form.setFieldValue('logo_url', res.logo_url)
+                if (res.item) {
+                  setEditing(res.item)
+                }
                 message.success('Логотип загружен')
+                await loadStudios()
               } catch (e) {
                 message.error(String((e as Error).message))
               }

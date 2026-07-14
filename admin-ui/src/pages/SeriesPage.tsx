@@ -125,6 +125,24 @@ function mergeTaxonomyOptions(base: SelectOption[], items?: TaxonomyOption[]): S
   return Array.from(map.values())
 }
 
+function mergeStudioOptions(
+  base: SelectOption[],
+  studios?: { id: number; title: string }[] | null,
+  studio?: { id: number; title: string } | null,
+): SelectOption[] {
+  const map = new Map<number, SelectOption>()
+  for (const option of base) {
+    map.set(option.value, option)
+  }
+  for (const item of studios ?? []) {
+    map.set(item.id, { value: item.id, label: item.title })
+  }
+  if (studio?.id) {
+    map.set(studio.id, { value: studio.id, label: studio.title })
+  }
+  return Array.from(map.values())
+}
+
 function seriesToFormValues(item: SeriesItem): Record<string, unknown> {
   return {
     kp_id: item.kp_id,
@@ -157,6 +175,7 @@ function seriesToFormValues(item: SeriesItem): Record<string, unknown> {
     meta_title: item.meta_title,
     meta_description: item.meta_description,
     studio_id: item.studio_id,
+    studio_ids: item.studio_ids ?? (item.studio_id ? [item.studio_id] : []),
     sort_order: item.sort_order,
     is_active: item.is_active,
     is_hidden: item.is_hidden,
@@ -206,8 +225,12 @@ export default function SeriesPage() {
   }, [])
 
   const studioOptions = useMemo(
-    () => studios.map((s) => ({ value: s.id, label: s.title })),
-    [studios],
+    () => mergeStudioOptions(
+      studios.map((s) => ({ value: s.id, label: s.title })),
+      editing?.studios,
+      editing?.studio,
+    ),
+    [studios, editing?.studios, editing?.studio],
   )
 
   const loadTaxonomy = useCallback(async () => {
@@ -351,10 +374,11 @@ export default function SeriesPage() {
     setMainSubTab('basic')
     form.setFieldsValue(seriesToFormValues(row))
     setDrawerOpen(true)
+    void loadStudios()
   }
 
   async function applyImportedItem(item: SeriesItem) {
-    await loadTaxonomy()
+    await Promise.all([loadTaxonomy(), loadStudios()])
     setEditing(item)
     form.setFieldsValue(seriesToFormValues(item))
   }
@@ -863,8 +887,19 @@ export default function SeriesPage() {
                     <Form.Item label="Популярность TMDB" name="tmdb_popularity" extra="Обновляется автоматически из TMDB API вместе со статусом эфира">
                       <Input disabled placeholder="—" />
                     </Form.Item>
-                    <Form.Item label="Студия" name="studio_id" extra="Опционально — сериал появится в каталоге студии">
-                      <Select allowClear options={studioOptions} placeholder="Не выбрана" />
+                    <Form.Item
+                      label="Студии"
+                      name="studio_ids"
+                      extra="Можно выбрать несколько — сериал появится в каталоге каждой студии"
+                    >
+                      <Select
+                        mode="multiple"
+                        allowClear
+                        showSearch
+                        options={studioOptions}
+                        optionFilterProp="label"
+                        placeholder="Не выбраны"
+                      />
                     </Form.Item>
                     <Form.Item label="Название (RU)" name="title" rules={[{ required: true }]}><Input /></Form.Item>
                     <Row gutter={16}>
@@ -1053,6 +1088,7 @@ export default function SeriesPage() {
                   kpId={editing?.kp_id ?? form.getFieldValue('kp_id')}
                   tmdbId={watchedTmdbId ?? editing?.tmdb_id}
                   drawerOpen={drawerOpen}
+                  refreshKey={playersRefreshKey}
                   onBroadcastStatusChange={(status) => {
                     form.setFieldsValue({ broadcast_status: status })
                     if (editing) {

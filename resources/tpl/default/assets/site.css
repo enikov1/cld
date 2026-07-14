@@ -437,6 +437,45 @@ body.dt {
     display: inline;
 }
 
+.serial-detail__studios {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+.serial-studio {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+    color: inherit;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    max-width: 100%;
+}
+
+.serial-studio:hover {
+    text-decoration: none;
+    color: inherit;
+    opacity: 0.85;
+}
+
+.serial-studio__logo {
+    display: block;
+    width: auto;
+    height: 28px;
+    max-width: 100px;
+    object-fit: contain;
+}
+
+.serial-studio__name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #2563eb;
+    border-bottom: 1px dashed rgba(37, 99, 235, 0.45);
+}
+
 .serial-detail__link {
     color: #2563eb;
     text-decoration: none;
@@ -492,6 +531,22 @@ body.dt {
 
 .dt .serial-detail__link:hover {
     color: #93c5fd;
+}
+
+.dt .serial-studio {
+    background: transparent;
+    border: 0;
+}
+
+.dt .serial-studio:hover {
+    background: transparent;
+    border: 0;
+    opacity: 0.85;
+}
+
+.dt .serial-studio__name {
+    color: #60a5fa;
+    border-bottom-color: rgba(96, 165, 250, 0.45);
 }
 
 .sect-tabs a {

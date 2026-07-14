@@ -3,8 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Series;
-use App\Models\Studio;
-use App\Models\StudioItem;
 use App\Services\ImageOptimizer;
 use App\Services\CdnVideoHubPlayerSync;
 use App\Services\KinoPoiskClient;
@@ -15,6 +13,7 @@ use App\Services\PosterContext;
 use App\Services\PosterStorage;
 use App\Services\SeriesViewService;
 use App\Services\TaxonomyService;
+use App\Services\TmdbPopularitySyncService;
 use App\Support\AdminSeriesFilter;
 use App\Support\SlugHelper;
 use App\Support\TplCache;
@@ -27,7 +26,7 @@ class AdminSeriesController extends Controller
     {
         $params = AdminSeriesFilter::params($request);
 
-        $query = Series::query()->with(['genres', 'countries', 'actors', 'directors', 'studio']);
+        $query = Series::query()->with(['genres', 'countries', 'actors', 'directors', 'studio', 'studios']);
         if ($params['with_trashed']) {
             $query->withTrashed();
         }
@@ -111,6 +110,8 @@ class AdminSeriesController extends Controller
             'is_coming_soon' => ['nullable', 'boolean'],
             'sort_order' => ['nullable', 'integer'],
             'studio_id' => ['nullable', 'integer', 'exists:studios,id'],
+            'studio_ids' => ['nullable', 'array'],
+            'studio_ids.*' => ['integer', 'exists:studios,id'],
             'download_poster' => ['nullable', 'boolean'],
         ]);
 
@@ -132,7 +133,7 @@ class AdminSeriesController extends Controller
         ];
 
         $nullableScalars = [
-            'studio_id', 'meta_title', 'meta_description', 'title_en', 'title_original',
+            'meta_title', 'meta_description', 'title_en', 'title_original',
             'description', 'short_description', 'slogan', 'year', 'start_year', 'end_year',
             'duration_minutes', 'kp_rating', 'imdb_rating', 'kp_votes_count', 'imdb_votes_count',
             'imdb_id', 'tmdb_id', 'content_type', 'broadcast_status', 'season_number',
@@ -208,8 +209,10 @@ class AdminSeriesController extends Controller
             app(TaxonomyService::class)->syncSeriesRelations($series, $relations);
         }
 
-        if (array_key_exists('studio_id', $data)) {
-            $this->syncStudioMembership($series, $existing?->studio_id, $data['studio_id']);
+        if (array_key_exists('studio_ids', $data)) {
+            $this->syncStudios($series, $data['studio_ids'] ?? []);
+        } elseif (array_key_exists('studio_id', $data)) {
+            $this->syncStudios($series, $data['studio_id'] ? [(int)$data['studio_id']] : []);
         }
 
         $series->refresh();
@@ -218,28 +221,26 @@ class AdminSeriesController extends Controller
 
         return response()->json([
             'ok' => true,
-            'item' => $this->serializeSeries($series->fresh()->load(['genres', 'countries', 'actors', 'directors', 'studio'])),
+            'item' => $this->serializeSeries($series->fresh()->load(['genres', 'countries', 'actors', 'directors', 'studio', 'studios'])),
         ]);
     }
 
-    private function syncStudioMembership(Series $series, ?int $oldStudioId, ?int $newStudioId): void
+    /**
+     * @param  list<int|string>|null  $studioIds
+     */
+    private function syncStudios(Series $series, ?array $studioIds): void
     {
-        $newStudioId = $newStudioId ? (int)$newStudioId : null;
-        $oldStudioId = $oldStudioId ? (int)$oldStudioId : null;
+        $ids = array_values(array_unique(array_filter(array_map('intval', $studioIds ?? []))));
 
-        if ($oldStudioId && $oldStudioId !== $newStudioId) {
-            StudioItem::query()
-                ->where('studio_id', $oldStudioId)
-                ->where('series_id', $series->id)
-                ->delete();
+        $sync = [];
+        foreach ($ids as $rank => $studioId) {
+            $sync[$studioId] = ['rank_order' => $rank];
         }
 
-        if ($newStudioId) {
-            StudioItem::query()->updateOrCreate(
-                ['studio_id' => $newStudioId, 'series_id' => $series->id],
-                ['rank_order' => 0]
-            );
-        }
+        $series->studios()->sync($sync);
+
+        $series->studio_id = $ids[0] ?? null;
+        $series->save();
     }
 
     public function importFromKp(Request $request, string $kp_id)
@@ -317,11 +318,16 @@ class AdminSeriesController extends Controller
         );
 
         app(CdnVideoHubPlayerSync::class)->syncIfEnabled($series);
+
+        if (trim((string)$series->tmdb_id) !== '') {
+            app(TmdbPopularitySyncService::class)->syncSeries($series->fresh(), true, false);
+        }
+
         TplCache::forgetSeries($series->id);
 
         return response()->json([
             'ok' => true,
-            'item' => $this->serializeSeries($series->fresh()->load(['genres', 'countries', 'actors', 'directors'])),
+            'item' => $this->serializeSeries($series->fresh()->load(['genres', 'countries', 'actors', 'directors', 'studio', 'studios'])),
         ]);
     }
 
@@ -353,7 +359,7 @@ class AdminSeriesController extends Controller
                         $people['_actor_people'],
                         $people['_director_people'],
                     );
-                    $result['series'] = $result['series']->fresh()->load(['genres', 'countries', 'actors', 'directors']);
+                    $result['series'] = $result['series']->fresh()->load(['genres', 'countries', 'actors', 'directors', 'studio', 'studios']);
                 }
             }
         }
@@ -442,22 +448,38 @@ class AdminSeriesController extends Controller
      */
     private function serializeSeries(Series $series, array $views3d = [], array $views7d = []): array
     {
-        $series->loadMissing(['genres', 'countries', 'actors', 'directors', 'studio']);
+        $series->loadMissing(['genres', 'countries', 'actors', 'directors', 'studio', 'studios']);
+
+        $studios = collect();
+        if ($series->studio) {
+            $studios->put($series->studio->id, $series->studio);
+        }
+        foreach ($series->studios as $studio) {
+            $studios->put($studio->id, $studio);
+        }
+        $studiosList = $studios->values()->map(fn ($s) => [
+            'id' => $s->id,
+            'slug' => $s->slug,
+            'title' => $s->title,
+            'logo_url' => $s->logo_url ?? null,
+        ])->values()->all();
 
         return array_merge($series->toArray(), [
             'genre_ids' => $series->genres->pluck('id')->values()->all(),
             'country_ids' => $series->countries->pluck('id')->values()->all(),
             'actor_ids' => $series->actors->pluck('id')->values()->all(),
             'director_ids' => $series->directors->pluck('id')->values()->all(),
+            'studio_ids' => array_map(fn ($s) => (int)$s['id'], $studiosList),
             'views_3d' => $views3d[(int)$series->id] ?? 0,
             'views_7d' => $views7d[(int)$series->id] ?? 0,
             'genres' => $series->genres->map(fn ($g) => ['id' => $g->id, 'slug' => $g->slug, 'name' => $g->name])->values()->all(),
             'countries' => $series->countries->map(fn ($c) => ['id' => $c->id, 'slug' => $c->slug, 'name' => $c->name])->values()->all(),
             'actors' => $series->actors->map(fn ($p) => ['id' => $p->id, 'slug' => $p->slug, 'name' => $p->name])->values()->all(),
             'directors' => $series->directors->map(fn ($p) => ['id' => $p->id, 'slug' => $p->slug, 'name' => $p->name])->values()->all(),
+            'studios' => $studiosList,
             'studio' => $series->studio
                 ? ['id' => $series->studio->id, 'slug' => $series->studio->slug, 'title' => $series->studio->title]
-                : null,
+                : ($studiosList[0] ?? null),
         ]);
     }
 }

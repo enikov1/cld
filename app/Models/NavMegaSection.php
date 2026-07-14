@@ -11,6 +11,7 @@ class NavMegaSection extends Model
     public const SOURCE_GENRES = 'genres';
     public const SOURCE_COUNTRIES = 'countries';
     public const SOURCE_COLLECTIONS = 'collections';
+    public const SOURCE_STUDIOS = 'studios';
     public const SOURCE_YEARS = 'years';
     public const SOURCE_CUSTOM = 'custom';
 

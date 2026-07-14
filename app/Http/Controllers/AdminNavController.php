@@ -303,6 +303,7 @@ class AdminNavController extends Controller
             NavItem::LINK_HOME,
             NavItem::LINK_TAXONOMY,
             NavItem::LINK_COLLECTIONS,
+            NavItem::LINK_STUDIOS,
             NavItem::LINK_CATALOG,
             NavItem::LINK_COMING_SOON,
             NavItem::LINK_CUSTOM,
@@ -318,6 +319,7 @@ class AdminNavController extends Controller
             NavMegaSection::SOURCE_GENRES,
             NavMegaSection::SOURCE_COUNTRIES,
             NavMegaSection::SOURCE_COLLECTIONS,
+            NavMegaSection::SOURCE_STUDIOS,
             NavMegaSection::SOURCE_YEARS,
             NavMegaSection::SOURCE_CUSTOM,
         ];

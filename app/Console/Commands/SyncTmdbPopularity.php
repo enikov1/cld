@@ -13,7 +13,7 @@ class SyncTmdbPopularity extends Command
         {--only-missing : Update only rows without popularity}
         {--skip-schedule : Do not import episode schedules}';
 
-    protected $description = 'Sync TMDB popularity, broadcast status and episode schedule for series with tmdb_id';
+    protected $description = 'Sync TMDB popularity, broadcast status, episode schedule and studios for series with tmdb_id';
 
     public function handle(TmdbPopularitySyncService $service): int
     {

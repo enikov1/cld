@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\Country;
 use App\Models\Genre;
 use App\Models\Series;
+use App\Models\Studio;
 use App\Models\Year;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -388,6 +389,10 @@ class CatalogFilterRegistry
             );
         }
 
+        if ($source === 'studios') {
+            return self::studioOptions($value);
+        }
+
         if ($source === 'static' && isset($definition['options']) && is_array($definition['options'])) {
             $options = [];
             foreach ($definition['options'] as $option) {
@@ -422,6 +427,29 @@ class CatalogFilterRegistry
             $options[] = [
                 'value' => $item->slug,
                 'label' => $item->name,
+                'selected' => $selected === $item->slug,
+            ];
+        }
+
+        return $options;
+    }
+
+    /**
+     * @return list<array{value: string, label: string, selected: bool}>
+     */
+    private static function studioOptions(string $selected): array
+    {
+        $items = Studio::query()
+            ->where('is_active', true)
+            ->where('is_hidden', false)
+            ->catalogOrder()
+            ->get(['slug', 'title']);
+
+        $options = [];
+        foreach ($items as $item) {
+            $options[] = [
+                'value' => $item->slug,
+                'label' => $item->title,
                 'selected' => $selected === $item->slug,
             ];
         }
@@ -486,6 +514,15 @@ class CatalogFilterRegistry
                 'countries',
                 fn (Builder $q) => $q->where('slug', $value)->where('is_active', true)
             ),
+            'studio' => $query->where(function (Builder $q) use ($value) {
+                $q->whereHas(
+                    'studios',
+                    fn (Builder $s) => $s->where('slug', $value)->where('is_active', true)
+                )->orWhereHas(
+                    'studio',
+                    fn (Builder $s) => $s->where('slug', $value)->where('is_active', true)
+                );
+            }),
             'rating_min' => $query->where(function (Builder $q) use ($value) {
                 $min = (float)$value;
                 $q->where('kp_rating', '>=', $min)

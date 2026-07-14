@@ -283,7 +283,7 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
 
     Route::get('/studios', function () {
         return response()->json([
-            'items' => Studio::query()->catalogOrder()->limit(100)->get(),
+            'items' => Studio::query()->catalogOrder()->limit(2000)->get(),
         ]);
     });
 

@@ -932,17 +932,17 @@ export default function SettingsPage() {
         </Card>
         <Card title="TMDB API" loading={loading} bordered={false} style={{ marginTop: 16 }}>
           <Typography.Paragraph type="secondary">
-            Ключ для синхронизации популярности и статуса эфира из The Movie Database. Запасной вариант — переменная{' '}
+            Ключ для синхронизации популярности, статуса эфира и студий из The Movie Database. Запасной вариант — переменная{' '}
             <code>TMDB_API_KEY</code> в .env.
             Документация:{' '}
             <a href="https://developer.themoviedb.org/reference/tv-series-details" target="_blank" rel="noreferrer">
               сериалы
             </a>
-            {', '}
+            {' '}(networks),{' '}
             <a href="https://developer.themoviedb.org/reference/movie-details" target="_blank" rel="noreferrer">
               фильмы
             </a>
-            .
+            {' '}(production_companies).
           </Typography.Paragraph>
           <Form.Item
             label="API-ключ"
@@ -966,7 +966,7 @@ export default function SettingsPage() {
           )}
           <Form.Item
             label="Автообновление TMDB"
-            extra="Раз в сутки обновляет популярность TMDB, статус сериала (идёт / завершён) и расписание серий для всех записей с TMDB ID. Ручной статус «На паузе» не перезаписывается, пока TMDB считает шоу продолжающимся. Озвучка в расписании сохраняется при merge."
+            extra="Раз в сутки обновляет популярность TMDB, статус сериала (идёт / завершён), расписание серий и студии (networks / production_companies + логотипы) для всех записей с TMDB ID. Ручной статус «На паузе» не перезаписывается, пока TMDB считает шоу продолжающимся. Озвучка в расписании сохраняется при merge."
           >
             <Space wrap>
               <Switch

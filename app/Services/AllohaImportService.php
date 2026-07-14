@@ -31,7 +31,8 @@ class AllohaImportService
      *     ratings_only?: bool,
      *     is_active?: bool|null,
      *     is_hidden?: bool|null,
-     *     sync_people?: bool
+     *     sync_people?: bool,
+     *     sync_tmdb?: bool
      * } $options
      * @return array{ok: bool, error?: string, series?: Series}
      */
@@ -198,11 +199,17 @@ class AllohaImportService
 
         app(CdnVideoHubPlayerSync::class)->syncIfEnabled($series);
 
+        $syncTmdb = (bool)($options['sync_tmdb'] ?? true);
+        if ($syncTmdb && trim((string)$series->tmdb_id) !== '') {
+            // Popularity, broadcast status, episode schedule and studios in one TMDB pass.
+            app(TmdbPopularitySyncService::class)->syncSeries($series->fresh(), true, false);
+        }
+
         TplCache::forgetSeries($series->id);
 
         return [
             'ok' => true,
-            'series' => $series->fresh()->load(['genres', 'countries', 'actors', 'directors']),
+            'series' => $series->fresh()->load(['genres', 'countries', 'actors', 'directors', 'studio']),
         ];
     }
 

@@ -26,11 +26,12 @@ type Props = {
   kpId?: string | null
   tmdbId?: string | null
   drawerOpen: boolean
+  refreshKey?: number
   onBroadcastStatusChange?: (status: 'ongoing' | 'paused' | 'completed' | null) => void
 }
 
 const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(function SeriesScheduleEditor(
-  { kpId, tmdbId, drawerOpen, onBroadcastStatusChange },
+  { kpId, tmdbId, drawerOpen, refreshKey = 0, onBroadcastStatusChange },
   ref,
 ) {
   const [seasons, setSeasons] = useState<ScheduleSeason[]>([])
@@ -62,7 +63,7 @@ const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(funct
   useEffect(() => {
     if (!drawerOpen || !kpId) return
     load()
-  }, [kpId, drawerOpen, load])
+  }, [kpId, drawerOpen, load, refreshKey])
 
   useEffect(() => {
     if (tmdbId !== undefined) {

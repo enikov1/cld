@@ -10,6 +10,7 @@ class TmdbPopularitySyncService
     public function __construct(
         private readonly TmdbClient $client,
         private readonly TmdbScheduleImportService $scheduleImport,
+        private readonly TmdbStudioSyncService $studioSync,
     ) {
     }
 
@@ -21,6 +22,8 @@ class TmdbPopularitySyncService
      *     status_changed: int,
      *     schedule_synced: int,
      *     schedule_failed: int,
+     *     studios_linked: int,
+     *     studio_logos: int,
      *     log: list<string>
      * }
      */
@@ -33,6 +36,8 @@ class TmdbPopularitySyncService
             'status_changed' => 0,
             'schedule_synced' => 0,
             'schedule_failed' => 0,
+            'studios_linked' => 0,
+            'studio_logos' => 0,
             'log' => [],
         ];
 
@@ -61,13 +66,17 @@ class TmdbPopularitySyncService
             $result['status_changed'] += $outcome['status_changed'] ? 1 : 0;
             $result['schedule_synced'] += $outcome['schedule_synced'] ? 1 : 0;
             $result['schedule_failed'] += $outcome['schedule_failed'] ? 1 : 0;
+            $result['studios_linked'] += $outcome['studios_linked'];
+            $result['studio_logos'] += $outcome['studio_logos'];
         }
 
         $result['log'][] = sprintf(
-            'Готово: обновлено %d (статус изменён %d, расписание %d), пропущено %d, ошибок %d (расписание %d)',
+            'Готово: обновлено %d (статус изменён %d, расписание %d, студии %d, логотипы %d), пропущено %d, ошибок %d (расписание %d)',
             $result['updated'],
             $result['status_changed'],
             $result['schedule_synced'],
+            $result['studios_linked'],
+            $result['studio_logos'],
             $result['skipped'],
             $result['failed'],
             $result['schedule_failed'],
@@ -83,10 +92,12 @@ class TmdbPopularitySyncService
      *     skipped: bool,
      *     status_changed: bool,
      *     schedule_synced: bool,
-     *     schedule_failed: bool
+     *     schedule_failed: bool,
+     *     studios_linked: int,
+     *     studio_logos: int
      * }
      */
-    public function syncSeries(Series $series, bool $syncSchedule = true): array
+    public function syncSeries(Series $series, bool $syncSchedule = true, bool $rateLimit = true): array
     {
         $empty = [
             'updated' => false,
@@ -95,10 +106,18 @@ class TmdbPopularitySyncService
             'status_changed' => false,
             'schedule_synced' => false,
             'schedule_failed' => false,
+            'studios_linked' => 0,
+            'studio_logos' => 0,
         ];
 
         $tmdbId = trim((string)$series->tmdb_id);
         if ($tmdbId === '') {
+            $empty['skipped'] = true;
+
+            return $empty;
+        }
+
+        if (!$this->client->isConfigured()) {
             $empty['skipped'] = true;
 
             return $empty;
@@ -153,9 +172,13 @@ class TmdbPopularitySyncService
             }
         }
 
+        $studioResult = $this->studioSync->syncFromDetails($series->fresh(), $details, $usedTvEndpoint);
+
         TplCache::forgetSeries($series->id);
 
-        usleep(300000);
+        if ($rateLimit) {
+            usleep(300000);
+        }
 
         return [
             'updated' => true,
@@ -164,6 +187,8 @@ class TmdbPopularitySyncService
             'status_changed' => $statusChanged,
             'schedule_synced' => $scheduleSynced,
             'schedule_failed' => $scheduleFailed,
+            'studios_linked' => $studioResult['linked'],
+            'studio_logos' => $studioResult['logos'],
         ];
     }
 }

@@ -19,6 +19,7 @@ return [
     'layout' => [
         'genre',
         'country',
+        'studio',
         'year_from',
         'year_to',
         'rating_min',
@@ -40,6 +41,12 @@ return [
             'label' => 'Страна',
             'empty' => 'Все страны',
             'source' => 'taxonomy:country',
+        ],
+        'studio' => [
+            'type' => 'select',
+            'label' => 'Студия',
+            'empty' => 'Все студии',
+            'source' => 'studios',
         ],
         'year_from' => [
             'type' => 'select',

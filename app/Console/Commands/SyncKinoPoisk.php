@@ -11,6 +11,7 @@ use App\Services\PosterContext;
 use App\Services\PosterStorage;
 use App\Services\SitemapService;
 use App\Services\TaxonomyService;
+use App\Services\TmdbPopularitySyncService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
@@ -115,6 +116,10 @@ class SyncKinoPoisk extends Command
             );
 
             app(CdnVideoHubPlayerSync::class)->syncIfEnabled($series);
+
+            if (trim((string)$series->tmdb_id) !== '') {
+                app(TmdbPopularitySyncService::class)->syncSeries($series->fresh(), true, false);
+            }
 
             $count++;
             if ($sleep > 0) {

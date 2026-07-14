@@ -10,6 +10,7 @@ use App\Models\NavItem;
 use App\Models\NavMegaButton;
 use App\Models\NavMegaLink;
 use App\Models\NavMegaSection;
+use App\Models\Studio;
 
 class NavMenuBuilder
 {
@@ -127,6 +128,17 @@ class NavMenuBuilder
                     'url' => '/collections/' . $c->slug . '/',
                 ])
                 ->all(),
+            NavMegaSection::SOURCE_STUDIOS => Studio::query()
+                ->where('is_active', true)
+                ->where('is_hidden', false)
+                ->catalogOrder()
+                ->limit(max(1, $section->item_limit))
+                ->get()
+                ->map(fn (Studio $s) => [
+                    'label' => $s->title,
+                    'url' => '/studios/' . $s->slug . '/',
+                ])
+                ->all(),
             NavMegaSection::SOURCE_YEARS => Year::query()
                 ->where('is_active', true)
                 ->where('is_hidden', false)
@@ -168,6 +180,7 @@ class NavMenuBuilder
         return match ($linkType) {
             NavItem::LINK_HOME => '/',
             NavItem::LINK_COLLECTIONS => '/collections/',
+            NavItem::LINK_STUDIOS => '/studios/',
             NavItem::LINK_CATALOG => '/catalog/',
             NavItem::LINK_COMING_SOON => '/skoro/',
             NavItem::LINK_CATEGORY => '/',

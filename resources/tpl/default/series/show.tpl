@@ -123,10 +123,17 @@
                         [/series.genres]
                         [series.studios]
                             <div class="serial-detail">
-                                <div class="serial-detail__name">Студия:</div>
-                                <div class="serial-detail__value serial-detail__links">
+                                <div class="serial-detail__name">Студии:</div>
+                                <div class="serial-detail__value serial-detail__studios">
                                     [loop series.studios]
-                                        <a href="{item.url|raw}" class="serial-detail__link">{item.title}</a>[not-item.is_last]<span class="serial-detail__sep">, </span>[/not-item.is_last]
+                                        <a href="{item.url|raw}" class="serial-studio" title="{item.title}">
+                                            [item.logo_url]
+                                                <img src="{item.logo_url|raw}" alt="{item.title}" class="serial-studio__logo" loading="lazy">
+                                            [/item.logo_url]
+                                            [not-item.logo_url]
+                                                <span class="serial-studio__name">{item.title}</span>
+                                            [/not-item.logo_url]
+                                        </a>
                                     [/loop]
                                 </div>
                             </div>

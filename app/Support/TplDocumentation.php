@@ -284,7 +284,7 @@ class TplDocumentation
                     self::loop('series.countries', 'Страны (name, slug, url, is_last)'),
                     self::loop('series.actors', 'Актёры (name, slug, url, is_last)'),
                     self::loop('series.directors', 'Режиссёры (name, slug, url, is_last)'),
-                    self::loop('series.studios', 'Студии (title, slug, url, is_last)'),
+                    self::loop('series.studios', 'Студии (title, slug, url, logo_url, is_last)'),
                     self::loop('series.collections', 'Подборки (title, slug, url, is_last)'),
                     self::loop('schedule', 'Расписание выхода серий'),
                     self::loop('notify_voices', 'Озвучки для уведомлений'),
