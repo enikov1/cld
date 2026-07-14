@@ -671,6 +671,20 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
                 $configChanged = true;
             }
 
+            if ($key === 'site_background_color') {
+                $normalized = \App\Support\SiteBranding::normalizeColor($value);
+                if ($normalized === null) {
+                    return response()->json(['ok' => false, 'error' => 'Цвет фона: ожидается HEX (#111 или #111111)'], 422);
+                }
+                $value = $normalized;
+                $configChanged = true;
+            }
+
+            if ($key === 'site_background_hide_mobile') {
+                $value = ($value === '1' || $value === true || $value === 'true') ? '1' : '0';
+                $configChanged = true;
+            }
+
             if (in_array($key, SiteConfig::managedKeys(), true)) {
                 $normalized = SiteConfig::normalizeForSave($key, $value);
                 if ($normalized === null) {

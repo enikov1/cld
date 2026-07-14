@@ -241,14 +241,14 @@ class SeriesController extends TplController
             'anticipation' => $anticipation,
             'anticipation_widget' => $hasComingSoon
                 ? $this->renderPartial('partials/anticipation_widget.tpl', [
-                    'series' => ['slug' => $series->slug],
+                    'series' => ['id' => $series->id, 'slug' => $series->slug],
                     'anticipation' => $anticipation,
                 ])
                 : '',
             'reactions' => $reactions,
             'reactions_widget' => $hasReactions
                 ? $this->renderPartial('partials/reactions_widget.tpl', [
-                    'series' => ['slug' => $series->slug],
+                    'series' => ['id' => $series->id, 'slug' => $series->slug],
                     'reactions' => $reactions,
                 ])
                 : '',

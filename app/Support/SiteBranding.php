@@ -39,6 +39,28 @@ class SiteBranding
         return max(0, min(600, (int)$raw));
     }
 
+    public static function backgroundColor(): string
+    {
+        $raw = trim((string)SiteSetting::get('site_background_color', '#111'));
+
+        return self::normalizeColor($raw) ?? '#111';
+    }
+
+    public static function hideBackgroundOnMobile(): bool
+    {
+        return SiteSetting::get('site_background_hide_mobile', '0') === '1';
+    }
+
+    public static function normalizeColor(mixed $value): ?string
+    {
+        $raw = trim((string)$value);
+        if (preg_match('/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/', $raw) === 1) {
+            return strtolower($raw);
+        }
+
+        return null;
+    }
+
     /**
      * @return array<string, string>
      */
@@ -48,6 +70,14 @@ class SiteBranding
         $background = self::backgroundUrl();
         $favicon = self::faviconUrl();
 
+        $bodyClasses = [];
+        if ($background) {
+            $bodyClasses[] = 'has-site-bg';
+            if (self::hideBackgroundOnMobile()) {
+                $bodyClasses[] = 'site-bg-hide-mobile';
+            }
+        }
+
         return [
             'logo' => $logo ?? '',
             'background' => $background ?? '',
@@ -55,7 +85,9 @@ class SiteBranding
             'favicon' => $favicon ?? '',
             'has_favicon' => $favicon ? '1' : '',
             'background_header_offset' => (string)self::headerOffset(),
-            'body_class' => $background ? 'has-site-bg' : '',
+            'background_color' => self::backgroundColor(),
+            'background_hide_mobile' => self::hideBackgroundOnMobile() ? '1' : '',
+            'body_class' => implode(' ', $bodyClasses),
         ];
     }
 }

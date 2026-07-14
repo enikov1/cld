@@ -30,21 +30,32 @@
     <style id="site-branding">
          :root {
             --site-bg-header-offset: {site.background_header_offset}px;
+            --site-bg-color: {site.background_color};
         }
         
         body.has-site-bg {
-            background-color: #111;
+            background-color: var(--site-bg-color);
             background-image: url('{site.background|raw}');
             background-position: center top;
             background-repeat: no-repeat;
         }
         
         body.has-site-bg.dt {
-            background-color: #111;
+            background-color: var(--site-bg-color);
         }
         
         body.has-site-bg .wrap-main {
             margin-top: var(--site-bg-header-offset);
+        }
+        
+        @media (max-width: 768px) {
+            body.has-site-bg.site-bg-hide-mobile {
+                background-image: none;
+            }
+            
+            body.has-site-bg.site-bg-hide-mobile .wrap-main {
+                margin-top: 0;
+            }
         }
     </style>
     [/site.has_background]

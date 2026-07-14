@@ -3,6 +3,7 @@ import {
   Button,
   Card,
   Col,
+  ColorPicker,
   Form,
   Input,
   InputNumber,
@@ -119,7 +120,7 @@ export default function SettingsPage() {
   const adminPath = (settingsMap.admin_path || 'admin').replace(/^\/+|\/+$/g, '')
 
   const boolKeys = useMemo(() => {
-    const keys = new Set<string>(['comments_auto_approve'])
+    const keys = new Set<string>(['comments_auto_approve', 'site_background_hide_mobile'])
     Object.values(configSchema).forEach((group) => {
       group.fields.forEach((field) => {
         if (field.type === 'bool') keys.add(field.key)
@@ -191,6 +192,8 @@ export default function SettingsPage() {
       site_tagline: settingsMap.site_tagline,
       footer_text: settingsMap.footer_text,
       site_background_header_offset: Number(settingsMap.site_background_header_offset || 200),
+      site_background_color: settingsMap.site_background_color || '#111',
+      site_background_hide_mobile: settingsMap.site_background_hide_mobile === '1',
       home_heading: settingsMap.home_heading,
       home_lead: settingsMap.home_lead,
       home_seo_html: settingsMap.home_seo_html,
@@ -443,6 +446,25 @@ export default function SettingsPage() {
             extra="Применяется, когда загружен фон. По умолчанию 200 px."
           >
             <InputNumber min={0} max={600} style={{ width: 160 }} />
+          </Form.Item>
+          <Form.Item
+            label="Цвет фона"
+            name="site_background_color"
+            getValueFromEvent={(color) => {
+              if (typeof color === 'string') return color
+              return color?.toHexString?.() ?? '#111'
+            }}
+            extra="Подложка под картинкой фона. По умолчанию #111."
+          >
+            <ColorPicker showText disabledAlpha format="hex" />
+          </Form.Item>
+          <Form.Item
+            label="Отключить фон на мобильных"
+            name="site_background_hide_mobile"
+            valuePropName="checked"
+            extra="На экранах до 768 px картинка фона и отступ шапки не применяются."
+          >
+            <Switch checkedChildren="Да" unCheckedChildren="Нет" />
           </Form.Item>
         </Card>
       ),
