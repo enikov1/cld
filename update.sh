@@ -14,7 +14,7 @@
 #   SKIP_BUILD=1        # пропустить composer/npm
 #   SKIP_MIGRATE=1      # пропустить миграции
 #   SKIP_MAINTENANCE=0  # включить режим обслуживания на время update
-#   SKIP_SERVICES=1     # не перезапускать php-fpm/caddy/queue
+#   SKIP_SERVICES=1     # не трогать php-fpm/caddy/queue/cron
 #
 set -euo pipefail
 
@@ -78,6 +78,78 @@ generate_sitemap_if_possible() {
     else
         warn "sitemap:generate не выполнен — сгенерируйте sitemap в админке"
     fi
+}
+
+resolve_php_bin() {
+    if [[ -x "/usr/bin/php${PHP_VERSION}" ]]; then
+        echo "/usr/bin/php${PHP_VERSION}"
+        return
+    fi
+    if command -v php >/dev/null 2>&1; then
+        command -v php
+        return
+    fi
+    die "PHP не найден"
+}
+
+# Systemd queue worker + Laravel Scheduler (cron)
+setup_queue_and_scheduler() {
+    local php_bin queue_unit cron_file cron_line queue_log
+
+    php_bin="$(resolve_php_bin)"
+    queue_unit="/etc/systemd/system/lordserial-queue.service"
+    cron_file="/etc/cron.d/lordserial-scheduler"
+    queue_log="${APP_DIR}/storage/logs/queue.log"
+
+    log "Systemd-сервис очереди (lordserial-queue)..."
+    mkdir -p "${APP_DIR}/storage/logs"
+    touch "$queue_log"
+    chown www-data:www-data "$queue_log"
+    chmod 664 "$queue_log"
+
+    cat > "$queue_unit" <<EOF
+[Unit]
+Description=LordSerial Laravel Queue Worker
+After=network.target mariadb.service php${PHP_VERSION}-fpm.service
+Wants=mariadb.service
+
+[Service]
+User=www-data
+Group=www-data
+Restart=always
+RestartSec=5
+WorkingDirectory=${APP_DIR}
+ExecStart=${php_bin} artisan queue:work database --sleep=3 --tries=3 --max-time=3600
+Nice=10
+StandardOutput=append:${queue_log}
+StandardError=append:${queue_log}
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    systemctl enable lordserial-queue
+    systemctl restart lordserial-queue
+
+    if systemctl is-active --quiet lordserial-queue; then
+        log "Очередь: lordserial-queue активен (${php_bin})"
+    else
+        warn "lordserial-queue не запустился — смотрите: journalctl -u lordserial-queue -n 50"
+        systemctl status lordserial-queue --no-pager || true
+    fi
+
+    log "Cron для Laravel Scheduler..."
+    if ! command -v cron >/dev/null 2>&1 && ! systemctl list-unit-files cron.service &>/dev/null; then
+        apt-get install -y -qq cron || warn "Не удалось установить пакет cron"
+    fi
+    systemctl enable --now cron 2>/dev/null || systemctl enable --now crond 2>/dev/null || true
+
+    cron_line="* * * * * www-data cd ${APP_DIR} && ${php_bin} artisan schedule:run >> /dev/null 2>&1"
+    echo "$cron_line" > "$cron_file"
+    chmod 644 "$cron_file"
+
+    log "Scheduler: ${cron_file}"
 }
 
 # ─── Подготовка ───────────────────────────────────────────────────────────────
@@ -177,7 +249,7 @@ log "Права на storage и cache..."
 set_app_permissions
 generate_sitemap_if_possible
 
-# ─── Перезапуск сервисов ──────────────────────────────────────────────────────
+# ─── Перезапуск сервисов + очередь/cron ───────────────────────────────────────
 
 if [[ "$SKIP_SERVICES" != "1" ]]; then
     log "Перезапуск сервисов..."
@@ -190,11 +262,10 @@ if [[ "$SKIP_SERVICES" != "1" ]]; then
         systemctl reload caddy 2>/dev/null || systemctl restart caddy
     fi
 
-    if systemctl is-active --quiet lordserial-queue 2>/dev/null; then
-        systemctl restart lordserial-queue
-    fi
+    # Создаёт/обновляет unit и cron, если их ещё не было (systemd вариант A)
+    setup_queue_and_scheduler
 else
-    warn "SKIP_SERVICES=1 — сервисы не перезапущены"
+    warn "SKIP_SERVICES=1 — сервисы, очередь и cron не обновлены"
 fi
 
 # ─── Выключение maintenance ───────────────────────────────────────────────────
@@ -224,4 +295,6 @@ echo "  Обход:    https://${DOMAIN}/lordserial-update"
 echo ""
 fi
 echo "  Логи:     tail -f ${APP_DIR}/storage/logs/laravel.log"
+echo "  Очередь:  systemctl status lordserial-queue"
+echo "  Cron:     cat /etc/cron.d/lordserial-scheduler"
 echo "════════════════════════════════════════════════════════════"

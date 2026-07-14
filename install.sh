@@ -169,6 +169,78 @@ generate_sitemap_if_possible() {
     fi
 }
 
+resolve_php_bin() {
+    if [[ -x "/usr/bin/php${PHP_VERSION}" ]]; then
+        echo "/usr/bin/php${PHP_VERSION}"
+        return
+    fi
+    if command -v php >/dev/null 2>&1; then
+        command -v php
+        return
+    fi
+    die "PHP не найден"
+}
+
+# Systemd queue worker + Laravel Scheduler (cron)
+setup_queue_and_scheduler() {
+    local php_bin queue_unit cron_file cron_line queue_log
+
+    php_bin="$(resolve_php_bin)"
+    queue_unit="/etc/systemd/system/lordserial-queue.service"
+    cron_file="/etc/cron.d/lordserial-scheduler"
+    queue_log="${APP_DIR}/storage/logs/queue.log"
+
+    log "Systemd-сервис очереди (lordserial-queue)..."
+    mkdir -p "${APP_DIR}/storage/logs"
+    touch "$queue_log"
+    chown www-data:www-data "$queue_log"
+    chmod 664 "$queue_log"
+
+    cat > "$queue_unit" <<EOF
+[Unit]
+Description=LordSerial Laravel Queue Worker
+After=network.target mariadb.service php${PHP_VERSION}-fpm.service
+Wants=mariadb.service
+
+[Service]
+User=www-data
+Group=www-data
+Restart=always
+RestartSec=5
+WorkingDirectory=${APP_DIR}
+ExecStart=${php_bin} artisan queue:work database --sleep=3 --tries=3 --max-time=3600
+Nice=10
+StandardOutput=append:${queue_log}
+StandardError=append:${queue_log}
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    systemctl enable lordserial-queue
+    systemctl restart lordserial-queue
+
+    if systemctl is-active --quiet lordserial-queue; then
+        log "Очередь: lordserial-queue активен (${php_bin})"
+    else
+        warn "lordserial-queue не запустился — смотрите: journalctl -u lordserial-queue -n 50"
+        systemctl status lordserial-queue --no-pager || true
+    fi
+
+    log "Cron для Laravel Scheduler..."
+    if ! command -v cron >/dev/null 2>&1 && ! systemctl list-unit-files cron.service &>/dev/null; then
+        apt-get install -y -qq cron || warn "Не удалось установить пакет cron"
+    fi
+    systemctl enable --now cron 2>/dev/null || systemctl enable --now crond 2>/dev/null || true
+
+    cron_line="* * * * * www-data cd ${APP_DIR} && ${php_bin} artisan schedule:run >> /dev/null 2>&1"
+    echo "$cron_line" > "$cron_file"
+    chmod 644 "$cron_file"
+
+    log "Scheduler: ${cron_file}"
+}
+
 read_env_value() {
     local key="$1" file="$2"
     grep -E "^${key}=" "$file" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"' || true
@@ -315,7 +387,7 @@ log "Обновление пакетов и установка зависимо�
 apt_get_update
 apt-get install -y -qq \
     ca-certificates curl gnupg lsb-release software-properties-common \
-    git unzip acl \
+    git unzip acl cron \
     mariadb-server mariadb-client \
     "php${PHP_VERSION}-cli" "php${PHP_VERSION}-fpm" "php${PHP_VERSION}-common" \
     "php${PHP_VERSION}-mysql" "php${PHP_VERSION}-mbstring" "php${PHP_VERSION}-xml" \
@@ -507,39 +579,9 @@ if [[ -n "$PREVIOUS_DOMAIN" && "$PREVIOUS_DOMAIN" != "$DOMAIN" ]]; then
     warn "Проверьте DNS A-запись для ${DOMAIN} и пересоберите sitemap.xml в админке."
 fi
 
-# ─── Queue worker (systemd) ───────────────────────────────────────────────────
+# ─── Queue worker (systemd) + Laravel Scheduler (cron) ────────────────────────
 
-log "Systemd-сервис очереди..."
-cat > /etc/systemd/system/lordserial-queue.service <<EOF
-[Unit]
-Description=LordSerial Queue Worker
-After=network.target mariadb.service php${PHP_VERSION}-fpm.service
-
-[Service]
-User=www-data
-Group=www-data
-Restart=always
-RestartSec=5
-WorkingDirectory=${APP_DIR}
-ExecStart=/usr/bin/php artisan queue:work database --sleep=3 --tries=3 --max-time=3600
-StandardOutput=append:${APP_DIR}/storage/logs/queue.log
-StandardError=append:${APP_DIR}/storage/logs/queue.log
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-systemctl daemon-reload
-systemctl enable lordserial-queue
-systemctl restart lordserial-queue
-
-# ─── Cron (scheduler) ─────────────────────────────────────────────────────────
-
-log "Cron для Laravel Scheduler..."
-CRON_LINE="* * * * * www-data cd ${APP_DIR} && /usr/bin/php artisan schedule:run >> /dev/null 2>&1"
-CRON_FILE="/etc/cron.d/lordserial-scheduler"
-echo "$CRON_LINE" > "$CRON_FILE"
-chmod 644 "$CRON_FILE"
+setup_queue_and_scheduler
 
 # ─── Firewall ─────────────────────────────────────────────────────────────────
 
@@ -575,6 +617,7 @@ ADMIN_TOKEN (заголовок X-Admin-Token):
 Проверка:    curl -sI https://${DOMAIN}/up
 Логи:        tail -f ${APP_DIR}/storage/logs/laravel.log
 Очередь:     journalctl -u lordserial-queue -f
+Scheduler:   cat /etc/cron.d/lordserial-scheduler
 EOF
 chmod 600 "$CREDENTIALS_FILE"
 
@@ -594,7 +637,9 @@ echo "  Убедитесь, что DNS A-запись ${DOMAIN} указывае
 echo "  Caddy автоматически получит SSL-сертификат Let's Encrypt."
 echo ""
 echo "  Полезные команды:"
-echo "    systemctl status caddy lordserial-queue mariadb"
+echo "    systemctl status caddy lordserial-queue mariadb cron"
+echo "    journalctl -u lordserial-queue -f"
+echo "    cat /etc/cron.d/lordserial-scheduler"
 echo "    sudo bash update.sh        # обновление после git push"
 echo "    sudo DOMAIN=новый-домен.ru SKIP_BUILD=1 bash install.sh  # смена домена"
 echo "    php artisan config:clear   # после смены .env"
