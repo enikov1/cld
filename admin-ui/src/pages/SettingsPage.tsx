@@ -966,7 +966,7 @@ export default function SettingsPage() {
           )}
           <Form.Item
             label="Автообновление TMDB"
-            extra="Раз в сутки обновляет популярность TMDB и статус сериала (идёт / завершён) для всех записей с TMDB ID. Ручной статус «На паузе» не перезаписывается, пока TMDB считает шоу продолжающимся."
+            extra="Раз в сутки обновляет популярность TMDB, статус сериала (идёт / завершён) и расписание серий для всех записей с TMDB ID. Ручной статус «На паузе» не перезаписывается, пока TMDB считает шоу продолжающимся. Озвучка в расписании сохраняется при merge."
           >
             <Space wrap>
               <Switch
@@ -993,11 +993,25 @@ export default function SettingsPage() {
                 onClick={async () => {
                   setTmdbSyncing(true)
                   try {
-                    const res = await api<{ ok: boolean; output?: string; error?: string }>('/api/admin/sync/tmdb-popularity', {
+                    const res = await api<{
+                      ok: boolean
+                      output?: string
+                      result?: {
+                        updated?: number
+                        status_changed?: number
+                        schedule_synced?: number
+                        failed?: number
+                      }
+                      error?: string
+                    }>('/api/admin/sync/tmdb-popularity', {
                       method: 'POST',
                       body: JSON.stringify({}),
                     })
-                    if (res.output) {
+                    if (res.result) {
+                      message.success(
+                        `TMDB: обновлено ${res.result.updated ?? 0}, статус изменён ${res.result.status_changed ?? 0}, расписание ${res.result.schedule_synced ?? 0}`,
+                      )
+                    } else if (res.output) {
                       message.info(res.output.split('\n').slice(-1)[0] || 'Синхронизация завершена')
                     } else {
                       message.success('Синхронизация завершена')

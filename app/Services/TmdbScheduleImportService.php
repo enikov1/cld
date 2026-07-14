@@ -31,7 +31,7 @@ class TmdbScheduleImportService
      *     }
      * }
      */
-    public function fetchForSeries(Series $series): array
+    public function fetchForSeries(Series $series, ?array $prefetchedDetails = null): array
     {
         if (!$this->client->isConfigured()) {
             throw new \RuntimeException('API-ключ TMDB не настроен');
@@ -42,7 +42,10 @@ class TmdbScheduleImportService
             throw new \RuntimeException('У сериала не указан TMDB ID');
         }
 
-        $details = $this->client->getTvDetails($tmdbId);
+        $details = is_array($prefetchedDetails) && $prefetchedDetails !== []
+            ? $prefetchedDetails
+            : $this->client->getTvDetails($tmdbId);
+
         if ($details === []) {
             throw new \RuntimeException('Не удалось получить данные сериала из TMDB');
         }
@@ -95,6 +98,36 @@ class TmdbScheduleImportService
                 'episodes_count' => $episodesCount,
                 'skipped_specials' => $skippedSpecials,
             ],
+        ];
+    }
+
+    /**
+     * Fetch TMDB schedule, merge with local (preserve voices), and persist.
+     *
+     * @param  array<string, mixed>|null  $prefetchedDetails
+     * @return array{ok: bool, seasons_count: int, episodes_count: int, error?: string}
+     */
+    public function syncMergedToDatabase(Series $series, ?array $prefetchedDetails = null): array
+    {
+        try {
+            $imported = $this->fetchForSeries($series, $prefetchedDetails);
+        } catch (\Throwable $e) {
+            return [
+                'ok' => false,
+                'seasons_count' => 0,
+                'episodes_count' => 0,
+                'error' => $e->getMessage(),
+            ];
+        }
+
+        $existing = EpisodeProgressService::scheduleForSeries($series);
+        $merged = $this->mergeSchedules($existing, $imported['seasons']);
+        SeriesScheduleWriter::replace($series, $merged);
+
+        return [
+            'ok' => true,
+            'seasons_count' => (int)($imported['meta']['seasons_count'] ?? 0),
+            'episodes_count' => (int)($imported['meta']['episodes_count'] ?? 0),
         ];
     }
 

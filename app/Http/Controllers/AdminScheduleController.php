@@ -2,17 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Episode;
-use App\Models\Season;
 use App\Models\Series;
-use App\Services\EpisodeNotifier;
 use App\Services\EpisodeProgressService;
+use App\Services\SeriesScheduleWriter;
 use App\Services\TmdbBroadcastStatusMapper;
 use App\Services\TmdbConfig;
 use App\Services\TmdbScheduleImportService;
 use App\Support\TplCache;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Throwable;
 
 class AdminScheduleController extends Controller
@@ -82,7 +79,7 @@ class AdminScheduleController extends Controller
         }
 
         if ($persist) {
-            $this->persistSchedule($series, $seasons);
+            SeriesScheduleWriter::replace($series, $seasons);
             $series->refresh();
 
             return response()->json([
@@ -140,40 +137,7 @@ class AdminScheduleController extends Controller
      */
     private function persistSchedule(Series $series, array $seasons): void
     {
-        $oldSeason = $series->season_number;
-        $oldEpisode = $series->last_episode_number;
-
-        DB::transaction(function () use ($series, $seasons) {
-            Episode::withoutEvents(function () use ($series, $seasons) {
-                Season::query()->where('series_id', $series->id)->delete();
-
-                foreach ($seasons as $seasonRow) {
-                    $season = Season::query()->create([
-                        'series_id' => $series->id,
-                        'season_number' => (int)$seasonRow['season_number'],
-                        'title' => $seasonRow['title'] ?? null,
-                    ]);
-
-                    foreach ($seasonRow['episodes'] ?? [] as $epRow) {
-                        $releaseAt = $epRow['release_at'] ?? $epRow['release_at_iso'] ?? null;
-                        Episode::query()->create([
-                            'season_id' => $season->id,
-                            'episode_number' => (int)$epRow['episode_number'],
-                            'title' => $epRow['title'] ?? null,
-                            'release_at' => !empty($releaseAt) ? $releaseAt : null,
-                            'status' => $epRow['status'] ?? Episode::STATUS_SCHEDULED,
-                            'voice' => $epRow['voice'] ?? null,
-                        ]);
-                    }
-                }
-            });
-
-            EpisodeProgressService::syncSeries($series->fresh());
-        });
-
-        $series->refresh();
-        EpisodeNotifier::fromSeriesProgress($series, $oldSeason, $oldEpisode);
-        TplCache::forgetSeries($series->id);
+        SeriesScheduleWriter::replace($series, $seasons);
     }
 
     /**
@@ -195,7 +159,7 @@ class AdminScheduleController extends Controller
                         'title' => $ep['title'] ?? null,
                         'release_at' => $iso ? date('d.m.Y', strtotime($iso)) : null,
                         'release_at_iso' => $iso,
-                        'status' => $ep['status'] ?? Episode::STATUS_SCHEDULED,
+                        'status' => $ep['status'] ?? \App\Models\Episode::STATUS_SCHEDULED,
                         'voice' => $ep['voice'] ?? null,
                     ];
                 }, $season['episodes'] ?? []),
