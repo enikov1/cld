@@ -922,56 +922,77 @@
             window.setTimeout(scheduleNavUpdate, 100);
             window.setTimeout(scheduleNavUpdate, 400);
 
-            var isDragging = false;
+            var pointerId = null;
             var startX = 0;
             var startScrollLeft = 0;
-            var dragged = false;
-            var dragThreshold = 6;
+            var isDragging = false;
+            var suppressClick = false;
+            var dragThreshold = 8;
 
-            function endDrag(e) {
-                if (!isDragging) return;
-                isDragging = false;
-                track.classList.remove('is-dragging');
-                if (e && e.pointerId != null) {
+            function resetDragState(e) {
+                if (pointerId == null || (e && e.pointerId != null && e.pointerId !== pointerId)) {
+                    return;
+                }
+
+                if (isDragging) {
+                    track.classList.remove('is-dragging');
                     try {
-                        track.releasePointerCapture(e.pointerId);
+                        track.releasePointerCapture(pointerId);
                     } catch (err) {
                         /* ignore */
                     }
                 }
-                window.setTimeout(function () {
-                    dragged = false;
-                }, 0);
+
+                isDragging = false;
+                pointerId = null;
+
+                if (suppressClick) {
+                    window.setTimeout(function () {
+                        suppressClick = false;
+                    }, 50);
+                }
             }
 
             track.addEventListener('pointerdown', function (e) {
                 if (e.pointerType === 'mouse' && e.button !== 0) return;
                 if (e.target.closest('.carou-nav')) return;
-                isDragging = true;
-                dragged = false;
+
+                pointerId = e.pointerId;
                 startX = e.clientX;
                 startScrollLeft = track.scrollLeft;
-                track.classList.add('is-dragging');
-                track.setPointerCapture(e.pointerId);
+                isDragging = false;
+                suppressClick = false;
             });
 
             track.addEventListener('pointermove', function (e) {
-                if (!isDragging) return;
+                if (pointerId == null || e.pointerId !== pointerId) return;
+
                 var dx = e.clientX - startX;
-                if (Math.abs(dx) > dragThreshold) dragged = true;
+                if (!isDragging) {
+                    if (Math.abs(dx) <= dragThreshold) return;
+                    isDragging = true;
+                    suppressClick = true;
+                    track.classList.add('is-dragging');
+                    try {
+                        track.setPointerCapture(e.pointerId);
+                    } catch (err) {
+                        /* ignore */
+                    }
+                }
+
                 track.scrollLeft = startScrollLeft - dx;
                 updateNav();
             });
 
-            track.addEventListener('pointerup', endDrag);
-            track.addEventListener('pointercancel', endDrag);
+            track.addEventListener('pointerup', resetDragState);
+            track.addEventListener('pointercancel', resetDragState);
             track.addEventListener('lostpointercapture', function () {
                 isDragging = false;
                 track.classList.remove('is-dragging');
             });
 
             track.addEventListener('click', function (e) {
-                if (!dragged) return;
+                if (!suppressClick) return;
                 e.preventDefault();
                 e.stopPropagation();
             }, true);
