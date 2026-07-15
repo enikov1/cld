@@ -79,7 +79,26 @@
                         </a> [/loop]
         </div>
     </div>
-    [/promo_studios] [loop home_sections]
+    [/promo_studios] [loop custom_home_sections]
+    <div class="sect" data-home-block-id="{item.block_id}">
+        <div class="sect-header fx-row fx-middle fx-start">
+            [item.link_url]
+            <a href="{item.link_url|raw}" class="sect-title">{item.title}<span class="fa fa-chevron-right"></span></a>
+            [/item.link_url] [not-item.link_url]
+            <span class="sect-title">{item.title}</span>
+            [/not-item.link_url] [item.show_tabs]
+            <div class="sect-tabs" data-section-tabs>
+                <span class="sect-tab[item.tab_latest_active] is-active[/item.tab_latest_active]" data-sort="latest" role="button" tabindex="0">Последние</span>
+                <span class="sect-tab[item.tab_popular_active] is-active[/item.tab_popular_active]" data-sort="popular" role="button" tabindex="0">Популярные</span>
+                <span class="sect-tab[item.tab_rating_active] is-active[/item.tab_rating_active]" data-sort="rating" role="button" tabindex="0">По рейтингу</span>
+            </div>
+            [/item.show_tabs]
+        </div>
+        <div class="sect-cont sect-items clearfix" data-section-cards>
+            {item.cards_html|raw}
+        </div>
+    </div>
+    [/loop] [loop home_sections]
     <div class="sect" data-home-section-type="{item.taxonomy_type|raw}" data-home-section-id="{item.taxonomy_id}">
         <div class="sect-header fx-row fx-middle fx-start">
             <a href="{item.url|raw}" class="sect-title">{item.title}<span class="fa fa-chevron-right"></span></a> [item.show_tabs]

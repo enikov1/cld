@@ -1060,6 +1060,62 @@
         });
     }
 
+    function initHomeBlockTabs() {
+        document.querySelectorAll('[data-home-block-id]').forEach(function (sect) {
+            var tabs = sect.querySelector('[data-section-tabs]');
+            var cards = sect.querySelector('[data-section-cards]');
+            if (!tabs || !cards) return;
+
+            var blockId = sect.getAttribute('data-home-block-id');
+            var activeSort = null;
+
+            tabs.querySelectorAll('[data-sort]').forEach(function (tab) {
+                if (tab.classList.contains('is-active')) {
+                    activeSort = tab.getAttribute('data-sort');
+                }
+            });
+            if (!activeSort) activeSort = 'latest';
+
+            function setActiveTab(sort) {
+                tabs.querySelectorAll('[data-sort]').forEach(function (tab) {
+                    tab.classList.toggle('is-active', tab.getAttribute('data-sort') === sort);
+                });
+            }
+
+            function loadSort(sort) {
+                if (!blockId || sort === activeSort) return;
+                activeSort = sort;
+                setActiveTab(sort);
+                cards.classList.add('is-loading');
+
+                fetch('/api/home/blocks/' + encodeURIComponent(blockId) + '/series?sort=' + encodeURIComponent(sort), {
+                    credentials: 'same-origin',
+                    headers: { Accept: 'application/json' },
+                })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        cards.innerHTML = data && data.html ? data.html : '';
+                    })
+                    .catch(function () {})
+                    .finally(function () {
+                        cards.classList.remove('is-loading');
+                    });
+            }
+
+            tabs.querySelectorAll('[data-sort]').forEach(function (tab) {
+                tab.addEventListener('click', function () {
+                    loadSort(tab.getAttribute('data-sort') || 'latest');
+                });
+                tab.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        loadSort(tab.getAttribute('data-sort') || 'latest');
+                    }
+                });
+            });
+        });
+    }
+
     function initWatchlistDropdown() {
         document.querySelectorAll('[data-watchlist-toggle]').forEach(function (btn) {
             btn.addEventListener('click', function (e) {
@@ -3718,6 +3774,7 @@
         initThemeToggle();
         initHomeCarousel();
         initHomeSectionTabs();
+        initHomeBlockTabs();
         initHomeWatchHistory();
         initWatchlistDropdown();
         initSeriesEngagement();

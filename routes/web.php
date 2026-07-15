@@ -53,6 +53,10 @@ Route::get('/api/home/sections/{type}/{id}/series', [HomeSectionController::clas
     ->where('id', '[0-9]+')
     ->name('api.home.sections.series');
 
+Route::get('/api/home/blocks/{id}/series', [HomeSectionController::class, 'blockSeries'])
+    ->where('id', '[0-9]+')
+    ->name('api.home.blocks.series');
+
 Route::get('/collections/', [CollectionsController::class, 'index'])->name('collections.index');
 Route::get('/collections/{slug}/', [CollectionsController::class, 'show'])->name('collections.show');
 Route::get('/collections/{slug}/page/{page}/', [CollectionsController::class, 'show'])

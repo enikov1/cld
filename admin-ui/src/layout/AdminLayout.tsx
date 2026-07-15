@@ -8,6 +8,7 @@ import {
   ExportOutlined,
   FolderOpenOutlined,
   HistoryOutlined,
+  LayoutOutlined,
   LogoutOutlined,
   MenuOutlined,
   MoonOutlined,
@@ -73,6 +74,7 @@ function buildMenuItems(stats: AdminStats | null): MenuProps['items'] {
     },
     { type: 'divider' },
     { key: 'nav-menu', icon: <MenuOutlined />, label: 'Меню' },
+    { key: 'home-sections', icon: <LayoutOutlined />, label: 'Секции главной' },
     { key: 'reactions', icon: <SmileOutlined />, label: 'Реакции' },
     { key: 'taxonomy', icon: <BookOutlined />, label: 'Справочники' },
     {

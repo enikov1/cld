@@ -211,6 +211,7 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
 
     Route::get('/home-sections', [AdminHomeSectionController::class, 'index']);
     Route::post('/home-sections/upsert', [AdminHomeSectionController::class, 'upsert']);
+    Route::post('/home-sections/preview', [AdminHomeSectionController::class, 'preview']);
     Route::post('/home-sections/reorder', [AdminHomeSectionController::class, 'reorder']);
     Route::delete('/home-sections/{id}', [AdminHomeSectionController::class, 'destroy']);
 

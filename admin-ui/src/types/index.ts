@@ -282,6 +282,7 @@ export type SearchStatsResponse = {
 export type AdminPageKey =
   | 'dashboard'
   | 'nav-menu'
+  | 'home-sections'
   | 'reactions'
   | 'taxonomy'
   | 'series'

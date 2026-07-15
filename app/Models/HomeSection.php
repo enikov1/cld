@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class HomeSection extends Model
 {
@@ -12,8 +11,9 @@ class HomeSection extends Model
     public const SORT_RATING = 'rating';
 
     protected $fillable = [
-        'category_id',
         'title',
+        'filters',
+        'link_url',
         'sort_order',
         'is_active',
         'item_limit',
@@ -26,24 +26,6 @@ class HomeSection extends Model
         'is_active' => 'boolean',
         'item_limit' => 'integer',
         'show_tabs' => 'boolean',
+        'filters' => 'array',
     ];
-
-    public function category(): BelongsTo
-    {
-        return $this->belongsTo(Category::class);
-    }
-
-    public function displayTitle(): string
-    {
-        if ($this->title !== '') {
-            return $this->title;
-        }
-
-        return $this->category?->title ?? '';
-    }
-
-    public function categorySlug(): string
-    {
-        return $this->category?->slug ?? '';
-    }
 }

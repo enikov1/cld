@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Collection;
 use App\Models\Series;
 use App\Models\Studio;
+use App\Services\HomeBlockService;
 use App\Services\HomeSectionService;
 use App\Support\CatalogFilterService;
 use App\Support\PaginationHelper;
@@ -76,9 +77,16 @@ class HomeController extends TplController
             })
             ->all();
 
+        $renderCards = fn (array $mapped) => $this->renderPartial('partials/series_cards.tpl', ['series_list' => $mapped]);
+
+        $customSections = HomeBlockService::mapBlocksForHome(
+            HomeBlockService::activeBlocks(),
+            $renderCards,
+        );
+
         $sections = HomeSectionService::mapSectionsForHome(
             HomeSectionService::activeSections(),
-            fn (array $mapped) => $this->renderPartial('partials/series_cards.tpl', ['series_list' => $mapped]),
+            $renderCards,
         );
 
         $popularMapped = PaginationHelper::mapSeries($popular);
@@ -90,6 +98,7 @@ class HomeController extends TplController
             'popular_cards_html' => $this->renderPartial('partials/series_cards.tpl', ['series_list' => $popularMapped]),
             'promo_collections' => $promoCollections,
             'promo_studios' => $promoStudios,
+            'custom_home_sections' => $customSections,
             'home_sections' => $sections,
             'category_sections' => $sections,
             'home_seo_html' => \App\Models\SiteSetting::get('home_seo_html', $this->defaultSeoHtml()),

@@ -129,19 +129,19 @@ class AdminSeriesFilter
             $query->whereRaw('COALESCE(NULLIF(year, 0), start_year) <= ?', [(int)$params['year_to']]);
         }
 
-        if ($params['kp_rating_min'] !== null) {
+        if (($params['kp_rating_min'] ?? null) !== null) {
             $query->where('kp_rating', '>=', (float)$params['kp_rating_min']);
         }
 
-        if ($params['imdb_rating_min'] !== null) {
+        if (($params['imdb_rating_min'] ?? null) !== null) {
             $query->where('imdb_rating', '>=', (float)$params['imdb_rating_min']);
         }
 
-        if ($params['tmdb_popularity_min'] !== null) {
+        if (($params['tmdb_popularity_min'] ?? null) !== null) {
             $query->where('tmdb_popularity', '>=', (float)$params['tmdb_popularity_min']);
         }
 
-        if ($params['views_min'] !== null) {
+        if (($params['views_min'] ?? null) !== null) {
             $query->where('views_count', '>=', (int)$params['views_min']);
         }
     }

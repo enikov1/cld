@@ -12,6 +12,7 @@ import DashboardPage from './pages/DashboardPage'
 import NavMenuPage from './pages/NavMenuPage'
 import KinoPoiskSyncPage from './pages/KinoPoiskSyncPage'
 import AllohaSyncPage from './pages/AllohaSyncPage'
+import HomeSectionsPage from './pages/HomeSectionsPage'
 import LoginPage from './pages/LoginPage'
 import TaxonomyPage from './pages/TaxonomyPage'
 import ReactionsPage from './pages/ReactionsPage'
@@ -50,7 +51,7 @@ function AppRoutes({ isDark, onToggleTheme }: AppRoutesProps) {
         <Route index element={<DashboardPage />} />
         <Route path="nav-menu" element={<NavMenuPage />} />
         <Route path="categories" element={<Navigate to="/taxonomy" replace />} />
-        <Route path="home-sections" element={<Navigate to="/taxonomy" replace />} />
+        <Route path="home-sections" element={<HomeSectionsPage />} />
         <Route path="reactions" element={<ReactionsPage />} />
         <Route path="taxonomy" element={<TaxonomyPage />} />
         <Route path="series" element={<SeriesPage />} />

@@ -3,16 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Models\HomeSection;
+use App\Services\HomeBlockService;
+use App\Services\HomeSectionService;
 use App\Support\TplCache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class AdminHomeSectionController extends Controller
 {
     public function index()
     {
         $items = HomeSection::query()
-            ->with('category')
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get()
@@ -25,8 +27,27 @@ class AdminHomeSectionController extends Controller
     {
         $data = $request->validate([
             'id' => ['nullable', 'integer', 'exists:home_sections,id'],
-            'category_id' => ['nullable', 'integer', 'exists:categories,id'],
             'title' => ['required', 'string', 'max:200'],
+            'link_url' => ['nullable', 'string', 'max:500'],
+            'filters' => ['nullable', 'array'],
+            'filters.content_type' => ['nullable', 'string', Rule::in(['film', 'series'])],
+            'filters.broadcast_status' => ['nullable', 'string', Rule::in(['ongoing', 'paused', 'completed'])],
+            'filters.year_mode' => ['nullable', 'string', Rule::in(['', 'current_year'])],
+            'filters.studio_id' => ['nullable', 'integer', 'min:1'],
+            'filters.genre_id' => ['nullable', 'integer', 'min:1'],
+            'filters.country_id' => ['nullable', 'integer', 'min:1'],
+            'filters.actor_id' => ['nullable', 'integer', 'min:1'],
+            'filters.director_id' => ['nullable', 'integer', 'min:1'],
+            'filters.year_from' => ['nullable', 'integer', 'min:1900', 'max:2100'],
+            'filters.year_to' => ['nullable', 'integer', 'min:1900', 'max:2100'],
+            'filters.kp_rating_min' => ['nullable', 'numeric', 'min:0', 'max:10'],
+            'filters.imdb_rating_min' => ['nullable', 'numeric', 'min:0', 'max:10'],
+            'filters.tmdb_popularity_min' => ['nullable', 'numeric', 'min:0'],
+            'filters.views_min' => ['nullable', 'integer', 'min:0'],
+            'filters.is_coming_soon' => ['nullable', 'boolean'],
+            'filters.popular_badge_active' => ['nullable', 'boolean'],
+            'filters.has_poster' => ['nullable', 'boolean'],
+            'filters.has_tmdb_id' => ['nullable', 'boolean'],
             'sort_order' => ['nullable', 'integer'],
             'is_active' => ['nullable', 'boolean'],
             'item_limit' => ['nullable', 'integer', 'min:1', 'max:60'],
@@ -38,9 +59,12 @@ class AdminHomeSectionController extends Controller
             ? HomeSection::query()->findOrFail($data['id'])
             : new HomeSection();
 
+        $filters = $this->cleanFilters($data['filters'] ?? []);
+
         $section->fill([
-            'category_id' => $data['category_id'] ?? null,
             'title' => $data['title'],
+            'link_url' => trim((string) ($data['link_url'] ?? '')) ?: null,
+            'filters' => $filters !== [] ? $filters : null,
             'sort_order' => $data['sort_order'] ?? 0,
             'is_active' => $data['is_active'] ?? true,
             'item_limit' => $data['item_limit'] ?? 18,
@@ -48,13 +72,29 @@ class AdminHomeSectionController extends Controller
             'default_sort' => $data['default_sort'] ?? HomeSection::SORT_LATEST,
         ]);
         $section->save();
-        $section->load('category');
 
         TplCache::forgetHome();
 
         return response()->json([
             'ok' => true,
             'item' => $this->mapItem($section),
+        ]);
+    }
+
+    public function preview(Request $request)
+    {
+        $data = $request->validate([
+            'filters' => ['nullable', 'array'],
+            'item_limit' => ['nullable', 'integer', 'min:1', 'max:60'],
+        ]);
+
+        $filters = $this->cleanFilters($data['filters'] ?? []);
+        $count = HomeBlockService::seriesCount($filters);
+        $limit = max(1, min(60, (int) ($data['item_limit'] ?? 18)));
+
+        return response()->json([
+            'count' => $count,
+            'shown' => min($count, $limit),
         ]);
     }
 
@@ -87,24 +127,45 @@ class AdminHomeSectionController extends Controller
     }
 
     /**
+     * @param array<string, mixed> $filters
+     * @return array<string, mixed>
+     */
+    private function cleanFilters(array $filters): array
+    {
+        $clean = [];
+
+        foreach ($filters as $key => $value) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+            $clean[$key] = $value;
+        }
+
+        if (($clean['year_mode'] ?? '') === '') {
+            unset($clean['year_mode']);
+        }
+
+        return $clean;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function mapItem(HomeSection $section): array
     {
+        $filters = is_array($section->filters) ? $section->filters : [];
+
         return [
             'id' => $section->id,
-            'category_id' => $section->category_id,
-            'category' => $section->category ? [
-                'id' => $section->category->id,
-                'slug' => $section->category->slug,
-                'title' => $section->category->title,
-            ] : null,
             'title' => $section->title,
+            'link_url' => $section->link_url,
+            'filters' => $filters,
             'sort_order' => $section->sort_order,
             'is_active' => $section->is_active,
             'item_limit' => $section->item_limit,
             'show_tabs' => $section->show_tabs,
             'default_sort' => $section->default_sort,
+            'series_count' => HomeBlockService::seriesCount($filters),
         ];
     }
 }
