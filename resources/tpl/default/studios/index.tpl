@@ -27,12 +27,22 @@
                             <span class="fa fa-building"></span>
                         </div>
                     [/not-item.logo_url]
-                    <div class="studio-card__body">
-                        <div class="studio-card__title">{item.title}</div>
-                        [item.description]
-                            <div class="studio-card__desc">{item.description}</div>
-                        [/item.description]
-                    </div>
+                    [item.items_count]
+                        <div class="studio-card__count" aria-label="{item.items_count} {item.items_count_word}">
+                            <span class="studio-card__count-num">{item.items_count}</span>
+                            <span class="studio-card__count-text">{item.items_count_word}</span>
+                        </div>
+                    [/item.items_count]
+                    [studios_card_show_title]
+                        <div class="studio-card__body">
+                            <div class="studio-card__title">{item.title}</div>
+                            [studios_card_show_description]
+                                [item.description]
+                                    <div class="studio-card__desc">{item.description}</div>
+                                [/item.description]
+                            [/studios_card_show_description]
+                        </div>
+                    [/studios_card_show_title]
                 </a>
             [/loop]
             [not-studios_list]

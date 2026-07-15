@@ -16,16 +16,26 @@ class StudiosController extends TplController
         $studios = Studio::query()
             ->where('is_active', true)
             ->where('is_hidden', false)
+            ->withCount(['items as items_count' => function ($query) {
+                $query->whereHas('series', function ($q) {
+                    $q->where('is_active', true)
+                        ->where('is_hidden', false);
+                });
+            }])
             ->catalogOrder()
             ->limit(SiteConfig::int('studios_index_limit'))
             ->get();
 
         $studios_list = $studios->map(function (Studio $studio) {
+            $itemsCount = (int)($studio->items_count ?? 0);
+
             return [
                 'slug' => $studio->slug,
                 'title' => $studio->title,
                 'description' => $studio->description ?? '',
                 'logo_url' => $studio->logo_url ?? '',
+                'items_count' => $itemsCount,
+                'items_count_word' => PluralRu::series($itemsCount),
             ];
         })->values()->all();
 

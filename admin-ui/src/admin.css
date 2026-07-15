@@ -828,6 +828,39 @@ html[data-admin-theme='dark'] .template-codemirror .cm-tpl-variable {
   margin-bottom: 8px;
 }
 
+.tpl-docs-context .ant-table-wrapper {
+  margin-bottom: 12px;
+}
+
+.tpl-docs-tag-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tpl-docs-tag-code {
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.tpl-docs-tag-actions {
+  font-size: 11px;
+}
+
+.tpl-docs--compact .tpl-docs-tag-code {
+  font-size: 10px;
+}
+
+.tpl-docs--compact .ant-table {
+  font-size: 12px;
+}
+
+.tpl-docs__contexts--compact .ant-collapse-content-box {
+  padding-top: 8px !important;
+}
+
 .tpl-docs__file-hint {
   margin: 12px 0;
 }

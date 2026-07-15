@@ -21,12 +21,16 @@ function copyText(text: string) {
 function ContextBlock({
   ctxKey,
   ctx,
+  compact,
   onInsert,
 }: {
   ctxKey: string
   ctx: TplContext
+  compact?: boolean
   onInsert?: (text: string) => void
 }) {
+  const tagColumnWidth = compact ? 140 : 200
+
   return (
     <div className="tpl-docs-context">
       <Typography.Paragraph type="secondary">{ctx.description}</Typography.Paragraph>
@@ -35,26 +39,39 @@ function ContextBlock({
       <Table
         size="small"
         pagination={false}
+        tableLayout="fixed"
+        scroll={{ x: compact ? 420 : 640 }}
         rowKey="name"
         dataSource={ctx.variables}
         columns={[
           {
             title: 'Тег',
             dataIndex: 'name',
+            width: tagColumnWidth,
             render: (name: string) => (
-              <Space>
-                <Typography.Text code>{'{' + name + '}'}</Typography.Text>
-                <CopyOutlined className="tpl-docs-copy" onClick={() => copyText('{' + name + '}')} />
-                {onInsert ? (
-                  <a onClick={() => onInsert('{' + name + '}')}>вставить</a>
-                ) : null}
-              </Space>
+              <div className="tpl-docs-tag-cell">
+                <Typography.Text code className="tpl-docs-tag-code">
+                  {'{' + name + '}'}
+                </Typography.Text>
+                <Space size={4} className="tpl-docs-tag-actions">
+                  <CopyOutlined className="tpl-docs-copy" onClick={() => copyText('{' + name + '}')} />
+                  {onInsert ? (
+                    <a onClick={() => onInsert('{' + name + '}')}>вставить</a>
+                  ) : null}
+                </Space>
+              </div>
             ),
           },
-          { title: 'Описание', dataIndex: 'description' },
+          {
+            title: 'Описание',
+            dataIndex: 'description',
+            ellipsis: true,
+          },
           {
             title: 'Пример',
             dataIndex: 'sample',
+            width: compact ? 100 : 140,
+            ellipsis: true,
             render: (sample: string | undefined) =>
               sample ? <Typography.Text type="secondary">{sample}</Typography.Text> : '—',
           },
@@ -67,6 +84,8 @@ function ContextBlock({
           <Table
             size="small"
             pagination={false}
+            tableLayout="fixed"
+            scroll={{ x: 320 }}
             rowKey="syntax"
             dataSource={[...ctx.flags, ...ctx.not_flags]}
             columns={[
@@ -74,8 +93,10 @@ function ContextBlock({
                 title: 'Синтаксис',
                 dataIndex: 'syntax',
                 render: (syntax: string) => (
-                  <Space>
-                    <Typography.Text code>{syntax}</Typography.Text>
+                  <Space wrap>
+                    <Typography.Text code className="tpl-docs-tag-code">
+                      {syntax}
+                    </Typography.Text>
                     <CopyOutlined className="tpl-docs-copy" onClick={() => copyText(syntax)} />
                   </Space>
                 ),
@@ -91,15 +112,22 @@ function ContextBlock({
           <Table
             size="small"
             pagination={false}
+            tableLayout="fixed"
+            scroll={{ x: 420 }}
             rowKey="syntax"
             dataSource={ctx.loops}
             columns={[
               {
                 title: 'Синтаксис',
                 dataIndex: 'syntax',
-                render: (syntax: string) => <Typography.Text code>[{syntax}] ... [/loop]</Typography.Text>,
+                width: 180,
+                render: (syntax: string) => (
+                  <Typography.Text code className="tpl-docs-tag-code">
+                    [{syntax}] ... [/loop]
+                  </Typography.Text>
+                ),
               },
-              { title: 'Описание', dataIndex: 'description' },
+              { title: 'Описание', dataIndex: 'description', ellipsis: true },
             ]}
           />
         </>
@@ -125,9 +153,11 @@ export default function TplDocsPanel({ docs, filePath, compact, onInsert }: TplD
       .map((key) => ({
         key,
         label: docs.contexts[key].title,
-        children: <ContextBlock ctxKey={key} ctx={docs.contexts[key]} onInsert={onInsert} />,
+        children: (
+          <ContextBlock ctxKey={key} ctx={docs.contexts[key]} compact={compact} onInsert={onInsert} />
+        ),
       }))
-  }, [activeContexts, docs, onInsert])
+  }, [activeContexts, compact, docs, onInsert])
 
   const quickHints = useMemo(() => {
     if (!docs) return [] as TplHint[]
@@ -217,7 +247,13 @@ export default function TplDocsPanel({ docs, filePath, compact, onInsert }: TplD
       {!compact ? (
         <Collapse defaultActiveKey={activeContexts} items={contextItems} className="tpl-docs__contexts" />
       ) : (
-        <Collapse items={contextItems.slice(0, 2)} size="small" />
+        <Collapse
+          key={filePath ?? 'no-file'}
+          defaultActiveKey={activeContexts}
+          items={contextItems}
+          size="small"
+          className="tpl-docs__contexts tpl-docs__contexts--compact"
+        />
       )}
     </div>
   )

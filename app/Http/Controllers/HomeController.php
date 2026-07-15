@@ -8,6 +8,7 @@ use App\Models\Studio;
 use App\Services\HomeSectionService;
 use App\Support\CatalogFilterService;
 use App\Support\PaginationHelper;
+use App\Support\PluralRu;
 use App\Support\SiteConfig;
 use App\Support\Speedbar;
 use Illuminate\Http\Request;
@@ -52,15 +53,27 @@ class HomeController extends TplController
             ->catalogOrder()
             ->where('is_active', true)
             ->where('is_hidden', false)
+            ->withCount(['items as items_count' => function ($query) {
+                $query->whereHas('series', function ($q) {
+                    $q->where('is_active', true)
+                        ->where('is_hidden', false);
+                });
+            }])
             ->limit(SiteConfig::int('home_studios_limit'))
             ->get()
-            ->map(fn (Studio $studio) => [
-                'slug' => $studio->slug,
-                'title' => $studio->title,
-                'description' => $studio->description ?? '',
-                'logo_url' => $studio->logo_url ?? '',
-                'url' => route('studios.show', ['slug' => $studio->slug]),
-            ])
+            ->map(function (Studio $studio) {
+                $itemsCount = (int)($studio->items_count ?? 0);
+
+                return [
+                    'slug' => $studio->slug,
+                    'title' => $studio->title,
+                    'description' => $studio->description ?? '',
+                    'logo_url' => $studio->logo_url ?? '',
+                    'url' => route('studios.show', ['slug' => $studio->slug]),
+                    'items_count' => $itemsCount,
+                    'items_count_word' => PluralRu::series($itemsCount),
+                ];
+            })
             ->all();
 
         $sections = HomeSectionService::mapSectionsForHome(

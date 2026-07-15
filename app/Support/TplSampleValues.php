@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\Collection;
 use App\Models\Series;
 use App\Support\AdminPath;
+use App\Support\PluralRu;
 use App\Support\SeriesUrl;
 use App\Models\SiteSetting;
 use App\Models\User;
@@ -44,6 +45,11 @@ class TplSampleValues
             $source = $path === 'collections/index.tpl'
                 ? 'Список подборок'
                 : 'Пример подборки из каталога';
+        } elseif (str_starts_with($path, 'studios/')) {
+            $values = array_merge($values, self::studiosValues($path));
+            $source = $path === 'studios/index.tpl'
+                ? 'Список студий'
+                : 'Пример студии из каталога';
         } elseif (str_starts_with($path, 'profile/')) {
             $values = array_merge($values, self::profileValues());
             $source = 'Профиль текущего администратора';
@@ -251,6 +257,74 @@ class TplSampleValues
             $item = $collection->items()
                 ->with(['series'])
                 ->whereHas('series', fn ($q) => $q->where('is_active', true))
+                ->orderBy('rank_order')
+                ->first();
+
+            if ($item?->series) {
+                $values['item.title'] = $item->series->title;
+                $values['item.slug'] = $item->series->slug;
+                $values['item.url'] = SeriesUrl::path($item->series);
+                $values['item.poster_url'] = $item->series->poster_url ?? '';
+            }
+        }
+
+        return $values;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function studiosValues(string $path): array
+    {
+        $studio = \App\Models\Studio::query()
+            ->where('is_active', true)
+            ->where('is_hidden', false)
+            ->withCount(['items as items_count' => function ($query) {
+                $query->whereHas('series', function ($q) {
+                    $q->where('is_active', true)
+                        ->where('is_hidden', false);
+                });
+            }])
+            ->orderByDesc('id')
+            ->first();
+
+        if (!$studio) {
+            return [
+                'page.heading' => 'Студии',
+            ];
+        }
+
+        $itemsCount = (int)($studio->items_count ?? 0);
+
+        $values = [
+            'page.heading' => 'Студии',
+            'studios_total' => '1',
+            'studios_total_word' => PluralRu::studios(1),
+            'item.slug' => $studio->slug,
+            'item.title' => $studio->title,
+            'item.description' => $studio->description ?? '',
+            'item.logo_url' => $studio->logo_url ?? '',
+            'item.items_count' => (string)$itemsCount,
+            'item.items_count_word' => PluralRu::series($itemsCount),
+            'seo.title' => 'Студии — каталог сериалов по студиям',
+            'seo.description' => 'Сериалы по студиям — смотреть онлайн бесплатно.',
+            'seo.canonical' => url('/studios/'),
+        ];
+
+        if ($path !== 'studios/index.tpl') {
+            $values['studio.title'] = $studio->title;
+            $values['studio.slug'] = $studio->slug;
+            $values['studio.description'] = $studio->description ?? '';
+            $values['studio.logo_url'] = $studio->logo_url ?? '';
+            $values['studio_total'] = (string)$itemsCount;
+            $values['studio_total_word'] = PluralRu::series($itemsCount);
+            $values['studio_has_items'] = $itemsCount > 0 ? '1' : '';
+            $values['seo.canonical'] = url('/studios/' . $studio->slug . '/');
+            $values['seo.title'] = $studio->title . ' — студия';
+
+            $item = $studio->items()
+                ->with(['series'])
+                ->whereHas('series', fn ($q) => $q->where('is_active', true)->where('is_hidden', false))
                 ->orderBy('rank_order')
                 ->first();
 

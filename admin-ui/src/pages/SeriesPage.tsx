@@ -36,8 +36,9 @@ import { useSearchParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { api } from '../api/client'
 import { apiUpload } from '../api/upload'
-import SeriesScheduleEditor, { type SeriesScheduleEditorHandle } from '../components/SeriesScheduleEditor'
 import SeriesPlayersEditor, { type SeriesPlayersEditorHandle } from '../components/SeriesPlayersEditor'
+import SeriesLookupSearch from '../components/SeriesLookupSearch'
+import SeriesScheduleEditor, { type SeriesScheduleEditorHandle } from '../components/SeriesScheduleEditor'
 import type { SeriesItem, StudioItem, TaxonomyOption } from '../types'
 import { BROADCAST_STATUSES, CONTENT_TYPES } from '../types'
 import { resolveMediaUrl, siteOrigin } from '../utils/mediaUrl'
@@ -194,6 +195,22 @@ function mergeStudioOptions(
   return Array.from(map.values())
 }
 
+function seriesListRouteKey(row: SeriesItem): string {
+  return String(row.kp_id || row.tmdb_id || row.id)
+}
+
+function seriesRouteKey(editing: SeriesItem | null, values: Record<string, unknown>): string | null {
+  const kpId = String(values.kp_id ?? editing?.kp_id ?? '').trim()
+  if (kpId) return kpId
+
+  const tmdbId = String(values.tmdb_id ?? editing?.tmdb_id ?? '').trim()
+  if (tmdbId) return tmdbId
+
+  if (editing?.id) return String(editing.id)
+
+  return null
+}
+
 function seriesToFormValues(item: SeriesItem): Record<string, unknown> {
   return {
     kp_id: item.kp_id,
@@ -261,6 +278,7 @@ export default function SeriesPage() {
   const [editing, setEditing] = useState<SeriesItem | null>(null)
   const [importing, setImporting] = useState(false)
   const [importingAlloha, setImportingAlloha] = useState(false)
+  const [importingTmdb, setImportingTmdb] = useState(false)
   const [playersRefreshKey, setPlayersRefreshKey] = useState(0)
   const [posterCacheBust, setPosterCacheBust] = useState<number | undefined>(undefined)
   const [saving, setSaving] = useState(false)
@@ -269,7 +287,12 @@ export default function SeriesPage() {
   const [form] = Form.useForm()
   const [filterForm] = Form.useForm<SeriesListFilters>()
   const posterUrl = Form.useWatch('poster_url', form)
+  const watchedKpId = Form.useWatch('kp_id', form)
   const watchedTmdbId = Form.useWatch('tmdb_id', form)
+  const editorRouteKey = useMemo(
+    () => seriesRouteKey(editing, { kp_id: watchedKpId, tmdb_id: watchedTmdbId }),
+    [editing, watchedKpId, watchedTmdbId],
+  )
   const currentSort = (Form.useWatch('sort', filterForm) as string | undefined) ?? 'default'
 
   const loadStudios = useCallback(async () => {
@@ -462,7 +485,9 @@ export default function SeriesPage() {
 
       if (editing) {
         payload.id = editing.id
-        payload.original_kp_id = editing.kp_id
+        if (editing.kp_id) {
+          payload.original_kp_id = editing.kp_id
+        }
       }
 
       const res = await api<{ item: SeriesItem }>('/api/admin/series/upsert', {
@@ -473,15 +498,15 @@ export default function SeriesPage() {
       setEditing(res.item)
       form.setFieldsValue(seriesToFormValues(res.item))
 
-      const kpId = String(res.item.kp_id ?? payload.kp_id ?? '')
-      if (kpId) {
-        const playersSaved = await playersEditorRef.current?.save({ silent: true, kpId })
+      const routeKey = seriesRouteKey(res.item, { ...payload, ...res.item })
+      if (routeKey) {
+        const playersSaved = await playersEditorRef.current?.save({ silent: true, kpId: routeKey })
         if (playersSaved === false) {
           message.error('Сериал сохранён, но не удалось сохранить плееры')
           return
         }
 
-        const scheduleSaved = await scheduleEditorRef.current?.save({ silent: true, kpId })
+        const scheduleSaved = await scheduleEditorRef.current?.save({ silent: true, kpId: routeKey })
         if (scheduleSaved === false) {
           message.error('Сериал сохранён, но не удалось сохранить расписание')
           return
@@ -508,6 +533,14 @@ export default function SeriesPage() {
       message.success('KP ID скопирован')
     } catch {
       message.error('Не удалось скопировать')
+    }
+  }
+
+  async function validateIdentifierRequired() {
+    const kpId = String(form.getFieldValue('kp_id') ?? '').trim()
+    const tmdbId = String(form.getFieldValue('tmdb_id') ?? '').trim()
+    if (!kpId && !tmdbId) {
+      throw new Error('Укажите KP ID или TMDB ID')
     }
   }
 
@@ -614,16 +647,44 @@ export default function SeriesPage() {
     }
   }
 
+  async function importTmdb() {
+    const tmdbId = String(form.getFieldValue('tmdb_id') ?? '').trim()
+    if (!tmdbId) {
+      message.warning('Укажите TMDB ID')
+      return
+    }
+    const kpId = String(form.getFieldValue('kp_id') ?? '').trim()
+    setImportingTmdb(true)
+    try {
+      const res = await api<{ item: SeriesItem }>('/api/admin/series/import-tmdb', {
+        method: 'POST',
+        body: JSON.stringify({
+          tmdb_id: tmdbId,
+          kp_id: kpId || undefined,
+          download_poster: true,
+        }),
+      })
+      await applyImportedItem(res.item)
+      setPlayersRefreshKey((key) => key + 1)
+      message.success('Данные загружены из TMDB')
+      await loadSeries()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    } finally {
+      setImportingTmdb(false)
+    }
+  }
+
   async function uploadPoster(file: File) {
-    const kpId = form.getFieldValue('kp_id')
-    if (!kpId) {
-      message.warning('Сначала укажите KP ID и сохраните')
+    const routeKey = seriesRouteKey(editing, form.getFieldsValue(true) as Record<string, unknown>)
+    if (!routeKey) {
+      message.warning('Укажите KP ID или TMDB ID перед загрузкой постера')
       return false
     }
     const fd = new FormData()
     fd.append('poster', file)
     try {
-      const res = await apiUpload<{ poster_url: string }>(`/api/admin/series/${kpId}/poster`, fd)
+      const res = await apiUpload<{ poster_url: string }>(`/api/admin/series/${routeKey}/poster`, fd)
       form.setFieldValue('poster_url', res.poster_url)
       setPosterCacheBust(Date.now())
       message.success('Постер загружен')
@@ -635,7 +696,7 @@ export default function SeriesPage() {
   }
 
   async function togglePin(row: SeriesItem) {
-    await api(`/api/admin/series/${row.kp_id}/pin`, {
+    await api(`/api/admin/series/${seriesListRouteKey(row)}/pin`, {
       method: 'POST',
       body: JSON.stringify({ pinned: !row.is_pinned }),
     })
@@ -643,7 +704,7 @@ export default function SeriesPage() {
   }
 
   async function toggleVisibility(row: SeriesItem) {
-    await api(`/api/admin/series/${row.kp_id}/visibility`, {
+    await api(`/api/admin/series/${seriesListRouteKey(row)}/visibility`, {
       method: 'POST',
       body: JSON.stringify({ is_active: !row.is_active }),
     })
@@ -651,13 +712,13 @@ export default function SeriesPage() {
   }
 
   async function remove(row: SeriesItem) {
-    await api(`/api/admin/series/${row.kp_id}`, { method: 'DELETE' })
+    await api(`/api/admin/series/${seriesListRouteKey(row)}`, { method: 'DELETE' })
     message.success('Удалено')
     await loadSeries()
   }
 
   async function restore(row: SeriesItem) {
-    await api(`/api/admin/series/${row.kp_id}/restore`, { method: 'POST' })
+    await api(`/api/admin/series/${seriesListRouteKey(row)}/restore`, { method: 'POST' })
     message.success('Восстановлено')
     await loadSeries()
   }
@@ -1080,6 +1141,7 @@ export default function SeriesPage() {
           <Space>
             <Button onClick={importKp} loading={importing}>Импорт KP</Button>
             <Button onClick={importAlloha} loading={importingAlloha}>Импорт Alloha</Button>
+            <Button onClick={importTmdb} loading={importingTmdb}>Импорт TMDB</Button>
             <Button type="primary" loading={saving} onClick={saveAll}>Сохранить</Button>
           </Space>
         }
@@ -1104,14 +1166,16 @@ export default function SeriesPage() {
                 label: 'Идентификация',
                 children: (
                   <>
+                    <SeriesLookupSearch form={form} />
                     <Row gutter={16}>
                       <Col span={8}>
                         <Form.Item
                           label="KP ID"
                           name="kp_id"
                           validateDebounce={400}
+                          dependencies={['tmdb_id']}
                           rules={[
-                            { required: true, message: 'Укажите KP ID' },
+                            { validator: validateIdentifierRequired },
                             { validator: validateKpIdUnique },
                           ]}
                           extra={editing ? 'Можно заменить, если добавили не тот сериал' : undefined}
@@ -1135,7 +1199,14 @@ export default function SeriesPage() {
                         <Form.Item label="IMDb ID" name="imdb_id"><Input placeholder="tt0056592" /></Form.Item>
                       </Col>
                       <Col span={8}>
-                        <Form.Item label="TMDB ID" name="tmdb_id"><Input placeholder="66732" /></Form.Item>
+                        <Form.Item
+                          label="TMDB ID"
+                          name="tmdb_id"
+                          dependencies={['kp_id']}
+                          rules={[{ validator: validateIdentifierRequired }]}
+                        >
+                          <Input placeholder="66732" />
+                        </Form.Item>
                       </Col>
                     </Row>
                     <Form.Item label="Популярность TMDB" name="tmdb_popularity" extra="Обновляется автоматически из TMDB API вместе со статусом эфира">
@@ -1328,7 +1399,7 @@ export default function SeriesPage() {
               children: (
                 <SeriesPlayersEditor
                   ref={playersEditorRef}
-                  kpId={editing?.kp_id ?? form.getFieldValue('kp_id')}
+                  kpId={editorRouteKey}
                   drawerOpen={drawerOpen}
                   refreshKey={playersRefreshKey}
                 />
@@ -1340,7 +1411,7 @@ export default function SeriesPage() {
               children: (
                 <SeriesScheduleEditor
                   ref={scheduleEditorRef}
-                  kpId={editing?.kp_id ?? form.getFieldValue('kp_id')}
+                  kpId={editorRouteKey}
                   tmdbId={watchedTmdbId ?? editing?.tmdb_id}
                   drawerOpen={drawerOpen}
                   refreshKey={playersRefreshKey}

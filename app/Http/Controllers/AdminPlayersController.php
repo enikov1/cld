@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PlayerSource;
 use App\Models\Series;
-use App\Support\PlayerUrlHelper;
+use App\Support\AdminSeriesResolver;
 use App\Support\TplCache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +13,7 @@ class AdminPlayersController extends Controller
 {
     public function show(string $kpId)
     {
-        $series = Series::query()->where('kp_id', $kpId)->firstOrFail();
+        $series = AdminSeriesResolver::byKey($kpId);
 
         $items = $series->playerSources()
             ->orderByDesc('priority')
@@ -33,7 +33,7 @@ class AdminPlayersController extends Controller
 
     public function save(Request $request, string $kpId)
     {
-        $series = Series::query()->where('kp_id', $kpId)->firstOrFail();
+        $series = AdminSeriesResolver::byKey($kpId);
 
         $data = $request->validate([
             'players' => ['nullable', 'array'],

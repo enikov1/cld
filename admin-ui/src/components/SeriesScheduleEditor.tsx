@@ -193,7 +193,7 @@ const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(funct
   }
 
   if (!kpId) {
-    return <p className="admin-empty-hint">Сначала укажите KP ID и сохраните сериал.</p>
+    return <p className="admin-empty-hint">Сначала укажите KP ID или TMDB ID и сохраните сериал.</p>
   }
 
   const canImportTmdb = Boolean(resolvedTmdbId) && tmdbConfigured

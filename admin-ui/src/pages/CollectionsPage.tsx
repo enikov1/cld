@@ -193,7 +193,7 @@ export default function CollectionsPage() {
       width: 100,
       render: (_, r) =>
         r.series?.kp_id ? (
-          <Popconfirm title="Убрать из подборки?" onConfirm={() => removeItem(r.series!.kp_id)}>
+          <Popconfirm title="Убрать из подборки?" onConfirm={() => removeItem(String(r.series!.kp_id))}>
             <Button size="small" danger type="link">Убрать</Button>
           </Popconfirm>
         ) : null,

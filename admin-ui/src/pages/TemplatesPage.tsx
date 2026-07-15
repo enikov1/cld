@@ -121,6 +121,7 @@ export default function TemplatesPage() {
   const [renameForm] = Form.useForm<{ to: string }>()
   const [renameFrom, setRenameFrom] = useState('')
   const [docs, setDocs] = useState<TplDocsPayload | null>(null)
+  const [expandedKeys, setExpandedKeys] = useState<string[]>([])
   const editorRef = useRef<TplEditorHandle | null>(null)
   const uploadInputRef = useRef<HTMLInputElement | null>(null)
   const uploadTargetDirRef = useRef('')
@@ -199,6 +200,11 @@ export default function TemplatesPage() {
 
   const openFile = useCallback(
     (path: string) => {
+      const parentPath = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : ''
+      if (parentPath) {
+        setExpandedKeys((prev) => (prev.includes(parentPath) ? prev : [...prev, parentPath]))
+      }
+
       if (isDirty) {
         Modal.confirm({
           title: 'Несохранённые изменения',
@@ -516,6 +522,7 @@ export default function TemplatesPage() {
               <Tree
                 showIcon
                 treeData={treeData}
+                expandedKeys={expandedKeys}
                 selectedKeys={activeTreeKey ? [activeTreeKey] : []}
                 titleRender={(node) => {
                   const path = String(node.key)
@@ -544,13 +551,18 @@ export default function TemplatesPage() {
                     </span>
                   )
                 }}
+                onExpand={(keys) => setExpandedKeys(keys as string[])}
                 onSelect={(_, info) => {
                   const node = info.node as DataNode & { isLeaf?: boolean }
                   const path = String(node.key)
                   setActiveTreeKey(path)
                   if (node.isLeaf) {
                     openFile(path)
+                    return
                   }
+                  setExpandedKeys((prev) =>
+                    prev.includes(path) ? prev.filter((key) => key !== path) : [...prev, path],
+                  )
                 }}
               />
             ) : (

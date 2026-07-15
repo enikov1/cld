@@ -327,6 +327,43 @@ class TplDocumentation
                 ],
                 ['collections', 'global'],
             ),
+            'studios' => self::context(
+                'studios/*.tpl',
+                'Студии и их каталог сериалов.',
+                array_merge(self::globalVariables(), [
+                    self::docVar('page.heading', 'Заголовок страницы списка (index)'),
+                    self::docVar('studios_total', 'Число студий на странице (index)'),
+                    self::docVar('studios_total_word', 'Слово «студия/студии/студий» (index)'),
+                    self::docVar('studio.title', 'Название студии (show)'),
+                    self::docVar('studio.slug', 'Slug студии (show)'),
+                    self::docVar('studio.description', 'Описание студии (show)'),
+                    self::docVar('studio.logo_url', 'URL логотипа (show)'),
+                    self::docVar('studio_total', 'Число сериалов студии (show)'),
+                    self::docVar('studio_total_word', 'Слово «сериал/сериала/сериалов» (show)'),
+                    self::docVar('studio_seo_html', 'HTML SEO-блока (show)'),
+                    self::docVar('pagination_block', 'HTML пагинации (show)'),
+                    self::docVar('seo.title', 'SEO заголовок'),
+                    self::docVar('seo.description', 'SEO описание'),
+                    self::docVar('seo.canonical', 'Canonical URL'),
+                    self::docVar('seo.robots', 'Директива robots (show)'),
+                    self::docVar('seo.prev', 'Ссылка prev (show)'),
+                    self::docVar('seo.next', 'Ссылка next (show)'),
+                ] + self::studioCardItemVariables()),
+                [
+                    'studios_total',
+                    'studio.description',
+                    'studio_seo_html',
+                    'studio_has_items',
+                    'studios_card_show_title',
+                    'studios_card_show_description',
+                    'pagination_block',
+                ],
+                [
+                    self::loop('studios_list', 'Карточки студий (index): item.slug, item.title, item.description, item.logo_url, item.items_count, item.items_count_word'),
+                    self::loop('studio_items', 'Сериалы студии (show): item.slug, item.category, item.title, item.poster_url, item.url, item.kp_rating, item.imdb_rating, item.season_badge, item.episode_badge'),
+                ],
+                ['studios', 'global'],
+            ),
             'profile' => self::context(
                 'profile/show.tpl',
                 'Личный кабинет (только авторизованные).',
@@ -545,6 +582,21 @@ class TplDocumentation
     }
 
     /**
+     * @return array<int, array{name: string, description: string}>
+     */
+    private static function studioCardItemVariables(): array
+    {
+        return [
+            self::docVar('item.slug', 'Slug студии'),
+            self::docVar('item.title', 'Название студии'),
+            self::docVar('item.description', 'Описание студии'),
+            self::docVar('item.logo_url', 'URL логотипа'),
+            self::docVar('item.items_count', 'Число сериалов в студии'),
+            self::docVar('item.items_count_word', 'Слово «сериал/сериала/сериалов»'),
+        ];
+    }
+
+    /**
      * @return array{name: string, description: string}
      */
     private static function docVar(string $name, string $description): array
@@ -577,6 +629,8 @@ class TplDocumentation
             'series/show.tpl' => ['series', 'global'],
             'collections/index.tpl' => ['collections', 'global'],
             'collections/show.tpl' => ['collections', 'global'],
+            'studios/index.tpl' => ['studios', 'global'],
+            'studios/show.tpl' => ['studios', 'global'],
             'profile/show.tpl' => ['profile', 'global'],
             'partials/reactions_widget.tpl' => ['reactions', 'series', 'global'],
             'partials/series_cards.tpl' => ['partials', 'home', 'global'],
@@ -602,6 +656,10 @@ class TplDocumentation
 
         if (str_starts_with($path, 'collections/')) {
             return ['collections', 'global'];
+        }
+
+        if (str_starts_with($path, 'studios/')) {
+            return ['studios', 'global'];
         }
 
         return ['global'];

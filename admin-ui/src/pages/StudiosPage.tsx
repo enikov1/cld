@@ -239,7 +239,7 @@ export default function StudiosPage() {
       width: 100,
       render: (_, r) =>
         r.series?.kp_id ? (
-          <Popconfirm title="Убрать из студии?" onConfirm={() => removeItem(r.series!.kp_id)}>
+          <Popconfirm title="Убрать из студии?" onConfirm={() => removeItem(String(r.series!.kp_id))}>
             <Button size="small" danger type="link">Убрать</Button>
           </Popconfirm>
         ) : null,

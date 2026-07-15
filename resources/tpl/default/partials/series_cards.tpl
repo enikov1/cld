@@ -1,6 +1,6 @@
 [loop series_list]
-    <div class="th-item">
-            <a class="th-in with-mask" href="{item.url|raw}">
+    <div class="th-item" data-series-id="{item.id}">
+        <a class="th-in with-mask" href="{item.url|raw}">
             <div class="th-img img-resp-vert">
                 <div class="th-card-badges th-card-badges--status">
                     [item.badge_new_episode]
@@ -41,5 +41,8 @@
                 <span class="fa fa-play"></span>
             </div>
         </a>
+            <button type="button" class="th-info-btn dontusebuttonclass" data-series-info aria-label="Информация о сериале">
+                <span class="th-info-btn__icon" aria-hidden="true">i</span>
+            </button>
     </div>
 [/loop]

@@ -868,14 +868,117 @@
 
             var prev = root.querySelector('.carou-nav--prev');
             var next = root.querySelector('.carou-nav--next');
-            var step = 280;
+
+            function getStep() {
+                var first = track.querySelector('.th-item');
+                if (!first) return 280;
+                var gap = parseFloat(getComputedStyle(track).gap) || 10;
+                return first.offsetWidth + gap;
+            }
+
+            function updateNav() {
+                var maxScroll = Math.max(0, track.scrollWidth - track.clientWidth);
+                var canScroll = maxScroll > 1;
+                var atStart = track.scrollLeft <= 2;
+                var atEnd = track.scrollLeft >= maxScroll - 2;
+                root.classList.toggle('carou-content--no-scroll', !canScroll);
+                root.classList.toggle('carou-content--at-start', atStart);
+                root.classList.toggle('carou-content--at-end', atEnd);
+                if (prev) prev.disabled = !canScroll || atStart;
+                if (next) next.disabled = !canScroll || atEnd;
+            }
+
+            function scheduleNavUpdate() {
+                window.requestAnimationFrame(updateNav);
+            }
 
             function scrollBy(delta) {
                 track.scrollBy({ left: delta, behavior: 'smooth' });
             }
 
-            if (prev) prev.addEventListener('click', function () { scrollBy(-step); });
-            if (next) next.addEventListener('click', function () { scrollBy(step); });
+            if (prev) {
+                prev.addEventListener('click', function () {
+                    scrollBy(-getStep());
+                });
+            }
+            if (next) {
+                next.addEventListener('click', function () {
+                    scrollBy(getStep());
+                });
+            }
+
+            track.addEventListener('scroll', scheduleNavUpdate, { passive: true });
+            window.addEventListener('resize', scheduleNavUpdate);
+            if (typeof ResizeObserver !== 'undefined') {
+                var ro = new ResizeObserver(scheduleNavUpdate);
+                ro.observe(track);
+            }
+            track.querySelectorAll('img').forEach(function (img) {
+                if (!img.complete) {
+                    img.addEventListener('load', scheduleNavUpdate, { once: true });
+                }
+            });
+            scheduleNavUpdate();
+            window.setTimeout(scheduleNavUpdate, 100);
+            window.setTimeout(scheduleNavUpdate, 400);
+
+            var isDragging = false;
+            var startX = 0;
+            var startScrollLeft = 0;
+            var dragged = false;
+            var dragThreshold = 6;
+
+            function endDrag(e) {
+                if (!isDragging) return;
+                isDragging = false;
+                track.classList.remove('is-dragging');
+                if (e && e.pointerId != null) {
+                    try {
+                        track.releasePointerCapture(e.pointerId);
+                    } catch (err) {
+                        /* ignore */
+                    }
+                }
+                window.setTimeout(function () {
+                    dragged = false;
+                }, 0);
+            }
+
+            track.addEventListener('pointerdown', function (e) {
+                if (e.pointerType === 'mouse' && e.button !== 0) return;
+                if (e.target.closest('.carou-nav')) return;
+                isDragging = true;
+                dragged = false;
+                startX = e.clientX;
+                startScrollLeft = track.scrollLeft;
+                track.classList.add('is-dragging');
+                track.setPointerCapture(e.pointerId);
+            });
+
+            track.addEventListener('pointermove', function (e) {
+                if (!isDragging) return;
+                var dx = e.clientX - startX;
+                if (Math.abs(dx) > dragThreshold) dragged = true;
+                track.scrollLeft = startScrollLeft - dx;
+                updateNav();
+            });
+
+            track.addEventListener('pointerup', endDrag);
+            track.addEventListener('pointercancel', endDrag);
+            track.addEventListener('lostpointercapture', function () {
+                isDragging = false;
+                track.classList.remove('is-dragging');
+            });
+
+            track.addEventListener('click', function (e) {
+                if (!dragged) return;
+                e.preventDefault();
+                e.stopPropagation();
+            }, true);
+
+            track.addEventListener('dragstart', function (e) {
+                e.preventDefault();
+            });
         });
     }
 
@@ -3119,6 +3222,301 @@
         });
     }
 
+    function initSeriesPreview() {
+        var tip = document.createElement('div');
+        tip.className = 'movie-tip';
+        tip.setAttribute('role', 'dialog');
+        tip.setAttribute('aria-modal', 'true');
+        tip.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(tip);
+
+        var cache = Object.create(null);
+        var activeItem = null;
+        var loadToken = 0;
+        var showTimer = null;
+        var hideTimer = null;
+        var mobileOpen = false;
+        var mobileQuery = window.matchMedia('(max-width: 760px)');
+
+        function isMobileLayout() {
+            return mobileQuery.matches;
+        }
+
+        function clearHoverTimers() {
+            clearTimeout(showTimer);
+            clearTimeout(hideTimer);
+        }
+
+        function scheduleShow(item, seriesId) {
+            clearTimeout(hideTimer);
+            if (!item || !seriesId) return;
+            if (tip.classList.contains('is-show') && activeItem === item) return;
+            clearTimeout(showTimer);
+            showTimer = setTimeout(function () {
+                openPreview(seriesId, item);
+            }, 120);
+        }
+
+        function scheduleHide() {
+            clearTimeout(showTimer);
+            clearTimeout(hideTimer);
+            hideTimer = setTimeout(function () {
+                closeTip();
+            }, 300);
+        }
+
+        tip.addEventListener('mouseenter', function () {
+            if (!isMobileLayout()) {
+                clearTimeout(hideTimer);
+            }
+        });
+
+        tip.addEventListener('mouseleave', function (e) {
+            if (isMobileLayout()) return;
+            var related = e.relatedTarget;
+            if (related && related.closest && related.closest('[data-series-info]')) return;
+            scheduleHide();
+        });
+
+        function closeTip() {
+            tip.classList.remove('is-show');
+            tip.setAttribute('aria-hidden', 'true');
+            mobileOpen = false;
+            clearHoverTimers();
+            if (activeItem) {
+                activeItem.classList.remove('is-info-active');
+                activeItem.querySelectorAll('[data-series-info]').forEach(function (btn) {
+                    btn.classList.remove('is-active');
+                });
+                activeItem = null;
+            }
+            window.setTimeout(function () {
+                if (!tip.classList.contains('is-show')) {
+                    tip.innerHTML = '';
+                }
+            }, 180);
+        }
+
+        function positionTip(item) {
+            if (isMobileLayout()) {
+                tip.style.left = '';
+                tip.style.right = '';
+                tip.style.top = '';
+                tip.style.bottom = '';
+                tip.removeAttribute('data-side');
+                return;
+            }
+
+            var rect = item.getBoundingClientRect();
+            var tipW = tip.offsetWidth || 355;
+            var tipH = tip.offsetHeight || 280;
+            var gap = 6;
+            var pad = 12;
+            var side = 'right';
+            var left = rect.right + gap;
+            var top = rect.top + (rect.height / 2) - (tipH / 2);
+
+            if (left + tipW > window.innerWidth - pad) {
+                side = 'left';
+                left = rect.left - gap - tipW;
+            }
+
+            if (left < pad) {
+                side = 'bottom';
+                left = rect.left + (rect.width / 2) - (tipW / 2);
+                top = rect.bottom + gap;
+                if (top + tipH > window.innerHeight - pad) {
+                    side = 'top';
+                    top = rect.top - gap - tipH;
+                }
+            }
+
+            left = Math.max(pad, Math.min(left, window.innerWidth - tipW - pad));
+            top = Math.max(pad, Math.min(top, window.innerHeight - tipH - pad));
+
+            tip.style.left = left + 'px';
+            tip.style.top = top + 'px';
+            tip.style.right = 'auto';
+            tip.style.bottom = 'auto';
+            tip.setAttribute('data-side', side);
+
+            if (side === 'right' || side === 'left') {
+                var arrowTop = rect.top + (rect.height / 2) - top - 6;
+                arrowTop = Math.max(14, Math.min(arrowTop, tipH - 14));
+                tip.style.setProperty('--arrow-top', arrowTop + 'px');
+            } else {
+                var arrowLeft = rect.left + (rect.width / 2) - left - 6;
+                arrowLeft = Math.max(14, Math.min(arrowLeft, tipW - 14));
+                tip.style.setProperty('--arrow-left', arrowLeft + 'px');
+            }
+        }
+
+        function showLoading(item) {
+            tip.innerHTML = '<div class="movie-tip__status"><span class="movie-tip__loader"></span><span>Загрузка...</span></div>';
+            tip.classList.add('is-show');
+            tip.setAttribute('aria-hidden', 'false');
+            positionTip(item);
+        }
+
+        function showError() {
+            tip.innerHTML = '<div class="movie-tip__content"><div class="movie-tip__status">Не удалось загрузить информацию о сериале.</div><div class="movie-tip__actions"><button type="button" class="movie-tip__btn movie-tip__btn--ghost" data-movie-tip-close>Закрыть</button></div></div>';
+            tip.classList.add('is-show');
+            tip.setAttribute('aria-hidden', 'false');
+            if (activeItem) {
+                window.requestAnimationFrame(function () {
+                    positionTip(activeItem);
+                });
+            }
+        }
+
+        function handleInfoClick(e) {
+            if (!isMobileLayout()) return;
+
+            var btn = e.target.closest('[data-series-info]');
+            if (!btn) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof e.stopImmediatePropagation === 'function') {
+                e.stopImmediatePropagation();
+            }
+
+            var item = btn.closest('.th-item');
+            var seriesId = item && item.getAttribute('data-series-id');
+            if (!seriesId || !item) return;
+
+            if (mobileOpen && activeItem === item && tip.classList.contains('is-show')) {
+                closeTip();
+                return;
+            }
+
+            mobileOpen = true;
+            btn.classList.add('is-active');
+            openPreview(seriesId, item);
+        }
+
+        function handleDesktopHover(e) {
+            if (isMobileLayout()) return;
+
+            var btn = e.target.closest('[data-series-info]');
+            if (btn) {
+                var item = btn.closest('.th-item[data-series-id]');
+                if (item) {
+                    scheduleShow(item, item.getAttribute('data-series-id'));
+                }
+                return;
+            }
+
+            if (tip.contains(e.target)) {
+                clearTimeout(hideTimer);
+            }
+        }
+
+        function handleDesktopLeave(e) {
+            if (isMobileLayout()) return;
+
+            var related = e.relatedTarget;
+            var fromBtn = e.target.closest('[data-series-info]');
+            var fromTip = tip.contains(e.target);
+
+            if (!fromBtn && !fromTip) return;
+
+            if (related) {
+                if (fromBtn && (fromBtn.contains(related) || tip.contains(related))) return;
+                if (fromTip && (tip.contains(related) || related.closest('[data-series-info]'))) return;
+            }
+
+            scheduleHide();
+        }
+
+        function openPreview(seriesId, item) {
+            seriesId = String(seriesId || '');
+            if (!seriesId || !item) return;
+
+            if (activeItem && activeItem !== item) {
+                activeItem.classList.remove('is-info-active');
+            }
+
+            activeItem = item;
+            activeItem.classList.add('is-info-active');
+
+            if (cache[seriesId]) {
+                tip.innerHTML = cache[seriesId];
+                tip.classList.add('is-show');
+                tip.setAttribute('aria-hidden', 'false');
+                window.requestAnimationFrame(function () {
+                    positionTip(item);
+                });
+                return;
+            }
+
+            var token = ++loadToken;
+            showLoading(item);
+
+            fetchJson(seriesApiPath(seriesId) + '/preview')
+                .then(function (data) {
+                    if (token !== loadToken) return;
+                    if (!data || !data.ok || !data.html) {
+                        showError();
+                        return;
+                    }
+                    cache[seriesId] = data.html;
+                    tip.innerHTML = data.html;
+                    tip.classList.add('is-show');
+                    tip.setAttribute('aria-hidden', 'false');
+                    window.requestAnimationFrame(function () {
+                        positionTip(item);
+                    });
+                })
+                .catch(function () {
+                    if (token !== loadToken) return;
+                    showError();
+                });
+        }
+
+        document.addEventListener('mouseover', handleDesktopHover);
+        document.addEventListener('mouseout', handleDesktopLeave);
+        document.addEventListener('click', handleInfoClick, true);
+
+        document.addEventListener('click', function (e) {
+            if (e.target.closest('[data-movie-tip-close]')) {
+                e.preventDefault();
+                closeTip();
+                return;
+            }
+
+            if (!isMobileLayout()) return;
+
+            if (tip.classList.contains('is-show') && !e.target.closest('.movie-tip') && !e.target.closest('[data-series-info]')) {
+                closeTip();
+            }
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && tip.classList.contains('is-show')) {
+                closeTip();
+            }
+        });
+
+        window.addEventListener('resize', function () {
+            if (activeItem && tip.classList.contains('is-show')) {
+                positionTip(activeItem);
+            }
+        });
+
+        window.addEventListener('scroll', function () {
+            if (activeItem && tip.classList.contains('is-show')) {
+                positionTip(activeItem);
+            }
+        }, true);
+
+        if (typeof mobileQuery.addEventListener === 'function') {
+            mobileQuery.addEventListener('change', closeTip);
+        } else if (typeof mobileQuery.addListener === 'function') {
+            mobileQuery.addListener(closeTip);
+        }
+    }
+
     function initPersonPhotoHints() {
         var links = document.querySelectorAll('.serial-detail__link--person[data-person-photo]');
         if (!links.length) return;
@@ -3319,6 +3717,7 @@
         initProfileForms();
         initProfileWatchlistRemove();
         initCatalogFilters();
+        initSeriesPreview();
         initPersonPhotoHints();
     });
 })();

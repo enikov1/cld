@@ -180,8 +180,10 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
     });
 
     Route::get('/series', [AdminSeriesController::class, 'index']);
+    Route::get('/series/lookup', [AdminSeriesController::class, 'lookup']);
     Route::get('/series/check-kp', [AdminSeriesController::class, 'checkKp']);
     Route::post('/series/upsert', [AdminSeriesController::class, 'upsert']);
+    Route::post('/series/import-tmdb', [AdminSeriesController::class, 'importFromTmdb']);
     Route::post('/series/{kp_id}/import-kp', [AdminSeriesController::class, 'importFromKp']);
     Route::post('/series/{kp_id}/import-alloha', [AdminSeriesController::class, 'importFromAlloha']);
     Route::post('/series/{kp_id}/poster', [AdminSeriesController::class, 'uploadPoster']);

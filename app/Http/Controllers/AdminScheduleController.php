@@ -8,6 +8,7 @@ use App\Services\SeriesScheduleWriter;
 use App\Services\TmdbBroadcastStatusMapper;
 use App\Services\TmdbConfig;
 use App\Services\TmdbScheduleImportService;
+use App\Support\AdminSeriesResolver;
 use App\Support\TplCache;
 use Illuminate\Http\Request;
 use Throwable;
@@ -16,7 +17,7 @@ class AdminScheduleController extends Controller
 {
     public function show(string $kp_id)
     {
-        $series = Series::query()->where('kp_id', $kp_id)->firstOrFail();
+        $series = AdminSeriesResolver::byKey($kp_id);
 
         return response()->json([
             'seasons' => EpisodeProgressService::scheduleForSeries($series),
@@ -28,7 +29,7 @@ class AdminScheduleController extends Controller
 
     public function importFromTmdb(Request $request, string $kp_id, TmdbScheduleImportService $importService)
     {
-        $series = Series::query()->where('kp_id', $kp_id)->firstOrFail();
+        $series = AdminSeriesResolver::byKey($kp_id);
 
         $data = $request->validate([
             'mode' => ['required', 'in:replace,merge'],
@@ -108,7 +109,7 @@ class AdminScheduleController extends Controller
 
     public function save(Request $request, string $kp_id)
     {
-        $series = Series::query()->where('kp_id', $kp_id)->firstOrFail();
+        $series = AdminSeriesResolver::byKey($kp_id);
 
         $data = $request->validate([
             'seasons' => ['nullable', 'array'],

@@ -49,11 +49,39 @@ class TmdbClient
     }
 
     /**
+     * @param  list<string>  $append
      * @return array<string,mixed>
      */
-    public function getMovieDetails(int|string $tmdbId): array
+    public function getMovieDetails(int|string $tmdbId, array $append = []): array
     {
-        return $this->getJson('/movie/' . rawurlencode((string)$tmdbId));
+        $query = [];
+        if ($append !== []) {
+            $query['append_to_response'] = implode(',', $append);
+        }
+
+        return $this->getJson('/movie/' . rawurlencode((string)$tmdbId), $query);
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    public function searchMulti(string $query, int $page = 1): array
+    {
+        return $this->getJson('/search/multi', [
+            'query' => $query,
+            'include_adult' => 'true',
+            'page' => max(1, $page),
+        ]);
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    public function getGenreList(string $type): array
+    {
+        $type = $type === 'tv' ? 'tv' : 'movie';
+
+        return $this->getJson('/genre/' . $type . '/list');
     }
 
     /**

@@ -11,10 +11,13 @@ use App\Services\KinoPoiskStaffMapper;
 use App\Services\AllohaImportService;
 use App\Services\PosterContext;
 use App\Services\PosterStorage;
+use App\Services\SeriesLookupService;
 use App\Services\SeriesViewService;
 use App\Services\TaxonomyService;
+use App\Services\TmdbImportService;
 use App\Services\TmdbPopularitySyncService;
 use App\Support\AdminSeriesFilter;
+use App\Support\AdminSeriesResolver;
 use App\Support\SlugHelper;
 use App\Support\TplCache;
 use Illuminate\Http\Request;
@@ -54,6 +57,25 @@ class AdminSeriesController extends Controller
         ]);
     }
 
+    public function lookup(Request $request, SeriesLookupService $lookupService)
+    {
+        $data = $request->validate([
+            'q' => ['required', 'string', 'min:2', 'max:200'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:20'],
+        ]);
+
+        $result = $lookupService->search(
+            (string)$data['q'],
+            (int)($data['limit'] ?? 10),
+        );
+
+        return response()->json([
+            'ok' => true,
+            'results' => $result['results'],
+            'warnings' => $result['warnings'],
+        ]);
+    }
+
     public function checkKp(Request $request)
     {
         $data = $request->validate([
@@ -90,7 +112,7 @@ class AdminSeriesController extends Controller
         }
 
         $data = $request->validate([
-            'kp_id' => ['required', 'string'],
+            'kp_id' => ['nullable', 'string', 'required_without:tmdb_id'],
             'original_kp_id' => ['nullable', 'string'],
             'id' => ['nullable', 'integer'],
             'title' => ['required', 'string'],
@@ -113,7 +135,7 @@ class AdminSeriesController extends Controller
             'kp_votes_count' => ['nullable', 'integer', 'min:0'],
             'imdb_votes_count' => ['nullable', 'integer', 'min:0'],
             'imdb_id' => ['nullable', 'string'],
-            'tmdb_id' => ['nullable', 'string'],
+            'tmdb_id' => ['nullable', 'string', 'required_without:kp_id'],
             'content_type' => ['nullable', 'in:film,series'],
             'broadcast_status' => ['nullable', 'in:ongoing,paused,completed'],
             'season_number' => ['nullable', 'integer', 'min:1', 'max:999'],
@@ -146,8 +168,12 @@ class AdminSeriesController extends Controller
         ]);
 
         $slug = SlugHelper::make($data['slug'] ?? null, $data['title']);
-        $kpId = trim((string)$data['kp_id']);
+        $kpId = trim((string)($data['kp_id'] ?? ''));
+        $kpId = $kpId !== '' ? $kpId : null;
+        $tmdbId = trim((string)($data['tmdb_id'] ?? ''));
+        $tmdbId = $tmdbId !== '' ? $tmdbId : null;
         $originalKpId = trim((string)($data['original_kp_id'] ?? ''));
+        $originalKpId = $originalKpId !== '' ? $originalKpId : null;
         $seriesId = isset($data['id']) ? (int)$data['id'] : 0;
 
         if ($seriesId > 0) {
@@ -159,7 +185,7 @@ class AdminSeriesController extends Controller
                 ], 404);
             }
             $isNew = false;
-        } elseif ($originalKpId !== '') {
+        } elseif ($originalKpId !== null) {
             $existing = Series::query()->withTrashed()->where('kp_id', $originalKpId)->first();
             if (!$existing) {
                 return response()->json([
@@ -168,31 +194,63 @@ class AdminSeriesController extends Controller
                 ], 404);
             }
             $isNew = false;
+        } elseif ($tmdbId !== null) {
+            $existing = Series::query()->withTrashed()->where('tmdb_id', $tmdbId)->first();
+            $isNew = !$existing;
         } else {
             $existing = null;
             $isNew = true;
         }
 
         if ($existing) {
-            $conflict = Series::query()
-                ->withTrashed()
-                ->where('kp_id', $kpId)
-                ->where('id', '!=', $existing->id)
-                ->first(['id', 'title']);
+            if ($kpId !== null) {
+                $conflict = Series::query()
+                    ->withTrashed()
+                    ->where('kp_id', $kpId)
+                    ->where('id', '!=', $existing->id)
+                    ->first(['id', 'title']);
 
-            if ($conflict) {
-                return response()->json([
-                    'ok' => false,
-                    'message' => 'KP ID ' . $kpId . ' уже занят: ' . $conflict->title,
-                ], 422);
+                if ($conflict) {
+                    return response()->json([
+                        'ok' => false,
+                        'message' => 'KP ID ' . $kpId . ' уже занят: ' . $conflict->title,
+                    ], 422);
+                }
+            }
+
+            if ($tmdbId !== null) {
+                $conflict = Series::query()
+                    ->withTrashed()
+                    ->where('tmdb_id', $tmdbId)
+                    ->where('id', '!=', $existing->id)
+                    ->first(['id', 'title']);
+
+                if ($conflict) {
+                    return response()->json([
+                        'ok' => false,
+                        'message' => 'TMDB ID ' . $tmdbId . ' уже занят: ' . $conflict->title,
+                    ], 422);
+                }
             }
         } else {
-            $taken = Series::query()->withTrashed()->where('kp_id', $kpId)->first(['id', 'title']);
-            if ($taken) {
-                return response()->json([
-                    'ok' => false,
-                    'message' => 'KP ID ' . $kpId . ' уже занят: ' . $taken->title,
-                ], 422);
+            if ($kpId !== null) {
+                $taken = Series::query()->withTrashed()->where('kp_id', $kpId)->first(['id', 'title']);
+                if ($taken) {
+                    return response()->json([
+                        'ok' => false,
+                        'message' => 'KP ID ' . $kpId . ' уже занят: ' . $taken->title,
+                    ], 422);
+                }
+            }
+
+            if ($tmdbId !== null) {
+                $taken = Series::query()->withTrashed()->where('tmdb_id', $tmdbId)->first(['id', 'title']);
+                if ($taken) {
+                    return response()->json([
+                        'ok' => false,
+                        'message' => 'TMDB ID ' . $tmdbId . ' уже занят: ' . $taken->title,
+                    ], 422);
+                }
             }
         }
 
@@ -204,7 +262,8 @@ class AdminSeriesController extends Controller
             $slugConflictQuery->where('id', '!=', $existing->id);
         }
         if ($slugConflictQuery->exists()) {
-            $slug = Str::slug($slug . '-' . $kpId);
+            $suffix = $kpId ?? ($tmdbId ? 'tmdb-' . $tmdbId : (string)($existing?->id ?? Str::random(6)));
+            $slug = Str::slug($slug . '-' . $suffix);
         }
 
         $attrs = [
@@ -264,7 +323,7 @@ class AdminSeriesController extends Controller
         if (!empty($data['download_poster']) && !empty($data['poster_url'])) {
             $stored = app(PosterStorage::class)->storeFromUrl(
                 $data['poster_url'],
-                PosterContext::forSeriesData($kpId, $data),
+                PosterContext::forSeriesData($kpId ?? ('tmdb-' . ($tmdbId ?? 'new')), $data),
             );
             if ($stored) {
                 $attrs['poster_url'] = $stored;
@@ -460,6 +519,37 @@ class AdminSeriesController extends Controller
         ]);
     }
 
+    public function importFromTmdb(Request $request)
+    {
+        $data = $request->validate([
+            'tmdb_id' => ['required', 'string'],
+            'kp_id' => ['nullable', 'string'],
+            'download_poster' => ['nullable', 'boolean'],
+            'sync_schedule' => ['nullable', 'boolean'],
+        ]);
+
+        $kpId = trim((string)($data['kp_id'] ?? ''));
+        $result = app(TmdbImportService::class)->import(
+            (string)$data['tmdb_id'],
+            $kpId !== '' ? $kpId : null,
+            [
+                'download_poster' => (bool)($data['download_poster'] ?? true),
+                'sync_schedule' => (bool)($data['sync_schedule'] ?? true),
+            ],
+        );
+
+        if (!$result['ok']) {
+            $status = str_contains($result['error'] ?? '', 'не настроен') ? 422 : 404;
+
+            return response()->json(['ok' => false, 'error' => $result['error']], $status);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'item' => $this->serializeSeries($result['series']),
+        ]);
+    }
+
     public function uploadPoster(Request $request, string $kp_id)
     {
         $maxKb = (int)ceil(app(ImageOptimizer::class)->maxUploadBytes() / 1024);
@@ -468,7 +558,7 @@ class AdminSeriesController extends Controller
             'poster' => ['required', 'file', 'image', 'max:' . $maxKb],
         ]);
 
-        $series = Series::query()->where('kp_id', $kp_id)->firstOrFail();
+        $series = AdminSeriesResolver::byKey($kp_id);
         $url = app(PosterStorage::class)->storeFromUpload(
             $request->file('poster'),
             PosterContext::forSeries($series),
@@ -485,7 +575,7 @@ class AdminSeriesController extends Controller
             'pinned' => ['required', 'boolean'],
         ]);
 
-        $series = Series::query()->where('kp_id', $kp_id)->firstOrFail();
+        $series = AdminSeriesResolver::byKey($kp_id);
         $series->is_pinned = $data['pinned'];
         $series->pinned_at = $data['pinned'] ? now() : null;
         $series->save();
@@ -499,7 +589,7 @@ class AdminSeriesController extends Controller
             'is_active' => ['required', 'boolean'],
         ]);
 
-        $series = Series::query()->where('kp_id', $kp_id)->firstOrFail();
+        $series = AdminSeriesResolver::byKey($kp_id);
         $series->is_active = $data['is_active'];
         $series->save();
 
@@ -508,7 +598,7 @@ class AdminSeriesController extends Controller
 
     public function destroy(string $kp_id)
     {
-        $series = Series::query()->where('kp_id', $kp_id)->firstOrFail();
+        $series = AdminSeriesResolver::byKey($kp_id);
         $series->delete();
 
         return response()->json(['ok' => true]);
@@ -516,7 +606,7 @@ class AdminSeriesController extends Controller
 
     public function restore(string $kp_id)
     {
-        $series = Series::query()->withTrashed()->where('kp_id', $kp_id)->firstOrFail();
+        $series = AdminSeriesResolver::byKey($kp_id, true);
         $series->restore();
 
         return response()->json([

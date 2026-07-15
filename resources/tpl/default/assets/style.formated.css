@@ -104,7 +104,7 @@ input[type="password"] {
 .up-second li a,
 .usp-edit a,
 .qq-upload-button,
-button:not(.dontusebuttonclass):not(.profile-menu__close):not( .serial-sub-btn):not(.series-notifications-clear):not(.series-notification-delete):not( .notify-close):not(.notify-cancel):not(.notify-save):not(.color-btn):not( .notify-open):not([class*="fr"]):not(.series-item__remove):not(.DLEPush-close):not( .series-clear),
+button:not(.dontusebuttonclass):not(.profile-menu__close):not( .serial-sub-btn):not(.series-notifications-clear):not(.series-notification-delete):not( .notify-close):not(.notify-cancel):not(.notify-save):not(.color-btn):not( .notify-open):not([class*="fr"]):not(.series-item__remove):not(.DLEPush-close):not( .series-clear):not(.th-info-btn):not(.movie-tip__close),
 html input[type="button"],
 input[type="reset"],
 input[type="submit"],
@@ -132,7 +132,7 @@ input[type="submit"],
 .qq-upload-button:hover,
 .pagi-load a:hover,
 .usp-btn a:hover,
-button:not(.dontusebuttonclass):not(.profile-menu__close):not( .serial-sub-btn):not(.series-notifications-clear):not(.series-notification-delete):not( .notify-close):not(.notify-cancel):not(.notify-save):not(.color-btn):not( .notify-open):not(.series-item__remove):not(.DLEPush-close):not(.series-clear):hover,
+button:not(.dontusebuttonclass):not(.profile-menu__close):not( .serial-sub-btn):not(.series-notifications-clear):not(.series-notification-delete):not( .notify-close):not(.notify-cancel):not(.notify-save):not(.color-btn):not( .notify-open):not(.series-item__remove):not(.DLEPush-close):not(.series-clear):not(.th-info-btn):not(.movie-tip__close):hover,
 html input[type="button"]:hover,
 input[type="reset"]:hover,
 input[type="submit"]:hover,
@@ -14935,36 +14935,62 @@ input#sec_code::placeholder {
 
 .th-info-btn {
     position: absolute;
-    top: 8px;
-    right: 8px;
+    top: 6px;
+    right: 6px;
     z-index: 35;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 28px;
     height: 28px;
-    border: 0;
-    border-radius: 8px;
-    background: rgba(113, 190, 61, .96);
+    padding: 0;
+    margin: 0;
+    border: 1px solid rgba(255, 255, 255, .88);
+    border-radius: 50%;
+    background: rgba(18, 22, 26, .72);
     color: #fff;
-    font-size: 13px;
     cursor: pointer;
     opacity: 0;
     visibility: hidden;
-    transform: translateY(-5px) scale(.92);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, .28);
-    transition: opacity .18s ease, visibility .18s ease, transform .18s ease, background .18s ease;
+    transform: none;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .28);
+    backdrop-filter: blur(4px);
+    transition: opacity .18s ease, visibility .18s ease, background .18s ease, border-color .18s ease;
+    pointer-events: auto;
+}
+
+.th-info-btn__icon {
+    display: block;
+    width: 14px;
+    height: 14px;
+    font-size: 13px;
+    font-weight: 800;
+    font-style: italic;
+    font-family: Georgia, "Times New Roman", serif;
+    line-height: 14px;
+    text-align: center;
+    pointer-events: none;
+    user-select: none;
+}
+
+.th-item > .th-in {
+    position: relative;
+    z-index: 1;
 }
 
 .th-item:hover .th-info-btn,
 .th-item.is-info-active .th-info-btn {
     opacity: 1;
     visibility: visible;
+    transform: none;
 }
 
 .th-info-btn:hover,
-.th-info-btn.is-hover {
-    background: #7ccc42;
+.th-info-btn.is-hover,
+.th-item.is-info-active .th-info-btn,
+.th-info-btn.is-active {
+    background: #79c142;
+    border-color: rgba(255, 255, 255, .95);
 }
 
 .movie-tip {
