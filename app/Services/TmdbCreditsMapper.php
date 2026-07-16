@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Support\SiteConfig;
+
 class TmdbCreditsMapper
 {
     /**
@@ -16,6 +18,7 @@ class TmdbCreditsMapper
         $credits = is_array($details['credits'] ?? null) ? $details['credits'] : [];
         $cast = is_array($credits['cast'] ?? null) ? $credits['cast'] : [];
         $crew = is_array($credits['crew'] ?? null) ? $credits['crew'] : [];
+        $maxActors = SiteConfig::int('import_max_actors');
 
         $actors = [];
         foreach ($cast as $member) {
@@ -30,7 +33,7 @@ class TmdbCreditsMapper
                 'name' => $name,
                 'photo_url' => self::profileUrl($member['profile_path'] ?? null),
             ];
-            if (count($actors) >= 20) {
+            if ($maxActors > 0 && count($actors) >= $maxActors) {
                 break;
             }
         }

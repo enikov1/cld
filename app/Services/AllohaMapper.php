@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Support\SiteConfig;
+
 class AllohaMapper
 {
     /**
@@ -26,6 +28,12 @@ class AllohaMapper
             return [];
         }
 
+        $actors = TaxonomyService::parseCreditsString($credits['actors'] ?? null);
+        $maxActors = SiteConfig::int('import_max_actors');
+        if ($maxActors > 0 && count($actors) > $maxActors) {
+            $actors = array_slice($actors, 0, $maxActors);
+        }
+
         return [
             'kp_id' => (string)$kpId,
             'imdb_id' => isset($ids['imdb']) ? (string)$ids['imdb'] : null,
@@ -47,7 +55,7 @@ class AllohaMapper
             'last_episode_number' => self::resolveLastEpisode($data),
             '_genre_names' => self::splitList($data['genre'] ?? null),
             '_country_names' => self::splitList($data['country'] ?? null),
-            '_actor_people' => TaxonomyService::parseCreditsString($credits['actors'] ?? null),
+            '_actor_people' => $actors,
             '_director_people' => TaxonomyService::parseCreditsString($credits['directors'] ?? null),
             'poster_source_url' => $data['poster'] ?? null,
             '_translations' => is_array($data['translations'] ?? null) ? $data['translations'] : [],

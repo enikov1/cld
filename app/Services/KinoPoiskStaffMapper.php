@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Support\SiteConfig;
+
 class KinoPoiskStaffMapper
 {
     /**
@@ -12,6 +14,7 @@ class KinoPoiskStaffMapper
     {
         $actors = [];
         $directors = [];
+        $maxActors = SiteConfig::int('import_max_actors');
 
         foreach ($staff as $member) {
             if (!is_array($member)) {
@@ -31,6 +34,9 @@ class KinoPoiskStaffMapper
             $entry = ['name' => $name, 'photo_url' => $photoUrl];
 
             if ($profession === 'ACTOR') {
+                if ($maxActors > 0 && count($actors) >= $maxActors) {
+                    continue;
+                }
                 $actors[] = $entry;
             } elseif ($profession === 'DIRECTOR') {
                 $directors[] = $entry;

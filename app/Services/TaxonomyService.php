@@ -7,6 +7,7 @@ use App\Models\Genre;
 use App\Models\Person;
 use App\Models\Series;
 use App\Models\Year;
+use App\Support\SiteConfig;
 use App\Support\SlugHelper;
 use App\Support\TplCache;
 use Illuminate\Database\Eloquent\Model;
@@ -134,6 +135,10 @@ class TaxonomyService
     public function syncSeriesPeople(Series $series, array $actors, array $directors): void
     {
         if ($actors !== []) {
+            $maxActors = SiteConfig::int('import_max_actors');
+            if ($maxActors > 0 && count($actors) > $maxActors) {
+                $actors = array_slice($actors, 0, $maxActors);
+            }
             $actorIds = $this->resolvePeopleIds($actors);
             $this->syncPeopleByIds($series, $actorIds, 'actor');
         }

@@ -217,6 +217,17 @@ class SiteConfig
                 'description' => 'Если выключено — при импорте Alloha плееры не добавляются (CDN VideoHub работает отдельно)',
             ],
 
+            // Import limits (KinoPoisk / Alloha / TMDB)
+            'import_max_actors' => [
+                'type' => 'int',
+                'default' => '35',
+                'group' => 'integrations',
+                'label' => 'Макс. актёров при импорте',
+                'description' => 'Лимит актёров при импорте из KinoPoisk, Alloha и TMDB. Большие списки сильно замедляют парсинг (скачивание фото).',
+                'min' => 1,
+                'max' => 200,
+            ],
+
             // Catalog & navigation
             'catalog_per_page' => ['type' => 'int', 'default' => '18', 'group' => 'catalog', 'label' => 'Сериалов на странице каталога', 'min' => 6, 'max' => 60],
             'catalog_heading' => ['type' => 'string', 'default' => 'Все сериалы', 'group' => 'catalog', 'label' => 'Заголовок страницы каталога'],
@@ -500,6 +511,7 @@ class SiteConfig
             'catalog' => ['title' => 'Каталог и навигация', 'fields' => []],
             'optimization' => ['title' => 'Оптимизация изображений', 'fields' => []],
             'players' => ['title' => 'CDN VideoHub', 'fields' => []],
+            'integrations' => ['title' => 'Импорт метаданных', 'fields' => []],
             'general' => ['title' => 'Общие сообщения', 'fields' => []],
         ];
 

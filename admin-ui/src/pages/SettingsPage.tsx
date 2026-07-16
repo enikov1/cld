@@ -880,7 +880,14 @@ export default function SettingsPage() {
       ),
       children: (
         <>
-        <Card title="KinoPoisk API" loading={loading} bordered={false}>
+        <Card title={configSchema.integrations?.title ?? 'Импорт метаданных'} loading={loading} bordered={false}>
+          <Typography.Paragraph type="secondary">
+            Ограничение числа актёров при импорте через кнопки «Импорт КР», «Импорт Alloha» и «Импорт TMDB».
+            Большие списки часто зависают из‑за скачивания фотографий.
+          </Typography.Paragraph>
+          <SiteConfigFields fields={configSchema.integrations?.fields ?? []} />
+        </Card>
+        <Card title="KinoPoisk API" loading={loading} bordered={false} style={{ marginTop: 16 }}>
           <Typography.Paragraph type="secondary">
             Ключ для импорта сериалов и фильмов. Запасной вариант — переменная <code>KINOPOISK_API_KEY</code> в .env.
           </Typography.Paragraph>
