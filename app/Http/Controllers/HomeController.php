@@ -50,8 +50,8 @@ class HomeController extends TplController
             ])
             ->all();
 
-        $promoStudios = Studio::query()
-            ->catalogOrder()
+        $sortMode = SiteConfig::str('home_studios_sort');
+        $promoStudiosQuery = Studio::query()
             ->where('is_active', true)
             ->where('is_hidden', false)
             ->withCount(['items as items_count' => function ($query) {
@@ -60,6 +60,33 @@ class HomeController extends TplController
                         ->where('is_hidden', false);
                 });
             }])
+            ;
+
+        $promoStudiosQuery = match ($sortMode) {
+            'items_desc' => $promoStudiosQuery
+                ->orderByDesc('items_count')
+                ->orderByDesc('is_pinned')
+                ->orderBy('sort_order')
+                ->orderByDesc('id'),
+            'items_asc' => $promoStudiosQuery
+                ->orderBy('items_count')
+                ->orderByDesc('is_pinned')
+                ->orderBy('sort_order')
+                ->orderByDesc('id'),
+            'title_asc' => $promoStudiosQuery
+                ->orderBy('title')
+                ->orderByDesc('is_pinned')
+                ->orderBy('sort_order')
+                ->orderByDesc('id'),
+            'title_desc' => $promoStudiosQuery
+                ->orderByDesc('title')
+                ->orderByDesc('is_pinned')
+                ->orderBy('sort_order')
+                ->orderByDesc('id'),
+            default => $promoStudiosQuery->catalogOrder(),
+        };
+
+        $promoStudios = $promoStudiosQuery
             ->limit(SiteConfig::int('home_studios_limit'))
             ->get()
             ->map(function (Studio $studio) {

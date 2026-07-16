@@ -22,6 +22,7 @@ use App\Support\SlugHelper;
 use App\Support\TplCache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Http;
 
 class AdminSeriesController extends Controller
 {
@@ -74,6 +75,61 @@ class AdminSeriesController extends Controller
             'results' => $result['results'],
             'warnings' => $result['warnings'],
         ]);
+    }
+
+    public function parseKpFromUrl(Request $request)
+    {
+        $data = $request->validate([
+            'url' => ['required', 'url', 'max:2048'],
+        ]);
+
+        $url = trim((string)$data['url']);
+        $host = (string)parse_url($url, PHP_URL_HOST);
+        $host = Str::lower(preg_replace('/^www\./i', '', $host) ?? '');
+
+        if (!in_array($host, ['lordserials.fan', 'lordserial.net'], true)) {
+            return response()->json([
+                'ok' => false,
+                'error' => 'Разрешены только ссылки lordserials.fan / lordserial.net',
+            ], 422);
+        }
+
+        $response = Http::timeout(12)
+            ->withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+                'Accept' => 'text/html,application/xhtml+xml',
+            ])
+            ->get($url);
+
+        if (!$response->ok()) {
+            return response()->json([
+                'ok' => false,
+                'error' => 'Не удалось загрузить страницу',
+            ], 422);
+        }
+
+        $html = (string)$response->body();
+        preg_match_all('/<video-player\b[^>]*>/i', $html, $matches);
+        $tags = $matches[0] ?? [];
+
+        foreach ($tags as $tag) {
+            $isKp = (bool)preg_match('/\bdata-aggregator\s*=\s*([\'"])kp\1/i', $tag);
+            if (!$isKp) {
+                continue;
+            }
+
+            if (preg_match('/\bdata-title-id\s*=\s*([\'"])(\d+)\1/i', $tag, $idMatch)) {
+                return response()->json([
+                    'ok' => true,
+                    'kp_id' => $idMatch[2],
+                ]);
+            }
+        }
+
+        return response()->json([
+            'ok' => false,
+            'error' => 'Не найден data-title-id в <video-player data-aggregator="kp">',
+        ], 404);
     }
 
     public function checkKp(Request $request)

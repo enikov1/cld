@@ -1,4 +1,4 @@
-import { Alert, Avatar, Form, Input, List, Spin, Tag, Typography } from 'antd'
+import { Alert, Avatar, Form, Input, List, Spin, Tag, Typography, message } from 'antd'
 import type { FormInstance } from 'antd'
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
@@ -39,6 +39,13 @@ export default function SeriesLookupSearch({ form, onSelect }: Props) {
 
     const trimmed = query.trim()
     if (trimmed.length < 2) {
+      setResults([])
+      setWarnings([])
+      setLoading(false)
+      return
+    }
+
+    if (/^https?:\/\//i.test(trimmed)) {
       setResults([])
       setWarnings([])
       setLoading(false)
@@ -88,15 +95,48 @@ export default function SeriesLookupSearch({ form, onSelect }: Props) {
     setResults([])
   }
 
+  async function parseKpIdFromUrl(rawUrl: string) {
+    const targetUrl = rawUrl.trim()
+    if (!/^https?:\/\//i.test(targetUrl)) {
+      message.warning('Вставьте полную ссылку (https://...)')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const params = new URLSearchParams({ url: targetUrl })
+      const res = await api<{ kp_id: string }>(`/api/admin/series/parse-kp-from-url?${params}`)
+      const kpId = String(res.kp_id ?? '').trim()
+      if (!kpId) {
+        throw new Error('KP ID не найден в ответе')
+      }
+      form.setFieldsValue({ kp_id: kpId })
+      message.success(`KP ID ${kpId} подставлен`)
+      setOpen(false)
+      setResults([])
+      setWarnings([])
+    } catch (e) {
+      message.error(String((e as Error).message))
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const showPanel = open && (loading || results.length > 0 || warnings.length > 0 || query.trim().length >= 2)
 
   return (
-    <Form.Item label="Поиск по названию" extra="Kinopoisk + TMDB — выбор подставит соответствующий ID">
+    <Form.Item label="Поиск по названию" extra="Kinopoisk + TMDB — выбор подставит соответствующий ID. Можно вставить ссылку lordserials.fan и нажать Enter — KP ID подставится автоматически.">
       <div style={{ position: 'relative' }}>
         <Input.Search
           placeholder="Название сериала или фильма…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onSearch={(value) => {
+            const trimmed = value.trim()
+            if (/^https?:\/\//i.test(trimmed)) {
+              void parseKpIdFromUrl(trimmed)
+            }
+          }}
           onFocus={() => {
             if (query.trim().length >= 2) setOpen(true)
           }}

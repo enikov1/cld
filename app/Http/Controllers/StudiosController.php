@@ -13,7 +13,8 @@ class StudiosController extends TplController
 {
     public function index()
     {
-        $studios = Studio::query()
+        $sortMode = SiteConfig::str('studios_index_sort');
+        $studiosQuery = Studio::query()
             ->where('is_active', true)
             ->where('is_hidden', false)
             ->withCount(['items as items_count' => function ($query) {
@@ -22,7 +23,33 @@ class StudiosController extends TplController
                         ->where('is_hidden', false);
                 });
             }])
-            ->catalogOrder()
+            ;
+
+        $studiosQuery = match ($sortMode) {
+            'items_desc' => $studiosQuery
+                ->orderByDesc('items_count')
+                ->orderByDesc('is_pinned')
+                ->orderBy('sort_order')
+                ->orderByDesc('id'),
+            'items_asc' => $studiosQuery
+                ->orderBy('items_count')
+                ->orderByDesc('is_pinned')
+                ->orderBy('sort_order')
+                ->orderByDesc('id'),
+            'title_asc' => $studiosQuery
+                ->orderBy('title')
+                ->orderByDesc('is_pinned')
+                ->orderBy('sort_order')
+                ->orderByDesc('id'),
+            'title_desc' => $studiosQuery
+                ->orderByDesc('title')
+                ->orderByDesc('is_pinned')
+                ->orderBy('sort_order')
+                ->orderByDesc('id'),
+            default => $studiosQuery->catalogOrder(),
+        };
+
+        $studios = $studiosQuery
             ->limit(SiteConfig::int('studios_index_limit'))
             ->get();
 

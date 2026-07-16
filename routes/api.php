@@ -181,6 +181,7 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
 
     Route::get('/series', [AdminSeriesController::class, 'index']);
     Route::get('/series/lookup', [AdminSeriesController::class, 'lookup']);
+    Route::get('/series/parse-kp-from-url', [AdminSeriesController::class, 'parseKpFromUrl']);
     Route::get('/series/check-kp', [AdminSeriesController::class, 'checkKp']);
     Route::post('/series/upsert', [AdminSeriesController::class, 'upsert']);
     Route::post('/series/import-tmdb', [AdminSeriesController::class, 'importFromTmdb']);
