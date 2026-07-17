@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\PlayerSource;
 use App\Models\Series;
 use App\Support\AdminSeriesResolver;
+use App\Support\PlayerUrlHelper;
 use App\Support\TplCache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;

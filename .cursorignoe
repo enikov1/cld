@@ -1,0 +1,48 @@
+# Dependencies
+/vendor/
+/node_modules/
+/admin-ui/node_modules/
+
+# Generated frontend assets
+/public/build/
+/public/hot
+/admin-ui/dist/
+
+# Laravel runtime data
+/storage/framework/cache/
+/storage/framework/sessions/
+/storage/framework/testing/
+/storage/framework/views/
+/storage/logs/
+/storage/pail/
+/bootstrap/cache/*.php
+/public/storage
+
+# Local databases and test artifacts
+/database/*.sqlite
+/.phpunit.cache/
+/.phpunit.result.cache
+/coverage/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.cache
+*.swp
+*.swo
+
+# IDE and OS metadata
+/.idea/
+/.vscode/
+/.fleet/
+/.history/
+.DS_Store
+Thumbs.db
+
+# Environment files and local credentials
+.env
+.env.*
+!.env.example
+/auth.json
+/storage/*.key

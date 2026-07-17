@@ -1,6 +1,37 @@
-import { Button, Input, InputNumber, Space, Spin, Switch, Table, message } from 'antd'
+import { MenuOutlined } from '@ant-design/icons'
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DraggableAttributes,
+  type DraggableSyntheticListeners,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { Button, Input, Space, Spin, Switch, Table, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react'
+import {
+  createContext,
+  forwardRef,
+  useCallback,
+  useContext,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type HTMLAttributes,
+} from 'react'
 import { api } from '../api/client'
 
 type PlayerRow = {
@@ -9,7 +40,57 @@ type PlayerRow = {
   provider: string
   iframe_url: string
   is_active: boolean
-  priority: number
+}
+
+type DragHandleContextValue = {
+  attributes: DraggableAttributes
+  listeners: DraggableSyntheticListeners
+  setActivatorNodeRef: (element: HTMLElement | null) => void
+}
+
+const DragHandleContext = createContext<DragHandleContextValue | null>(null)
+
+function SortableRow(props: HTMLAttributes<HTMLTableRowElement> & { 'data-row-key': string }) {
+  const { 'data-row-key': rowKey, style, ...restProps } = props
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
+    id: rowKey,
+  })
+
+  const rowStyle: CSSProperties = {
+    ...style,
+    transform: CSS.Transform.toString(transform),
+    transition,
+    ...(isDragging ? { position: 'relative', zIndex: 1 } : {}),
+  }
+
+  const contextValue = useMemo(
+    () => ({ attributes, listeners, setActivatorNodeRef }),
+    [attributes, listeners, setActivatorNodeRef],
+  )
+
+  return (
+    <DragHandleContext.Provider value={contextValue}>
+      <tr {...restProps} data-row-key={rowKey} ref={setNodeRef} style={rowStyle} />
+    </DragHandleContext.Provider>
+  )
+}
+
+function DragHandle() {
+  const context = useContext(DragHandleContext)
+  if (!context) return null
+
+  return (
+    <Button
+      ref={context.setActivatorNodeRef}
+      type="text"
+      icon={<MenuOutlined />}
+      title="Перетащить плеер"
+      aria-label="Изменить порядок плеера"
+      style={{ cursor: 'grab', touchAction: 'none' }}
+      {...context.attributes}
+      {...context.listeners}
+    />
+  )
 }
 
 export type SeriesPlayersEditorHandle = {
@@ -29,6 +110,10 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
   const [rows, setRows] = useState<PlayerRow[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
 
   const load = useCallback(async () => {
     if (!kpId || !drawerOpen) return
@@ -42,7 +127,6 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
           provider: item.provider ?? '',
           iframe_url: item.iframe_url ?? '',
           is_active: item.is_active ?? true,
-          priority: item.priority ?? 100 - index,
         })),
       )
     } catch (e) {
@@ -62,15 +146,15 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
       const targetKpId = options?.kpId ?? kpId
       if (!targetKpId) return true
 
-      const players = rows
-        .map((row) => ({
+      const validRows = rows.filter((row) => row.iframe_url.trim() !== '')
+      const players = validRows
+        .map((row, index) => ({
           id: row.id ?? undefined,
           provider: row.provider.trim(),
           iframe_url: row.iframe_url.trim(),
           is_active: row.is_active,
-          priority: row.priority,
+          priority: (validRows.length - index) * 10,
         }))
-        .filter((row) => row.iframe_url !== '')
 
       setSaving(true)
       try {
@@ -85,7 +169,6 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
             provider: item.provider ?? '',
             iframe_url: item.iframe_url ?? '',
             is_active: item.is_active ?? true,
-            priority: item.priority ?? 100 - index,
           })),
         )
         if (!options?.silent) {
@@ -107,7 +190,6 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
   useImperativeHandle(ref, () => ({ save: savePlayers }), [savePlayers])
 
   function addPlayer() {
-    const nextPriority = rows.length ? Math.min(...rows.map((r) => r.priority)) - 10 : 100
     setRows([
       ...rows,
       {
@@ -115,7 +197,6 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
         provider: `Плеер ${rows.length + 1}`,
         iframe_url: '',
         is_active: true,
-        priority: nextPriority,
       },
     ])
   }
@@ -128,7 +209,24 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
     setRows(rows.filter((row) => row.key !== key))
   }
 
+  function handleDragEnd({ active, over }: DragEndEvent) {
+    if (!over || active.id === over.id) return
+
+    setRows((currentRows) => {
+      const oldIndex = currentRows.findIndex((row) => row.key === active.id)
+      const newIndex = currentRows.findIndex((row) => row.key === over.id)
+      return oldIndex < 0 || newIndex < 0 ? currentRows : arrayMove(currentRows, oldIndex, newIndex)
+    })
+  }
+
   const columns: ColumnsType<PlayerRow> = [
+    {
+      title: '',
+      key: 'sort',
+      width: 48,
+      align: 'center',
+      render: () => <DragHandle />,
+    },
     {
       title: 'Название вкладки',
       dataIndex: 'provider',
@@ -149,18 +247,6 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
           value={row.iframe_url}
           placeholder="https://... или <video-player ..."
           onChange={(e) => updateRow(row.key, { iframe_url: e.target.value })}
-        />
-      ),
-    },
-    {
-      title: 'Приоритет',
-      dataIndex: 'priority',
-      width: 110,
-      render: (_, row) => (
-        <InputNumber
-          style={{ width: '100%' }}
-          value={row.priority}
-          onChange={(value) => updateRow(row.key, { priority: Number(value ?? 0) })}
         />
       ),
     },
@@ -192,8 +278,8 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
     <Spin spinning={loading}>
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
         <p className="admin-empty-hint">
-          Добавьте один или несколько embed-плееров. На сайте они отображаются вкладками. Чем выше приоритет — тем левее вкладка.
-          Изменения сохраняются кнопкой «Сохранить» в шапке редактора.
+          Добавьте один или несколько embed-плееров. Перетаскивайте строки за маркер слева: верхний плеер отображается
+          первой вкладкой. Изменения сохраняются кнопкой «Сохранить» в шапке редактора.
         </p>
         <Space wrap>
           <Button onClick={addPlayer}>Добавить плеер</Button>
@@ -201,7 +287,18 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
             Сохранить только плееры
           </Button>
         </Space>
-        <Table rowKey="key" columns={columns} dataSource={rows} pagination={false} scroll={{ x: 900 }} />
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={rows.map((row) => row.key)} strategy={verticalListSortingStrategy}>
+            <Table
+              rowKey="key"
+              columns={columns}
+              dataSource={rows}
+              pagination={false}
+              scroll={{ x: 900 }}
+              components={{ body: { row: SortableRow } }}
+            />
+          </SortableContext>
+        </DndContext>
       </Space>
     </Spin>
   )
