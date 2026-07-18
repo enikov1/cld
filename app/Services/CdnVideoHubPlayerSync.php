@@ -6,6 +6,7 @@ use App\Models\PlayerSource;
 use App\Models\Series;
 use App\Support\PlayerUrlHelper;
 use App\Support\SiteConfig;
+use App\Support\TplCache;
 
 class CdnVideoHubPlayerSync
 {
@@ -17,7 +18,59 @@ class CdnVideoHubPlayerSync
             return;
         }
 
-        $kpId = trim((string)$series->kp_id);
+        $this->syncSeries($series);
+    }
+
+    /**
+     * Apply CDN VideoHub player to every series that has a numeric KP ID.
+     *
+     * @return array{ok: bool, synced: int, skipped: int, error?: string}
+     */
+    public function syncAll(): array
+    {
+        if (!SiteConfig::bool('player_cdnvideohub_auto_enabled')) {
+            return [
+                'ok' => false,
+                'synced' => 0,
+                'skipped' => 0,
+                'error' => 'Автодобавление CDN VideoHub выключено. Включите его и сохраните настройки.',
+            ];
+        }
+
+        $synced = 0;
+        $skipped = 0;
+
+        Series::query()
+            ->whereNotNull('kp_id')
+            ->where('kp_id', '!=', '')
+            ->orderBy('id')
+            ->chunkById(100, function ($chunk) use (&$synced, &$skipped): void {
+                foreach ($chunk as $series) {
+                    $kpId = trim((string) $series->kp_id);
+                    if ($kpId === '' || !preg_match('/^\d+$/', $kpId)) {
+                        $skipped++;
+                        continue;
+                    }
+
+                    $this->syncSeries($series);
+                    $synced++;
+                }
+            });
+
+        if ($synced > 0) {
+            TplCache::bumpGlobalVersion();
+        }
+
+        return [
+            'ok' => true,
+            'synced' => $synced,
+            'skipped' => $skipped,
+        ];
+    }
+
+    public function syncSeries(Series $series): void
+    {
+        $kpId = trim((string) $series->kp_id);
         if ($kpId === '') {
             return;
         }
@@ -27,7 +80,7 @@ class CdnVideoHubPlayerSync
             return;
         }
 
-        $tabName = trim(SiteConfig::str('player_cdnvideohub_tab_name')) ?: 'Coldfilm';
+        $tabName = trim(SiteConfig::str('player_cdnvideohub_tab_name')) ?: 'Смотреть онлайн';
         $priority = SiteConfig::int('player_cdnvideohub_priority');
 
         $payload = [
@@ -35,21 +88,16 @@ class CdnVideoHubPlayerSync
             'iframe_url' => $embedHtml,
             'is_active' => true,
             'priority' => $priority,
+            'source_key' => self::SOURCE_KEY,
         ];
 
-        $source = PlayerSource::query()
-            ->where('series_id', $series->id)
-            ->where('source_key', self::SOURCE_KEY)
-            ->first();
-
-        if ($source) {
-            $source->update($payload);
-        } else {
-            PlayerSource::query()->create(array_merge($payload, [
+        PlayerSource::query()->updateOrCreate(
+            [
                 'series_id' => $series->id,
                 'source_key' => self::SOURCE_KEY,
-            ]));
-        }
+            ],
+            $payload
+        );
 
         $series->refresh();
         $firstUrl = PlayerUrlHelper::firstIframeUrlForSeries($series);

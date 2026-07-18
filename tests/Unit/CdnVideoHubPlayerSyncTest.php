@@ -59,6 +59,48 @@ class CdnVideoHubPlayerSyncTest extends TestCase
         $players = PlayerUrlHelper::activePlayersForSeries($series->fresh());
         $this->assertCount(1, $players);
         $this->assertTrue($players[0]['is_embed']);
+        $this->assertStringContainsString('<video-player', $players[0]['html']);
+        $this->assertStringContainsString('player.cdnvideohub.com', $players[0]['html']);
+    }
+
+    public function test_sync_all_applies_to_series_with_kp_id(): void
+    {
+        SiteSetting::set('player_cdnvideohub_auto_enabled', '1');
+        SiteSetting::set('player_cdnvideohub_tab_name', 'Смотреть онлайн');
+        SiteSetting::set('player_cdnvideohub_priority', '0');
+        SiteSetting::set('player_cdnvideohub_script_url', 'https://player.cdnvideohub.com/s2/stable/video-player.umd.js');
+
+        $withKp = Series::query()->create([
+            'kp_id' => '111',
+            'slug' => 'with-kp',
+            'title' => 'With KP',
+            'is_active' => true,
+        ]);
+        Series::query()->create([
+            'kp_id' => 'tmdb-only',
+            'slug' => 'no-numeric-kp',
+            'title' => 'No numeric KP',
+            'is_active' => true,
+        ]);
+
+        $result = app(CdnVideoHubPlayerSync::class)->syncAll();
+
+        $this->assertTrue($result['ok']);
+        $this->assertSame(1, $result['synced']);
+        $this->assertSame(1, $result['skipped']);
+        $this->assertSame(
+            1,
+            PlayerSource::query()
+                ->where('series_id', $withKp->id)
+                ->where('source_key', CdnVideoHubPlayerSync::SOURCE_KEY)
+                ->count(),
+        );
+    }
+
+    public function test_rejects_untrusted_script_in_embed(): void
+    {
+        $html = '<video-player id="x"></video-player><script async src="https://evil.example/x.js"></script>';
+        $this->assertSame('', PlayerUrlHelper::normalizePlayerContent($html));
     }
 
     public function test_sync_skipped_when_disabled(): void

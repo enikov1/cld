@@ -15,6 +15,7 @@ import {
   Typography,
   Upload,
   message,
+  Popconfirm,
 } from 'antd'
 import {
   ApiOutlined,
@@ -91,6 +92,7 @@ export default function SettingsPage() {
   const [tmdbAutoSyncEnabled, setTmdbAutoSyncEnabled] = useState(false)
   const [tmdbLastRunAt, setTmdbLastRunAt] = useState<string | null>(null)
   const [tmdbSyncing, setTmdbSyncing] = useState(false)
+  const [cdnSyncing, setCdnSyncing] = useState(false)
   const [robotsDefault, setRobotsDefault] = useState('')
   const [robotsEffective, setRobotsEffective] = useState('')
   const [robotsUrl, setRobotsUrl] = useState('/robots.txt')
@@ -1080,6 +1082,35 @@ export default function SettingsPage() {
             В атрибут <code>data-title-id</code> подставляется KP ID сериала.
           </Typography.Paragraph>
           <SiteConfigFields fields={configSchema.players?.fields ?? []} />
+          <Space style={{ marginTop: 8 }} wrap>
+            <Popconfirm
+              title="Проставить CDN VideoHub всем сериалам?"
+              description="Будет создана или обновлена вкладка плеера у всех сериалов с KP ID. Сохраните настройки перед запуском."
+              okText="Проставить всем"
+              cancelText="Отмена"
+              onConfirm={async () => {
+                setCdnSyncing(true)
+                try {
+                  const res = await api<{ ok: boolean; synced: number; skipped: number; message?: string; error?: string }>(
+                    '/api/admin/players/cdnvideohub/sync-all',
+                    { method: 'POST' },
+                  )
+                  message.success(res.message || `Готово: ${res.synced}, пропущено: ${res.skipped}`)
+                } catch (e) {
+                  message.error(String((e as Error).message))
+                } finally {
+                  setCdnSyncing(false)
+                }
+              }}
+            >
+              <Button type="primary" loading={cdnSyncing}>
+                Проставить всем сериалам
+              </Button>
+            </Popconfirm>
+            <Typography.Text type="secondary">
+              Только сериалы с числовым KP ID. Работает, если автодобавление включено.
+            </Typography.Text>
+          </Space>
         </Card>
         </>
       ),

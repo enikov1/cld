@@ -4,6 +4,11 @@ namespace App\Support;
 
 class PlayerUrlHelper
 {
+    /** @var list<string> */
+    private const TRUSTED_SCRIPT_HOSTS = [
+        'player.cdnvideohub.com',
+    ];
+
     public static function sanitize(?string $url): string
     {
         if (!$url) {
@@ -32,7 +37,7 @@ class PlayerUrlHelper
 
         $content = trim($content);
 
-        // Allow iframe / custom video-player embeds only — never raw <script>.
+        // Allow iframe / custom video-player embeds only — never raw leading <script>/<div>.
         return (bool) preg_match('/^<(?:video-player|iframe)\b/i', $content);
     }
 
@@ -48,8 +53,7 @@ class PlayerUrlHelper
         }
 
         if (self::isEmbedHtml($content)) {
-            // Reject embeds that also contain script tags.
-            if (preg_match('/<script\b/i', $content)) {
+            if (self::hasDisallowedScript($content)) {
                 return '';
             }
 
@@ -57,6 +61,37 @@ class PlayerUrlHelper
         }
 
         return self::sanitize($content);
+    }
+
+    /**
+     * Reject inline scripts and scripts from untrusted hosts.
+     * CDN VideoHub embeds ship a trusted external <script src="https://player.cdnvideohub.com/...">.
+     */
+    private static function hasDisallowedScript(string $content): bool
+    {
+        if (!preg_match_all('/<script\b([^>]*)>(.*?)<\/script>/is', $content, $matches, PREG_SET_ORDER)) {
+            return false;
+        }
+
+        foreach ($matches as $match) {
+            $attrs = $match[1];
+            $body = trim($match[2]);
+
+            if ($body !== '') {
+                return true;
+            }
+
+            if (!preg_match('/\bsrc\s*=\s*(["\'])(https?:\/\/[^"\']+)\1/i', $attrs, $srcMatch)) {
+                return true;
+            }
+
+            $host = strtolower((string) parse_url($srcMatch[2], PHP_URL_HOST));
+            if (!in_array($host, self::TRUSTED_SCRIPT_HOSTS, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

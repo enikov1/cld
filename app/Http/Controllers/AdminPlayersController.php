@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PlayerSource;
 use App\Models\Series;
+use App\Services\CdnVideoHubPlayerSync;
 use App\Support\AdminSeriesResolver;
 use App\Support\PlayerUrlHelper;
 use App\Support\TplCache;
@@ -12,6 +13,31 @@ use Illuminate\Support\Facades\DB;
 
 class AdminPlayersController extends Controller
 {
+    public function syncCdnVideoHubAll(CdnVideoHubPlayerSync $sync)
+    {
+        $result = $sync->syncAll();
+
+        if (!($result['ok'] ?? false)) {
+            return response()->json([
+                'ok' => false,
+                'error' => $result['error'] ?? 'Не удалось выполнить массовую синхронизацию',
+                'synced' => $result['synced'] ?? 0,
+                'skipped' => $result['skipped'] ?? 0,
+            ], 422);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'synced' => $result['synced'],
+            'skipped' => $result['skipped'],
+            'message' => sprintf(
+                'CDN VideoHub проставлен: %d сериалов, пропущено: %d',
+                $result['synced'],
+                $result['skipped'],
+            ),
+        ]);
+    }
+
     public function show(string $kpId)
     {
         $series = AdminSeriesResolver::byKey($kpId);
