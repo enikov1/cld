@@ -139,10 +139,11 @@ class ThemeManager
             $file = 'assets/' . $file;
         }
 
+        // Relative URL so HTTPS pages never pull http:// assets (mixed content).
         $url = route('theme.asset', [
             'theme' => $themeName,
             'path' => $file,
-        ]);
+        ], false);
 
         $path = self::resolveAssetDiskPath($file, $themeName);
         if ($path && is_file($path)) {

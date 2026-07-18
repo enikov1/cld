@@ -1063,6 +1063,21 @@ body.bookmark-lock {
     justify-content: flex-start;
     gap: 12px;
     background: #171917;
+    position: relative;
+    z-index: 0;
+    overflow: hidden;
+    /* empty gaps must not steal taps from the player above */
+    pointer-events: none;
+}
+
+.trailer-box__actions a,
+.trailer-box__actions button,
+.trailer-box__actions .trailer-box__bookmark,
+.trailer-box__actions .trailer-box__bottom,
+.trailer-box__actions .ya-share2,
+.trailer-box__actions .ya-share2__link,
+.trailer-box__actions [class*="ya-share"] a {
+    pointer-events: auto;
 }
 
 .trailer-box__actions--split .trailer-box__bottom {
@@ -1077,10 +1092,43 @@ body.bookmark-lock {
     padding: 10px 0 10px 18px;
     display: flex;
     align-items: center;
+    position: relative;
+    z-index: 1;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .trailer-box__share > * {
     max-width: 100%;
+}
+
+/*
+ * Share widgets (Ya.share2 etc.) often use position:absolute relative to .trailer-box
+ * and cover the play button — especially on mobile.
+ */
+.trailer-box__share .ya-share2,
+.trailer-box__share .ya-share2__container,
+.trailer-box__share .ya-share2__list,
+.trailer-box__share .ya-share2__item,
+.trailer-box__share [class*="ya-share"],
+.trailer-box__share [class*="uSocial"],
+.trailer-box__share [class*="pluso"],
+.trailer-box__share > div,
+.trailer-box__share > span {
+    position: static !important;
+    left: auto !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: auto !important;
+    inset: auto !important;
+    transform: none !important;
+    float: none !important;
+}
+
+.trailer-box__body {
+    position: relative;
+    z-index: 3;
+    isolation: isolate;
 }
 
 .trailer-box__bookmark {
@@ -1095,10 +1143,13 @@ body.bookmark-lock {
     font-size: 15px;
     font-weight: 700;
     text-align: center;
-    white-space: nowrap;
+    white-space: normal;
+    line-height: 1.35;
+    min-width: 0;
 }
 
 .trailer-box__bookmark .fa {
+    flex: 0 0 auto;
     color: var(--tr-green, #79c142);
 }
 
@@ -1108,6 +1159,10 @@ body.bookmark-lock {
 }
 
 @media (max-width: 767px) {
+    .trailer-box__actions {
+        overflow: visible;
+    }
+
     .trailer-box__actions--split {
         flex-direction: column;
         align-items: stretch;
@@ -1115,14 +1170,72 @@ body.bookmark-lock {
     }
 
     .trailer-box__share {
-        padding: 12px 14px;
+        padding: 12px 14px 8px;
         justify-content: center;
+        width: 100%;
+        box-sizing: border-box;
+        overflow: visible;
+    }
+
+    .trailer-box__share .ya-share2__list,
+    .trailer-box__share [class*="ya-share"] ul,
+    .trailer-box__share [class*="uSocial"] {
+        display: flex !important;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+    }
+
+    /* Keep iframe absolute-filled — relative broke 16:9 and pushed player content down */
+    .trailer-box__body,
+    .trailer-frame {
+        position: relative;
+        z-index: 2;
+    }
+
+    .trailer-frame .player-iframe,
+    .trailer-frame iframe,
+    .trailer-frame .player-embed,
+    .trailer-frame video-player {
+        pointer-events: auto;
+        z-index: 2;
+    }
+
+    .trailer-box__actions,
+    .trailer-box__share {
+        z-index: 0;
     }
 
     .trailer-box__actions--split .trailer-box__bottom,
-    .trailer-box__bookmark {
+    .trailer-box__bookmark,
+    .trailer-box__bottom {
         width: 100%;
         max-width: none;
+        box-sizing: border-box;
+        padding: 12px 16px 14px;
+        font-size: 13px;
+        line-height: 1.4;
+        white-space: normal;
+        text-wrap: balance;
+        hyphens: auto;
+        overflow-wrap: anywhere;
+        word-break: normal;
+    }
+
+    .trailer-box__bookmark .fa,
+    .trailer-box__bottom .fa {
+        margin-top: 1px;
+    }
+}
+
+@media (max-width: 380px) {
+    .trailer-box__actions--split .trailer-box__bottom,
+    .trailer-box__bookmark,
+    .trailer-box__bottom {
+        font-size: 12px;
+        padding: 11px 12px 13px;
+        gap: 7px;
     }
 }
 
@@ -1349,21 +1462,44 @@ body.bookmark-lock {
     cursor: pointer;
 }
 
-.trailer-frame iframe {
+.trailer-frame {
+    position: relative;
     width: 100%;
     aspect-ratio: 16 / 9;
-    min-height: 420px;
+    min-height: 0;
+    background: #000;
+    overflow: hidden;
+    z-index: 3;
+}
+
+@media (max-width: 767px) {
+    .trailer-frame {
+        /* Alloha UI (seasons/voices/resume) needs more than pure 16:9 on narrow screens */
+        min-height: 280px;
+    }
+}
+
+.trailer-frame iframe,
+.trailer-frame .player-iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     border: 0;
     display: block;
     background: #000;
+    z-index: 3;
+    pointer-events: auto;
+    touch-action: manipulation;
 }
 
 .trailer-frame .player-embed,
 .trailer-frame .player-embed video-player {
+    position: absolute;
+    inset: 0;
     display: block;
     width: 100%;
-    min-height: 420px;
-    aspect-ratio: 16 / 9;
+    height: 100%;
     background: #000;
 }
 
@@ -3775,4 +3911,178 @@ body.dt .movie-tip__close:hover {
     background: #3a2730;
     border-right-color: #5a3a44;
     color: #fb7185;
+}
+
+/* —— Player report modal (adaptive) —— */
+#ps-overlay-wrap[hidden] {
+    display: none !important;
+}
+
+#ps-overlay-wrap {
+    box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding:
+        max(12px, env(safe-area-inset-top))
+        max(12px, env(safe-area-inset-right))
+        max(16px, env(safe-area-inset-bottom))
+        max(12px, env(safe-area-inset-left));
+}
+
+#ps-content-holder {
+    box-sizing: border-box;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 24px 20px 40px;
+}
+
+#ps-report-content {
+    max-width: 100%;
+}
+
+#ps-report-title {
+    padding-top: 8px;
+    padding-right: 56px;
+    font-size: 22px;
+    line-height: 1.3;
+    font-weight: 700;
+}
+
+#ps-report-title-info {
+    padding-top: 12px;
+    font-size: 14px;
+    line-height: 1.45;
+    font-weight: 600;
+}
+
+#ps-close {
+    top: max(12px, env(safe-area-inset-top));
+    right: max(12px, env(safe-area-inset-right));
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+}
+
+#ps-report-issues .report-item,
+#ps-report-issues-comment .report-item {
+    font-size: 16px;
+    line-height: 1.35;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+}
+
+#ps-report-issues,
+#ps-report-issues-comment {
+    padding-top: 16px;
+}
+
+#ps-report-issues-comment textarea {
+    min-height: 88px;
+    font-size: 16px; /* avoid iOS zoom on focus */
+}
+
+@media screen and (max-width: 760px) {
+    #ps-content-holder {
+        padding: 52px 14px 28px;
+    }
+
+    #ps-report-title {
+        padding-top: 0;
+        padding-right: 48px;
+        font-size: 18px;
+        line-height: 1.35;
+    }
+
+    #ps-report-title-info {
+        padding-top: 10px;
+        font-size: 13px;
+        line-height: 1.45;
+    }
+
+    #ps-close {
+        top: max(10px, env(safe-area-inset-top));
+        right: max(10px, env(safe-area-inset-right));
+        width: 40px;
+        height: 40px;
+    }
+
+    #ps-close:after,
+    #ps-close:before {
+        top: 22%;
+        bottom: 22%;
+    }
+
+    #ps-report-issues,
+    #ps-report-issues-comment {
+        padding-top: 12px;
+    }
+
+    #ps-report-issues .report-item,
+    #ps-report-issues-comment .report-item {
+        font-size: 14px;
+        line-height: 1.35;
+        padding: 12px 14px;
+        margin-bottom: 8px;
+        border-radius: 8px;
+    }
+
+    #ps-report-issues-comment textarea {
+        min-height: 72px;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+        border-width: 2px;
+    }
+
+    #ps-report-issues-comment .report-item--submit {
+        padding: 14px 16px;
+        font-size: 15px;
+    }
+
+    .player-report-feedback {
+        font-size: 13px;
+        line-height: 1.4;
+    }
+}
+
+@media screen and (max-width: 380px) {
+    #ps-content-holder {
+        padding: 48px 10px 24px;
+    }
+
+    #ps-report-title {
+        font-size: 16px;
+    }
+
+    #ps-report-issues .report-item,
+    #ps-report-issues-comment .report-item {
+        font-size: 13px;
+        padding: 11px 12px;
+    }
+}
+
+@media screen and (max-height: 640px) {
+    #ps-content-holder {
+        padding-top: 44px;
+        padding-bottom: 20px;
+    }
+
+    #ps-report-title {
+        font-size: 16px;
+    }
+
+    #ps-report-title-info {
+        font-size: 12px;
+        padding-top: 8px;
+    }
+
+    #ps-report-issues .report-item,
+    #ps-report-issues-comment .report-item {
+        padding: 10px 12px;
+        margin-bottom: 6px;
+        font-size: 13px;
+    }
+
+    #ps-report-issues-comment textarea {
+        min-height: 56px;
+    }
 }

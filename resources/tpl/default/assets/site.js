@@ -1185,7 +1185,7 @@
         }
     }
 
-    function renderWatchlistMenu(menu, lists, listIds, loggedIn, slug) {
+    function renderWatchlistMenu(menu, lists, listIds, loggedIn, seriesId) {
         if (!menu) return;
         menu.innerHTML = '';
 
@@ -1228,8 +1228,11 @@
                     })
                     .then(function (data) {
                         if (!data) return;
-                        renderWatchlistMenu(menu, lists, data.list_ids || [], true, slug);
+                        renderWatchlistMenu(menu, lists, data.list_ids || [], true, seriesId);
                         updateWatchlistLabel(lists, data.list_ids || []);
+                    })
+                    .catch(function () {
+                        flashNotice('Не удалось обновить список. Попробуйте ещё раз.', true);
                     });
             });
             menu.appendChild(btn);

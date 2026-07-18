@@ -348,8 +348,7 @@
                                         src="{item.url|raw}"
                                         data-player-url="{item.url|raw}"
                                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                        allowfullscreen
-                                        referrerpolicy="no-referrer"></iframe>
+                                        allowfullscreen></iframe>
                             [/not-item.is_embed]
                         </div>
                     </div>
@@ -364,8 +363,7 @@
                                 <iframe class="player-iframe"
                                         data-player-url="{item.url|raw}"
                                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                        allowfullscreen
-                                        referrerpolicy="no-referrer"></iframe>
+                                        allowfullscreen></iframe>
                             [/not-item.is_embed]
                         </div>
                     </div>
