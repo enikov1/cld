@@ -41,8 +41,6 @@
 Thumbs.db
 
 # Environment files and local credentials
-.env
-.env.*
 !.env.example
 /auth.json
 /storage/*.key

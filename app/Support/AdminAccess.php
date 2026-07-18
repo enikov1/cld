@@ -39,7 +39,7 @@ class AdminAccess
     {
         $expected = self::expectedToken();
         if ($expected === '') {
-            return app()->environment('local');
+            return false;
         }
 
         $header = (string)$request->header('X-ADMIN-TOKEN', '');

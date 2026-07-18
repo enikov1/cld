@@ -1,16 +1,3 @@
-export type CategoryItem = {
-  id: number
-  slug: string
-  title: string
-  description?: string | null
-  meta_title?: string | null
-  seo_html?: string | null
-  sort_order: number
-  is_active: boolean
-  is_hidden: boolean
-  noindex: boolean
-}
-
 export type TaxonomyItem = {
   id: number
   slug: string
@@ -103,7 +90,6 @@ export type SeriesItem = {
   is_coming_soon?: boolean
   sort_order: number
   deleted_at?: string | null
-  category?: { id: number; slug: string; title: string } | null
   studio_id?: number | null
   studio_ids?: number[]
   studio?: { id: number; slug: string; title: string } | null
@@ -136,6 +122,8 @@ export type StudioItem = {
   meta_description?: string | null
   seo_html?: string | null
   logo_url?: string | null
+  tmdb_id?: number | null
+  tmdb_type?: string | null
   sort_order: number
   is_pinned: boolean
   is_active: boolean
@@ -192,8 +180,6 @@ export type UserItem = {
 }
 
 export type AdminStats = {
-  categories: number
-  categories_active: number
   series_total: number
   series_active: number
   collections: number

@@ -4,7 +4,6 @@ import react from '@vitejs/plugin-react'
 const BACKEND = process.env.VITE_BACKEND_URL || 'http://127.0.0.1:8085'
 const ADMIN_SECTIONS = new Set([
   'login',
-  'categories',
   'taxonomy',
   'series',
   'collections',

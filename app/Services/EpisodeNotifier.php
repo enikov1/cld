@@ -55,6 +55,14 @@ class EpisodeNotifier
 
         $series->forceFill(['last_episode_changed_at' => $now])->saveQuietly();
 
-        DispatchEpisodeNotifications::dispatchSync($event->id);
+        if (app()->runningInConsole()) {
+            DispatchEpisodeNotifications::dispatchSync($event->id);
+            return;
+        }
+
+        // After HTTP response so admin requests are not blocked by email loop.
+        dispatch(static function () use ($event): void {
+            (new DispatchEpisodeNotifications($event->id))->handle();
+        })->afterResponse();
     }
 }

@@ -216,10 +216,14 @@ class UserLibraryService
                 continue;
             }
 
-            $row->update([
-                'user_id' => $user->id,
-                'guest_key' => null,
-            ]);
+            try {
+                $row->update([
+                    'user_id' => $user->id,
+                    'guest_key' => null,
+                ]);
+            } catch (\Illuminate\Database\UniqueConstraintViolationException) {
+                $row->delete();
+            }
         }
 
         self::trimHistoryForUser($user->id);

@@ -1,15 +1,28 @@
 const TOKEN_KEY = 'lordserial_admin_token'
 
+/** In-memory only — httpOnly cookie is the persistent auth (SEC-3). */
+let memoryToken = ''
+
 export function getAdminToken(): string {
-  return localStorage.getItem(TOKEN_KEY) ?? ''
+  return memoryToken
 }
 
 export function setAdminToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token.trim())
+  memoryToken = token.trim()
+  try {
+    localStorage.removeItem(TOKEN_KEY)
+  } catch {
+    // ignore
+  }
 }
 
 export function clearAdminToken(): void {
-  localStorage.removeItem(TOKEN_KEY)
+  memoryToken = ''
+  try {
+    localStorage.removeItem(TOKEN_KEY)
+  } catch {
+    // ignore
+  }
 }
 
 export function adminAuthHeaders(): Record<string, string> {

@@ -8,7 +8,7 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('alloha:auto')->everyMinute();
-Schedule::command('tmdb:auto')->everyMinute();
-Schedule::command('series:refresh-popularity-badges', ['--trigger' => 'schedule'])->hourly();
-Schedule::command('sitemap:generate', ['--trigger' => 'schedule'])->everyThirtyMinutes();
+Schedule::command('alloha:auto')->everyMinute()->withoutOverlapping(1800);
+Schedule::command('tmdb:auto')->everyMinute()->withoutOverlapping(1800);
+Schedule::command('series:refresh-popularity-badges', ['--trigger' => 'schedule'])->hourly()->withoutOverlapping(30);
+Schedule::command('sitemap:generate', ['--trigger' => 'schedule'])->everyThirtyMinutes()->withoutOverlapping(30);

@@ -19,10 +19,6 @@ class VerifyAdminToken
         $expected = AdminAccess::expectedToken();
 
         if ($expected === '') {
-            if (app()->environment('local')) {
-                return $next($request);
-            }
-
             return response()->json([
                 'error' => 'ADMIN_TOKEN не задан. Укажите токен в .env для доступа к API админки.',
             ], 503);

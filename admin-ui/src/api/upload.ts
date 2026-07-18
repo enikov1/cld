@@ -4,6 +4,7 @@ import { notifyUnauthorized } from '../auth/unauthorized'
 export async function apiUpload<T>(url: string, formData: FormData): Promise<T> {
   const res = await fetch(url, {
     method: 'POST',
+    credentials: 'same-origin',
     headers: {
       Accept: 'application/json',
       ...adminAuthHeaders(),

@@ -53,7 +53,7 @@
         </nav>
 
         <form class="ls-search js-quick-search" action="/search" method="get" autocomplete="off">
-            <input type="text" class="dontuseinputclass" name="q" placeholder="{search_placeholder_desktop}" value="{search_query|raw}" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="lsQuickSearchPanel" aria-autocomplete="list">
+            <input type="text" class="dontuseinputclass" name="q" placeholder="{search_placeholder_desktop}" value="{search_query}" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="lsQuickSearchPanel" aria-autocomplete="list">
             <button class="dontusebuttonclass" type="submit" aria-label="Найти">
                 <span class="fa fa-search"></span>
             </button>
@@ -112,7 +112,7 @@
         </button>
     </div>
     <form class="ls-mobile-search js-quick-search" action="/search" method="get" autocomplete="off">
-        <input type="text" class="dontuseinputclass" name="q" placeholder="Что ищем?" value="{search_query|raw}" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="lsQuickSearchPanelMobile" aria-autocomplete="list">
+        <input type="text" class="dontuseinputclass" name="q" placeholder="Что ищем?" value="{search_query}" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="lsQuickSearchPanelMobile" aria-autocomplete="list">
         <button class="dontusebuttonclass" type="submit"><span class="fa fa-search"></span></button>
         <div class="ls-search__panel ls-search__panel--mobile" id="lsQuickSearchPanelMobile" hidden></div>
     </form>

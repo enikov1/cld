@@ -16,6 +16,11 @@ class PlayerUrlHelper
             return '';
         }
 
+        $parts = parse_url($url);
+        if (!is_array($parts) || empty($parts['host'])) {
+            return '';
+        }
+
         return $url;
     }
 
@@ -27,7 +32,8 @@ class PlayerUrlHelper
 
         $content = trim($content);
 
-        return (bool)preg_match('/^<(?:video-player|script|div|iframe)/i', $content);
+        // Allow iframe / custom video-player embeds only — never raw <script>.
+        return (bool) preg_match('/^<(?:video-player|iframe)\b/i', $content);
     }
 
     public static function normalizePlayerContent(?string $content): string
@@ -42,6 +48,11 @@ class PlayerUrlHelper
         }
 
         if (self::isEmbedHtml($content)) {
+            // Reject embeds that also contain script tags.
+            if (preg_match('/<script\b/i', $content)) {
+                return '';
+            }
+
             return $content;
         }
 
@@ -89,7 +100,7 @@ class PlayerUrlHelper
 
             $isEmbed = self::isEmbedHtml($content);
 
-            $label = trim((string)$source->provider);
+            $label = trim((string) $source->provider);
             if ($label === '') {
                 $label = 'Плеер ' . ($index + 1);
             }

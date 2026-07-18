@@ -12,6 +12,7 @@ export default function DashboardPage() {
   useEffect(() => {
     api<AdminStats>('/api/admin/stats')
       .then(setStats)
+      .catch(() => setStats(null))
       .finally(() => setLoading(false))
   }, [])
 
@@ -22,11 +23,6 @@ export default function DashboardPage() {
       </Typography.Paragraph>
 
       <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
-            <Statistic title="Категории" value={stats?.categories ?? 0} suffix={`/ ${stats?.categories_active ?? 0} акт.`} />
-          </Card>
-        </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
             <Statistic title="Сериалы" value={stats?.series_total ?? 0} suffix={`/ ${stats?.series_active ?? 0} акт.`} />

@@ -55,8 +55,6 @@ type NavMegaButton = {
   title: string
   subtitle?: string | null
   link_type: NavLinkType
-  category_id?: number | null
-  category?: { id: number; slug: string; title: string } | null
   taxonomy_type?: TaxonomyType | null
   taxonomy_id?: number | null
   custom_url?: string | null
@@ -68,8 +66,6 @@ type NavItem = {
   id: number
   title: string
   link_type: NavLinkType
-  category_id?: number | null
-  category?: { id: number; slug: string; title: string } | null
   taxonomy_type?: TaxonomyType | null
   taxonomy_id?: number | null
   custom_url?: string | null

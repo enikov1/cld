@@ -75,7 +75,9 @@ class SyncKinoPoisk extends Command
                 continue;
             }
 
-            $kpId = (string)$mapped['kp_id'];
+            $kpId = (string) $mapped['kp_id'];
+            $existing = Series::query()->withTrashed()->where('kp_id', $kpId)->first();
+
             $baseSlug = Str::slug($mapped['title']);
             $slug = Series::query()->where('slug', $baseSlug)->where('kp_id', '!=', $kpId)->exists()
                 ? $baseSlug . '-' . $kpId
@@ -85,7 +87,7 @@ class SyncKinoPoisk extends Command
             if ($downloadPoster && !empty($mapped['poster_source_url'])) {
                 $posterUrl = $posterStorage->storeFromUrl(
                     $mapped['poster_source_url'],
-                    PosterContext::forSeriesData($kpId, array_merge($mapped, ['slug' => $slug])),
+                    PosterContext::forSeriesData($kpId, array_merge($mapped, ['slug' => $existing?->slug ?: $slug])),
                 );
             }
             if (!$posterUrl && !empty($mapped['poster_source_url'])) {
@@ -96,14 +98,23 @@ class SyncKinoPoisk extends Command
             $countryNames = $mapped['_country_names'] ?? [];
             unset($mapped['poster_source_url'], $mapped['_genre_names'], $mapped['_country_names']);
 
-            $series = Series::query()->updateOrCreate(
+            $attrs = $mapped;
+            if ($posterUrl) {
+                $attrs['poster_url'] = $posterUrl;
+            }
+            if (!$existing) {
+                $attrs['slug'] = $slug;
+                $attrs['is_active'] = true;
+            }
+
+            $series = Series::query()->withTrashed()->updateOrCreate(
                 ['kp_id' => $kpId],
-                array_merge($mapped, [
-                    'slug' => $slug,
-                    'poster_url' => $posterUrl,
-                    'is_active' => true,
-                ])
+                $attrs
             );
+
+            if ($series->trashed()) {
+                $series->restore();
+            }
 
             app(TaxonomyService::class)->syncSeriesFromNames($series, $genreNames, $countryNames);
 

@@ -33,8 +33,8 @@ class PosterStorage
 
     public function storeFromUrl(?string $url, PosterContext $context, bool $optimize = true): ?string
     {
-        $url = trim((string)$url);
-        if ($url === '') {
+        $url = trim((string) $url);
+        if ($url === '' || !$this->isSafeRemoteUrl($url)) {
             return null;
         }
 
@@ -42,7 +42,7 @@ class PosterStorage
             $response = Http::timeout(30)
                 ->withHeaders([
                     'User-Agent' => 'LordSerialBot/1.0',
-                    'Accept' => 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+                    'Accept' => 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
                 ])
                 ->get($url);
             if (!$response->ok()) {
@@ -54,7 +54,7 @@ class PosterStorage
                 return null;
             }
 
-            $ext = $this->guessExtension($url, (string)$response->header('Content-Type'));
+            $ext = $this->guessExtension($url, (string) $response->header('Content-Type'));
 
             // Keep SVG/logo binaries as-is — poster optimizer often breaks transparent logos.
             if (!$optimize || $ext === 'svg') {
@@ -65,6 +65,49 @@ class PosterStorage
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    private function isSafeRemoteUrl(string $url): bool
+    {
+        if (!preg_match('#^https?://#i', $url)) {
+            return false;
+        }
+
+        $parts = parse_url($url);
+        if (!is_array($parts) || empty($parts['host'])) {
+            return false;
+        }
+
+        $host = strtolower((string) $parts['host']);
+        if (in_array($host, ['localhost', '127.0.0.1', '::1', '0.0.0.0'], true)) {
+            return false;
+        }
+
+        $ips = [];
+        if (filter_var($host, FILTER_VALIDATE_IP)) {
+            $ips[] = $host;
+        } else {
+            $resolved = gethostbynamel($host) ?: [];
+            $ips = array_merge($ips, $resolved);
+            $ipv6 = @dns_get_record($host, DNS_AAAA) ?: [];
+            foreach ($ipv6 as $row) {
+                if (!empty($row['ipv6'])) {
+                    $ips[] = $row['ipv6'];
+                }
+            }
+        }
+
+        if ($ips === []) {
+            return false;
+        }
+
+        foreach ($ips as $ip) {
+            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function storeBinaryRaw(string $binary, string $ext, PosterContext $context): string

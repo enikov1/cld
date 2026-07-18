@@ -6,7 +6,6 @@ use App\Models\Series;
 use App\Support\SiteConfig;
 use App\Support\SlugHelper;
 use App\Support\TplCache;
-use Illuminate\Support\Str;
 
 class AllohaImportService
 {
@@ -70,7 +69,7 @@ class AllohaImportService
             $mapped['poster_source_url'],
         );
 
-        $existing = Series::query()->where('kp_id', $kpId)->first();
+        $existing = Series::query()->withTrashed()->where('kp_id', $kpId)->first();
         $isNew = !$existing;
 
         $ratingsOnly = (bool)($options['ratings_only'] ?? false);
@@ -113,8 +112,10 @@ class AllohaImportService
         $slug = $existing?->slug;
         if (!$slug && !empty($mapped['title'])) {
             $slug = SlugHelper::make(null, $mapped['title']);
-            if (Series::query()->where('slug', $slug)->where('kp_id', '!=', $kpId)->exists()) {
-                $slug = Str::slug($slug . '-' . $kpId);
+            if (Series::query()->withTrashed()->where('slug', $slug)->where('kp_id', '!=', $kpId)->exists()) {
+                $slug = SlugHelper::makeUnique(null, $mapped['title'] . '-' . $kpId, function (string $candidate) use ($kpId) {
+                    return Series::query()->withTrashed()->where('slug', $candidate)->where('kp_id', '!=', $kpId)->exists();
+                });
             }
         }
 
@@ -193,9 +194,8 @@ class AllohaImportService
 
         if ($syncPlayers) {
             $this->playerSync->sync($series, $translations, $defaultIframe);
-        } else {
-            $this->playerSync->removeForSeries($series);
         }
+        // When sync_players is false, leave existing player sources untouched.
 
         app(CdnVideoHubPlayerSync::class)->syncIfEnabled($series);
 

@@ -35,13 +35,18 @@ class AllohaPlayerSync
                 continue;
             }
 
-            $iframe = PlayerUrlHelper::normalizePlayerContent((string)($translation['iframe'] ?? ''));
+            $iframe = PlayerUrlHelper::normalizePlayerContent((string) ($translation['iframe'] ?? ''));
             if ($iframe === '') {
                 continue;
             }
 
-            $translationId = isset($translation['id']) ? (int)$translation['id'] : null;
-            $provider = trim((string)($translation['name'] ?? '')) ?: 'Озвучка';
+            $translationId = isset($translation['id']) ? (int) $translation['id'] : null;
+            if (!$translationId) {
+                // Skip nameless translations — creating without id duplicates on every sync.
+                continue;
+            }
+
+            $provider = trim((string) ($translation['name'] ?? '')) ?: 'Озвучка';
 
             $payload = [
                 'provider' => $provider,
@@ -52,28 +57,24 @@ class AllohaPlayerSync
             ];
             $priority -= 10;
 
-            if ($translationId) {
-                $seenTranslationIds[] = $translationId;
-                $source = PlayerSource::query()
-                    ->where('series_id', $series->id)
-                    ->where('alloha_translation_id', $translationId)
-                    ->first();
+            $seenTranslationIds[] = $translationId;
 
-                if ($source) {
-                    $source->update($payload);
-                    continue;
-                }
-
-                PlayerSource::query()->create(array_merge($payload, [
+            PlayerSource::query()->updateOrCreate(
+                [
                     'series_id' => $series->id,
                     'alloha_translation_id' => $translationId,
-                ]));
-                continue;
-            }
+                ],
+                $payload
+            );
+        }
 
-            PlayerSource::query()->create(array_merge($payload, [
-                'series_id' => $series->id,
-            ]));
+        // Remove Alloha voices that disappeared from the API payload.
+        if ($seenTranslationIds !== []) {
+            PlayerSource::query()
+                ->where('series_id', $series->id)
+                ->whereNotNull('alloha_translation_id')
+                ->whereNotIn('alloha_translation_id', $seenTranslationIds)
+                ->delete();
         }
 
         if ($defaultIframe) {

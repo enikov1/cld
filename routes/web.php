@@ -92,17 +92,17 @@ Route::get('/search/page/{page}/', [SearchController::class, 'search'])
     ->name('search.page');
 
 Route::post('/password/email', [PasswordResetController::class, 'sendLink'])
-    ->middleware(['guest', 'site.feature:auth_password_reset_enabled'])
+    ->middleware(['guest', 'throttle:6,1', 'site.feature:auth_password_reset_enabled'])
     ->name('password.email');
 Route::post('/password/reset', [PasswordResetController::class, 'reset'])
-    ->middleware(['guest', 'site.feature:auth_password_reset_enabled'])
+    ->middleware(['guest', 'throttle:6,1', 'site.feature:auth_password_reset_enabled'])
     ->name('password.update');
 
 Route::post('/login', [AuthController::class, 'login'])
-    ->middleware(['guest', 'site.feature:auth_login_enabled'])
+    ->middleware(['guest', 'throttle:10,1', 'site.feature:auth_login_enabled'])
     ->name('login');
 Route::post('/register', [AuthController::class, 'register'])
-    ->middleware(['guest', 'site.feature:auth_register_enabled'])
+    ->middleware(['guest', 'throttle:5,1', 'site.feature:auth_register_enabled'])
     ->name('register');
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 

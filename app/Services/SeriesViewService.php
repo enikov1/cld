@@ -26,13 +26,21 @@ class SeriesViewService
         DB::transaction(function () use ($series, $today): void {
             Series::query()->whereKey($series->id)->increment('views_count');
 
-            $daily = SeriesViewDaily::query()->firstOrNew([
-                'series_id' => $series->id,
-                'view_date' => $today,
-            ]);
-
-            $daily->views_count = (int)($daily->views_count ?? 0) + 1;
-            $daily->save();
+            $now = now();
+            SeriesViewDaily::query()->upsert(
+                [[
+                    'series_id' => $series->id,
+                    'view_date' => $today,
+                    'views_count' => 1,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]],
+                ['series_id', 'view_date'],
+                [
+                    'views_count' => DB::raw('series_view_daily.views_count + 1'),
+                    'updated_at' => $now,
+                ]
+            );
         });
 
         $series->refresh();

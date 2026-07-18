@@ -46,7 +46,11 @@ class SyncAllohaLatest extends Command
             $trigger,
             function () use ($service, $settings) {
                 $result = $service->run($settings, $this->output);
-                AllohaAutoSyncSettings::markRun();
+
+                // Advance schedule only when sync was not a total failure (OTHER-2).
+                if ($result['failed'] === 0 || ($result['added'] + $result['updated']) > 0) {
+                    AllohaAutoSyncSettings::markRun();
+                }
 
                 if (($result['added'] + $result['updated']) > 0) {
                     app(SitemapService::class)->markDirty();

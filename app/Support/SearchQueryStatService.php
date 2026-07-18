@@ -59,30 +59,42 @@ class SearchQueryStatService
         $normalized = mb_strtolower($display);
         $source = $source === 'suggest' ? 'suggest' : 'full';
 
-        $row = SearchQuery::query()->where('query_normalized', $normalized)->first();
-        if ($row) {
-            $row->increment('hits');
-            if ($source === 'suggest') {
-                $row->increment('suggest_hits');
-            } else {
-                $row->increment('full_hits');
+        try {
+            $row = SearchQuery::query()->where('query_normalized', $normalized)->first();
+            if ($row) {
+                $row->increment('hits');
+                if ($source === 'suggest') {
+                    $row->increment('suggest_hits');
+                } else {
+                    $row->increment('full_hits');
+                }
+                $row->update([
+                    'query' => $display,
+                    'last_searched_at' => now(),
+                ]);
+
+                return;
             }
-            $row->update([
+
+            SearchQuery::query()->create([
+                'query_normalized' => $normalized,
                 'query' => $display,
+                'hits' => 1,
+                'suggest_hits' => $source === 'suggest' ? 1 : 0,
+                'full_hits' => $source === 'full' ? 1 : 0,
                 'last_searched_at' => now(),
             ]);
-
-            return;
+        } catch (\Illuminate\Database\UniqueConstraintViolationException) {
+            $row = SearchQuery::query()->where('query_normalized', $normalized)->first();
+            if ($row) {
+                $row->increment('hits');
+                if ($source === 'suggest') {
+                    $row->increment('suggest_hits');
+                } else {
+                    $row->increment('full_hits');
+                }
+            }
         }
-
-        SearchQuery::query()->create([
-            'query_normalized' => $normalized,
-            'query' => $display,
-            'hits' => 1,
-            'suggest_hits' => $source === 'suggest' ? 1 : 0,
-            'full_hits' => $source === 'full' ? 1 : 0,
-            'last_searched_at' => now(),
-        ]);
     }
 
     /**

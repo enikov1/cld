@@ -279,7 +279,9 @@ class TmdbPopularitySyncService
                 $progress['failed'],
                 $progress['studio_logos'],
             );
-            TmdbAutoSyncSettings::markRun();
+            if (((int) $progress['failed'] === 0) || ((int) $progress['updated'] > 0)) {
+                TmdbAutoSyncSettings::markRun();
+            }
 
             if (!empty($progress['cron_run_id'])) {
                 $cronRun = CronRun::query()->find((int)$progress['cron_run_id']);

@@ -117,16 +117,21 @@ class AnticipationService
             abort(422);
         }
 
-        if (Auth::check()) {
-            self::voteAsUser($series, Auth::id(), $value);
-        } else {
-            if (!self::guestEnabled()) {
-                abort(401, SiteConfig::str('auth_msg_auth_required'));
-            }
-            self::voteAsGuest($series, $request, $value);
-        }
+        DB::transaction(function () use ($series, $request, $value): void {
+            Series::query()->whereKey($series->id)->lockForUpdate()->first();
 
-        self::refreshCounters($series);
+            if (Auth::check()) {
+                self::voteAsUser($series, Auth::id(), $value);
+            } else {
+                if (!self::guestEnabled()) {
+                    abort(401, SiteConfig::str('auth_msg_auth_required'));
+                }
+                self::voteAsGuest($series, $request, $value);
+            }
+
+            self::refreshCounters($series);
+        });
+
         TplCache::forgetSeries($series->id);
 
         return self::payloadForSeries($series->fresh(), $request);

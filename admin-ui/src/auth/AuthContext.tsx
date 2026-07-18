@@ -41,15 +41,23 @@ async function verifyToken(token?: string): Promise<boolean> {
       Accept: 'application/json',
       ...(token ? { 'X-ADMIN-TOKEN': token } : {}),
     },
+    credentials: 'same-origin',
   })
   return res.ok
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading')
-  const [tokenRequired, setTokenRequired] = useState(false)
+  const [tokenRequired, setTokenRequired] = useState(true)
 
   const bootstrap = useCallback(async () => {
+    // Prefer httpOnly cookie (no token in JS storage).
+    if (await verifyToken()) {
+      setTokenRequired(true)
+      setStatus('authenticated')
+      return
+    }
+
     const token = getAdminToken()
     if (token && (await verifyToken(token))) {
       setTokenRequired(true)
@@ -60,13 +68,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (token) {
       clearAdminToken()
-    }
-
-    if (await verifyToken('')) {
-      setTokenRequired(false)
-      setStatus('authenticated')
-      await syncSiteAccess('POST').catch(() => {})
-      return
     }
 
     setTokenRequired(true)
@@ -95,26 +96,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Введите токен')
     }
 
-    setAdminToken(trimmed)
     const ok = await verifyToken(trimmed)
     if (!ok) {
       clearAdminToken()
       throw new Error('Неверный токен')
     }
 
+    setAdminToken(trimmed)
+    await syncSiteAccess('POST', trimmed)
+    clearAdminToken()
+
+    if (!(await verifyToken())) {
+      throw new Error('Не удалось сохранить сессию админки')
+    }
+
     setTokenRequired(true)
     setStatus('authenticated')
-    await syncSiteAccess('POST', trimmed).catch(() => {})
   }, [])
 
   const logout = useCallback(async () => {
     await syncSiteAccess('DELETE', getAdminToken() || undefined).catch(() => {})
     clearAdminToken()
-    if (await verifyToken('')) {
-      setTokenRequired(false)
-      setStatus('authenticated')
-      return
-    }
     setTokenRequired(true)
     setStatus('login')
   }, [])

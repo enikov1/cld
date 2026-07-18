@@ -70,6 +70,8 @@ export default function PlayerReportsPage() {
             <Space size="small" wrap>
               {r.series.kp_id ? (
                 <Link to={`/series?kp_id=${encodeURIComponent(r.series.kp_id)}`}>В админке</Link>
+              ) : r.series.id ? (
+                <Link to={`/series?kp_id=${encodeURIComponent(String(r.series.id))}`}>В админке</Link>
               ) : null}
               <a href={`${siteOrigin()}${seriesPublicPath(r.series)}`} target="_blank" rel="noopener noreferrer">
                 На сайте

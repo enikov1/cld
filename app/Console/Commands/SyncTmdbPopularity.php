@@ -62,7 +62,11 @@ class SyncTmdbPopularity extends Command
                     ));
                 }
 
-                TmdbAutoSyncSettings::markRun();
+                $failed = (int) ($result['failed'] ?? 0);
+                $updated = (int) ($result['updated'] ?? 0);
+                if ($failed === 0 || $updated > 0) {
+                    TmdbAutoSyncSettings::markRun();
+                }
 
                 $counts = [
                     'updated' => $result['updated'] ?? 0,

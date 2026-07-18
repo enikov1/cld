@@ -47,7 +47,7 @@ class AllohaLatestSyncService
         $result['log'][] = 'Найдено уникальных KP ID: ' . count($kpIds);
 
         foreach ($kpIds as $kpId) {
-            $existing = Series::query()->where('kp_id', $kpId)->first();
+            $existing = Series::query()->withTrashed()->where('kp_id', $kpId)->first();
             $isNew = !$existing;
 
             if ($isNew && !$settings['auto_add_new']) {

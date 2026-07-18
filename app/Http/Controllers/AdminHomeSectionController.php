@@ -126,6 +126,27 @@ class AdminHomeSectionController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    private const ALLOWED_FILTER_KEYS = [
+        'content_type',
+        'broadcast_status',
+        'year_mode',
+        'studio_id',
+        'genre_id',
+        'country_id',
+        'actor_id',
+        'director_id',
+        'year_from',
+        'year_to',
+        'kp_rating_min',
+        'imdb_rating_min',
+        'tmdb_popularity_min',
+        'views_min',
+        'is_coming_soon',
+        'popular_badge_active',
+        'has_poster',
+        'has_tmdb_id',
+    ];
+
     /**
      * @param array<string, mixed> $filters
      * @return array<string, mixed>
@@ -135,6 +156,9 @@ class AdminHomeSectionController extends Controller
         $clean = [];
 
         foreach ($filters as $key => $value) {
+            if (!in_array((string) $key, self::ALLOWED_FILTER_KEYS, true)) {
+                continue;
+            }
             if ($value === null || $value === '') {
                 continue;
             }

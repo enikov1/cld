@@ -31,6 +31,7 @@ function formatApiErrorMessage(data: Record<string, unknown>, fallback: string):
 
 export async function api<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, {
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
@@ -50,8 +51,7 @@ export async function api<T>(url: string, opts?: RequestInit): Promise<T> {
       const data = await res.json()
       message = formatApiErrorMessage(data, message)
     } catch {
-      const text = await res.text().catch(() => '')
-      if (text) message = text
+      // Body already consumed by res.json() — do not call res.text().
     }
     throw new Error(message)
   }
@@ -66,6 +66,7 @@ export async function api<T>(url: string, opts?: RequestInit): Promise<T> {
 export async function apiUpload<T>(url: string, formData: FormData): Promise<T> {
   const res = await fetch(url, {
     method: 'POST',
+    credentials: 'same-origin',
     headers: {
       Accept: 'application/json',
       ...adminAuthHeaders(),
@@ -83,8 +84,7 @@ export async function apiUpload<T>(url: string, formData: FormData): Promise<T> 
       const data = await res.json()
       message = formatApiErrorMessage(data, message)
     } catch {
-      const text = await res.text().catch(() => '')
-      if (text) message = text
+      // Body already consumed.
     }
     throw new Error(message)
   }

@@ -45,8 +45,8 @@ class DispatchEpisodeNotifications implements ShouldQueue
                 continue;
             }
 
-            $sendEmail = (bool)$user->notify_via_email && (bool)$user->email;
-            $sendSite = (bool)$user->notify_via_site;
+            $sendEmail = (bool) $user->notify_via_email && (bool) $user->email;
+            $sendSite = (bool) $user->notify_via_site;
 
             if (!$sendEmail && !$sendSite) {
                 continue;
@@ -60,7 +60,17 @@ class DispatchEpisodeNotifications implements ShouldQueue
                 ['status' => 'queued']
             );
 
-            if ($sendEmail && $delivery->status !== 'sent') {
+            // Atomically claim the delivery so concurrent workers do not double-send email.
+            $claimed = NotificationDelivery::query()
+                ->whereKey($delivery->id)
+                ->whereIn('status', ['queued', 'failed'])
+                ->update(['status' => 'sending', 'error' => null]);
+
+            if ($claimed === 0) {
+                continue;
+            }
+
+            if ($sendEmail) {
                 try {
                     $user->notify(new NewEpisodeNotification($event));
                     $delivery->update([
@@ -79,7 +89,7 @@ class DispatchEpisodeNotifications implements ShouldQueue
                         'error' => $e->getMessage(),
                     ]);
                 }
-            } elseif ($sendSite && $delivery->status === 'queued') {
+            } elseif ($sendSite) {
                 $delivery->update([
                     'status' => 'sent',
                     'sent_at' => now(),
@@ -94,8 +104,13 @@ class DispatchEpisodeNotifications implements ShouldQueue
             return true;
         }
 
+        // Progress-based events have no voice — notify all series subscribers.
+        if ($event->voice === null || $event->voice === '') {
+            return true;
+        }
+
         $voices = $setting->voices ?? [];
-        if ($voices === [] || !$event->voice) {
+        if ($voices === []) {
             return false;
         }
 

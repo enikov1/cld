@@ -19,6 +19,7 @@ use App\Support\CommentTree;
 use App\Support\SiteConfig;
 use App\Support\TplCache;
 use App\Support\WatchlistDefaults;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -419,8 +420,15 @@ class SeriesEngagementController extends Controller
             ]);
         }
 
+        $reasonLabels = [
+            'player_not_shown' => 'Плеер не отображается',
+            'video_not_start' => 'Видео не запускается',
+            'audio_desync' => 'Звук не синхронизирован',
+            'description_error' => 'Ошибка в описании',
+            'other' => 'Другое',
+        ];
+
         $recent = PlayerReport::query()
-            ->where('series_id', $series->id)
             ->where('ip', $request->ip())
             ->where('created_at', '>=', now()->subMinutes(2))
             ->exists();
@@ -435,11 +443,11 @@ class SeriesEngagementController extends Controller
             'series_id' => $series->id,
             'user_id' => Auth::id(),
             'reason' => $data['reason'],
-            'reason_label' => trim((string)($data['reason_label'] ?? '')) ?: null,
+            'reason_label' => $reasonLabels[$data['reason']] ?? $data['reason'],
             'message' => $message !== '' ? $message : null,
-            'player_label' => trim((string)($data['player_label'] ?? '')) ?: null,
+            'player_label' => Str::limit(trim((string) ($data['player_label'] ?? '')), 120, '') ?: null,
             'ip' => $request->ip(),
-            'user_agent' => Str::limit((string)$request->userAgent(), 500, ''),
+            'user_agent' => Str::limit((string) $request->userAgent(), 500, ''),
         ]);
 
         return response()->json([
@@ -460,10 +468,14 @@ class SeriesEngagementController extends Controller
             return;
         }
 
-        CommentVote::query()->updateOrCreate(
-            ['comment_id' => $comment->id, 'user_id' => $userId],
-            ['value' => $value, 'voter_key' => null]
-        );
+        try {
+            CommentVote::query()->updateOrCreate(
+                ['comment_id' => $comment->id, 'user_id' => $userId],
+                ['value' => $value, 'voter_key' => null]
+            );
+        } catch (UniqueConstraintViolationException) {
+            // Concurrent toggle — counts re-read by caller.
+        }
     }
 
     private function voteCommentAsGuest(Request $request, Comment $comment, int $value): void
@@ -480,10 +492,14 @@ class SeriesEngagementController extends Controller
             return;
         }
 
-        CommentVote::query()->updateOrCreate(
-            ['comment_id' => $comment->id, 'voter_key' => $key],
-            ['value' => $value, 'user_id' => null]
-        );
+        try {
+            CommentVote::query()->updateOrCreate(
+                ['comment_id' => $comment->id, 'voter_key' => $key],
+                ['value' => $value, 'user_id' => null]
+            );
+        } catch (UniqueConstraintViolationException) {
+            // Concurrent toggle — counts re-read by caller.
+        }
     }
 
     private function commentUserVote(Request $request, Comment $comment): ?int

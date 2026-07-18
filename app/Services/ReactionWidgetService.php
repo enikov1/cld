@@ -7,6 +7,7 @@ use App\Models\Series;
 use App\Models\SeriesReactionVote;
 use App\Models\SiteSetting;
 use App\Support\SiteConfig;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -107,10 +108,14 @@ class ReactionWidgetService
             return;
         }
 
-        SeriesReactionVote::query()->updateOrCreate(
-            ['series_id' => $series->id, 'user_id' => $userId],
-            ['reaction_type_id' => $reactionTypeId, 'voter_key' => null]
-        );
+        try {
+            SeriesReactionVote::query()->updateOrCreate(
+                ['series_id' => $series->id, 'user_id' => $userId],
+                ['reaction_type_id' => $reactionTypeId, 'voter_key' => null]
+            );
+        } catch (UniqueConstraintViolationException) {
+            // Concurrent toggle — final state is re-read by payloadForSeries.
+        }
     }
 
     private static function voteAsGuest(Series $series, Request $request, int $reactionTypeId): void
@@ -127,10 +132,14 @@ class ReactionWidgetService
             return;
         }
 
-        SeriesReactionVote::query()->updateOrCreate(
-            ['series_id' => $series->id, 'voter_key' => $key],
-            ['reaction_type_id' => $reactionTypeId, 'user_id' => null]
-        );
+        try {
+            SeriesReactionVote::query()->updateOrCreate(
+                ['series_id' => $series->id, 'voter_key' => $key],
+                ['reaction_type_id' => $reactionTypeId, 'user_id' => null]
+            );
+        } catch (UniqueConstraintViolationException) {
+            // Concurrent toggle — final state is re-read by payloadForSeries.
+        }
     }
 
     public static function userReactionTypeId(Series $series, Request $request): ?int

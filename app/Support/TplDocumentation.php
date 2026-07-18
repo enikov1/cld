@@ -143,7 +143,7 @@ class TplDocumentation
                 'title' => 'Циклы',
                 'description' => 'Повторение фрагмента для каждого элемента массива. Внутри доступны {item.*} и поля списка.',
                 'examples' => [
-                    ['code' => "[loop series_list]\n  <a href=\"/{item.category}/{item.slug}.html\">{item.title}</a>\n[/loop]"],
+                    ['code' => "[loop series_list]\n  <a href=\"{item.url}\">{item.title}</a>\n[/loop]"],
                     ['code' => "{item.kp_rating}", 'note' => 'Внутри цикла — поля текущего item'],
                 ],
             ],
@@ -219,7 +219,7 @@ class TplDocumentation
                     self::docVar('pagination_block', 'HTML пагинации'),
                     self::docVar('catalog_filters_block', 'HTML фильтров каталога'),
                     self::docVar('filter_fields', 'Массив фильтров: item.key, item.type, item.html'),
-                    self::docVar('category_seo_html', 'HTML SEO-блока категории (внизу страницы)'),
+                    self::docVar('category_seo_html', 'HTML SEO-блока таксономии/каталога (внизу страницы)'),
                     self::docVar('seo.title', 'Fallback SEO из контроллера'),
                     self::docVar('seo.description', 'Fallback SEO описание'),
                     self::docVar('seo.canonical', 'Fallback canonical'),
@@ -360,7 +360,7 @@ class TplDocumentation
                 ],
                 [
                     self::loop('studios_list', 'Карточки студий (index): item.slug, item.title, item.description, item.logo_url, item.items_count, item.items_count_word'),
-                    self::loop('studio_items', 'Сериалы студии (show): item.slug, item.category, item.title, item.poster_url, item.url, item.kp_rating, item.imdb_rating, item.season_badge, item.episode_badge'),
+                    self::loop('studio_items', 'Сериалы студии (show): item.slug, item.title, item.poster_url, item.url, item.kp_rating, item.imdb_rating, item.season_badge, item.episode_badge'),
                 ],
                 ['studios', 'global'],
             ),
@@ -469,7 +469,7 @@ class TplDocumentation
             self::docVar('auth.email', 'Email пользователя'),
             self::docVar('admin_url', 'Базовый URL админ-панели'),
             self::docVar('auth_panel', 'login | register | forgot | reset'),
-            self::docVar('mega_category_slug', 'Slug категории для mega-menu'),
+            self::docVar('mega_category_slug', 'Устарело: slug категории для mega-menu (legacy)'),
         ];
     }
 
@@ -564,7 +564,7 @@ class TplDocumentation
     {
         return [
             self::docVar('item.slug', 'Slug сериала'),
-            self::docVar('item.category', 'Slug категории'),
+            self::docVar('item.category', 'Устарело: slug категории (используйте item.url)'),
             self::docVar('item.title', 'Название'),
             self::docVar('item.poster_url', 'URL постера'),
             self::docVar('item.year', 'Год'),

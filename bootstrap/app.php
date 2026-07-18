@@ -47,10 +47,9 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             if ($request->expectsJson()) {
-                $message = $e->getMessage() ?: 'Ошибка ' . $code;
-                return response()->json(['message' => $message], $code);
+                return response()->json(['message' => 'Ошибка ' . $code], $code);
             }
 
-            return ErrorPageRenderer::response($code, $e->getMessage() ?: null);
+            return ErrorPageRenderer::response($code);
         });
     })->create();

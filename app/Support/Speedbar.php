@@ -107,10 +107,13 @@ class Speedbar
     {
         $breadcrumb = $this->toBreadcrumbJsonLd();
 
+        $flags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
+
         if ($extra === null) {
             return json_encode(
                 ['@context' => 'https://schema.org'] + $breadcrumb,
-                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                $flags
             );
         }
 
@@ -126,7 +129,7 @@ class Speedbar
                 '@context' => 'https://schema.org',
                 '@graph' => $nodes,
             ],
-            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            $flags
         );
     }
 

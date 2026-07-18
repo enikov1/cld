@@ -22,7 +22,11 @@ export default function CollectionsPage() {
   const [addForm] = Form.useForm()
 
   const seriesOptions = useMemo(
-    () => series.map((s) => ({ value: s.kp_id, label: `${s.title} (${s.kp_id})` })),
+    () =>
+      series.map((s) => ({
+        value: s.id,
+        label: `${s.title} (${s.kp_id || s.tmdb_id || s.id})`,
+      })),
     [series],
   )
 
@@ -47,7 +51,7 @@ export default function CollectionsPage() {
   }, [])
 
   const loadSeries = useCallback(async () => {
-    const data = await api<{ items: SeriesItem[] }>('/api/admin/series')
+    const data = await api<{ items: SeriesItem[] }>('/api/admin/series?per_page=2000')
     setSeries(data.items)
   }, [])
 
@@ -107,16 +111,20 @@ export default function CollectionsPage() {
     }
   }
 
-  async function addSeries(values: { kp_ids: string[] }) {
+  async function addSeries(values: { series_ids: number[] }) {
     if (!activeSlug) return
     try {
-      await api(`/api/admin/collections/${activeSlug}/items`, {
+      const res = await api<{ ok: boolean; added: number; skipped: number }>(`/api/admin/collections/${activeSlug}/items`, {
         method: 'POST',
         body: JSON.stringify({
-          items: values.kp_ids.map((kp_id, i) => ({ kp_id, rank_order: i + 1 })),
+          items: values.series_ids.map((series_id, i) => ({ series_id, rank_order: i + 1 })),
         }),
       })
-      message.success('Сериалы добавлены в подборку')
+      if (res.skipped > 0) {
+        message.warning(`Добавлено: ${res.added}, пропущено: ${res.skipped}`)
+      } else {
+        message.success('Сериалы добавлены в подборку')
+      }
       setAddModalOpen(false)
       addForm.resetFields()
       await loadItems(activeSlug)
@@ -125,10 +133,10 @@ export default function CollectionsPage() {
     }
   }
 
-  async function removeItem(kpId: string) {
+  async function removeItem(seriesKey: string) {
     if (!activeSlug) return
     try {
-      await api(`/api/admin/collections/${activeSlug}/items/${kpId}`, { method: 'DELETE' })
+      await api(`/api/admin/collections/${activeSlug}/items/${encodeURIComponent(seriesKey)}`, { method: 'DELETE' })
       message.success('Сериал удалён из подборки')
       await loadItems(activeSlug)
     } catch (e) {
@@ -184,7 +192,8 @@ export default function CollectionsPage() {
 
   const itemColumns: ColumnsType<CollectionSeriesItem> = [
     { title: '#', dataIndex: 'rank_order', key: 'rank_order', width: 60 },
-    { title: 'KP ID', key: 'kp_id', width: 100, render: (_, r) => r.series?.kp_id ?? '—' },
+    { title: 'ID', key: 'id', width: 80, render: (_, r) => r.series?.id ?? '—' },
+    { title: 'KP / TMDB', key: 'ext_id', width: 120, render: (_, r) => r.series?.kp_id || r.series?.tmdb_id || '—' },
     { title: 'Название', key: 'title', render: (_, r) => r.series?.title ?? '—' },
     { title: 'Год', key: 'year', width: 80, render: (_, r) => r.series?.year ?? '—' },
     {
@@ -192,8 +201,8 @@ export default function CollectionsPage() {
       key: 'actions',
       width: 100,
       render: (_, r) =>
-        r.series?.kp_id ? (
-          <Popconfirm title="Убрать из подборки?" onConfirm={() => removeItem(String(r.series!.kp_id))}>
+        r.series?.id ? (
+          <Popconfirm title="Убрать из подборки?" onConfirm={() => removeItem(String(r.series!.id))}>
             <Button size="small" danger type="link">Убрать</Button>
           </Popconfirm>
         ) : null,
@@ -341,7 +350,7 @@ export default function CollectionsPage() {
         destroyOnHidden
       >
         <Form form={addForm} layout="vertical" onFinish={addSeries}>
-          <Form.Item label="Сериалы" name="kp_ids" rules={[{ required: true, message: 'Выберите сериалы' }]}>
+          <Form.Item label="Сериалы" name="series_ids" rules={[{ required: true, message: 'Выберите сериалы' }]}>
             <Select mode="multiple" options={seriesOptions} optionFilterProp="label" placeholder="Выберите один или несколько" />
           </Form.Item>
         </Form>

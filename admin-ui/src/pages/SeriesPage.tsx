@@ -288,11 +288,15 @@ export default function SeriesPage() {
   const [filterForm] = Form.useForm<SeriesListFilters>()
   const posterUrl = Form.useWatch('poster_url', form)
   const watchedKpId = Form.useWatch('kp_id', form)
+  const watchedImdbId = Form.useWatch('imdb_id', form)
   const watchedTmdbId = Form.useWatch('tmdb_id', form)
   const editorRouteKey = useMemo(
     () => seriesRouteKey(editing, { kp_id: watchedKpId, tmdb_id: watchedTmdbId }),
     [editing, watchedKpId, watchedTmdbId],
   )
+  const hasKpIdValue = Boolean(String(watchedKpId ?? '').trim())
+  const hasImdbIdValue = Boolean(String(watchedImdbId ?? '').trim())
+  const hasTmdbIdValue = Boolean(String(watchedTmdbId ?? '').trim())
   const currentSort = (Form.useWatch('sort', filterForm) as string | undefined) ?? 'default'
 
   const loadStudios = useCallback(async () => {
@@ -503,12 +507,14 @@ export default function SeriesPage() {
         const playersSaved = await playersEditorRef.current?.save({ silent: true, kpId: routeKey })
         if (playersSaved === false) {
           message.error('Сериал сохранён, но не удалось сохранить плееры')
+          await loadSeries()
           return
         }
 
         const scheduleSaved = await scheduleEditorRef.current?.save({ silent: true, kpId: routeKey })
         if (scheduleSaved === false) {
           message.error('Сериал сохранён, но не удалось сохранить расписание')
+          await loadSeries()
           return
         }
       }
@@ -527,10 +533,10 @@ export default function SeriesPage() {
     }
   }
 
-  async function copyKpId(kpId: string | number) {
+  async function copyId(label: string, value: string | number) {
     try {
-      await navigator.clipboard.writeText(String(kpId))
-      message.success('KP ID скопирован')
+      await navigator.clipboard.writeText(String(value))
+      message.success(`${label} скопирован`)
     } catch {
       message.error('Не удалось скопировать')
     }
@@ -544,21 +550,38 @@ export default function SeriesPage() {
     }
   }
 
-  async function validateKpIdUnique(_: unknown, value: unknown) {
-    const kpId = String(value ?? '').trim()
-    if (!kpId) return
+  async function validateIdUnique(
+    field: 'kp_id' | 'imdb_id' | 'tmdb_id',
+    endpoint: string,
+    label: string,
+    value: unknown,
+  ) {
+    const id = String(value ?? '').trim()
+    if (!id) return
 
-    const params = new URLSearchParams({ kp_id: kpId })
+    const params = new URLSearchParams({ [field]: id })
     if (editing?.id) {
       params.set('except_id', String(editing.id))
     }
 
     const res = await api<{ exists: boolean; item?: { title?: string } }>(
-      `/api/admin/series/check-kp?${params}`,
+      `${endpoint}?${params}`,
     )
     if (res.exists) {
-      throw new Error(`KP ID уже занят${res.item?.title ? `: ${res.item.title}` : ''}`)
+      throw new Error(`${label} уже занят${res.item?.title ? `: ${res.item.title}` : ''}`)
     }
+  }
+
+  async function validateKpIdUnique(_: unknown, value: unknown) {
+    await validateIdUnique('kp_id', '/api/admin/series/check-kp', 'KP ID', value)
+  }
+
+  async function validateImdbIdUnique(_: unknown, value: unknown) {
+    await validateIdUnique('imdb_id', '/api/admin/series/check-imdb', 'IMDb ID', value)
+  }
+
+  async function validateTmdbIdUnique(_: unknown, value: unknown) {
+    await validateIdUnique('tmdb_id', '/api/admin/series/check-tmdb', 'TMDB ID', value)
   }
 
   async function copyDescriptionAiPrompt() {
@@ -696,31 +719,47 @@ export default function SeriesPage() {
   }
 
   async function togglePin(row: SeriesItem) {
-    await api(`/api/admin/series/${seriesListRouteKey(row)}/pin`, {
-      method: 'POST',
-      body: JSON.stringify({ pinned: !row.is_pinned }),
-    })
-    await loadSeries()
+    try {
+      await api(`/api/admin/series/${seriesListRouteKey(row)}/pin`, {
+        method: 'POST',
+        body: JSON.stringify({ pinned: !row.is_pinned }),
+      })
+      await loadSeries()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
   }
 
   async function toggleVisibility(row: SeriesItem) {
-    await api(`/api/admin/series/${seriesListRouteKey(row)}/visibility`, {
-      method: 'POST',
-      body: JSON.stringify({ is_active: !row.is_active }),
-    })
-    await loadSeries()
+    try {
+      await api(`/api/admin/series/${seriesListRouteKey(row)}/visibility`, {
+        method: 'POST',
+        body: JSON.stringify({ is_active: !row.is_active }),
+      })
+      await loadSeries()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
   }
 
   async function remove(row: SeriesItem) {
-    await api(`/api/admin/series/${seriesListRouteKey(row)}`, { method: 'DELETE' })
-    message.success('Удалено')
-    await loadSeries()
+    try {
+      await api(`/api/admin/series/${seriesListRouteKey(row)}`, { method: 'DELETE' })
+      message.success('Удалено')
+      await loadSeries()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
   }
 
   async function restore(row: SeriesItem) {
-    await api(`/api/admin/series/${seriesListRouteKey(row)}/restore`, { method: 'POST' })
-    message.success('Восстановлено')
-    await loadSeries()
+    try {
+      await api(`/api/admin/series/${seriesListRouteKey(row)}/restore`, { method: 'POST' })
+      message.success('Восстановлено')
+      await loadSeries()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
   }
 
   const statusTag = (s?: string | null) => {
@@ -744,7 +783,7 @@ export default function SeriesPage() {
           type="link"
           size="small"
           icon={<CopyOutlined />}
-          onClick={() => void copyKpId(v)}
+          onClick={() => void copyId('KP ID', v)}
           style={{ padding: 0, height: 'auto', whiteSpace: 'nowrap' }}
           title="Скопировать KP ID"
         >
@@ -1135,7 +1174,11 @@ export default function SeriesPage() {
       <Drawer
         title={editing ? `Редактирование: ${editing.title}` : 'Новый сериал / фильм'}
         open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+        onClose={() => {
+          setDrawerOpen(false)
+          setEditing(null)
+          form.resetFields()
+        }}
         width={820}
         extra={
           <Space>
@@ -1173,6 +1216,7 @@ export default function SeriesPage() {
                           label="KP ID"
                           name="kp_id"
                           validateDebounce={400}
+                          hasFeedback={hasKpIdValue}
                           dependencies={['tmdb_id']}
                           rules={[
                             { validator: validateIdentifierRequired },
@@ -1186,7 +1230,7 @@ export default function SeriesPage() {
                               <CopyOutlined
                                 onClick={() => {
                                   const value = form.getFieldValue('kp_id')
-                                  if (value) void copyKpId(value)
+                                  if (value) void copyId('KP ID', value)
                                 }}
                                 style={{ cursor: 'pointer', color: 'rgba(0,0,0,0.45)' }}
                                 title="Скопировать"
@@ -1196,16 +1240,53 @@ export default function SeriesPage() {
                         </Form.Item>
                       </Col>
                       <Col span={8}>
-                        <Form.Item label="IMDb ID" name="imdb_id"><Input placeholder="tt0056592" /></Form.Item>
+                        <Form.Item
+                          label="IMDb ID"
+                          name="imdb_id"
+                          validateDebounce={400}
+                          hasFeedback={hasImdbIdValue}
+                          rules={[{ validator: validateImdbIdUnique }]}
+                        >
+                          <Input
+                            placeholder="tt0056592"
+                            suffix={
+                              <CopyOutlined
+                                onClick={() => {
+                                  const value = form.getFieldValue('imdb_id')
+                                  if (value) void copyId('IMDb ID', value)
+                                }}
+                                style={{ cursor: 'pointer', color: 'rgba(0,0,0,0.45)' }}
+                                title="Скопировать"
+                              />
+                            }
+                          />
+                        </Form.Item>
                       </Col>
                       <Col span={8}>
                         <Form.Item
                           label="TMDB ID"
                           name="tmdb_id"
+                          validateDebounce={400}
+                          hasFeedback={hasTmdbIdValue}
                           dependencies={['kp_id']}
-                          rules={[{ validator: validateIdentifierRequired }]}
+                          rules={[
+                            { validator: validateIdentifierRequired },
+                            { validator: validateTmdbIdUnique },
+                          ]}
                         >
-                          <Input placeholder="66732" />
+                          <Input
+                            placeholder="66732"
+                            suffix={
+                              <CopyOutlined
+                                onClick={() => {
+                                  const value = form.getFieldValue('tmdb_id')
+                                  if (value) void copyId('TMDB ID', value)
+                                }}
+                                style={{ cursor: 'pointer', color: 'rgba(0,0,0,0.45)' }}
+                                title="Скопировать"
+                              />
+                            }
+                          />
                         </Form.Item>
                       </Col>
                     </Row>

@@ -26,6 +26,20 @@
         return '/api/series/' + encodeURIComponent(String(seriesId));
     }
 
+    function flashNotice(text, isError) {
+        var existing = document.querySelector('.ls-flash-notice');
+        if (existing) existing.remove();
+        var el = document.createElement('div');
+        el.className = 'ls-flash-notice' + (isError ? ' ls-flash-notice--error' : '');
+        el.setAttribute('role', 'status');
+        el.textContent = text;
+        el.style.cssText = 'position:fixed;z-index:9999;left:50%;bottom:24px;transform:translateX(-50%);' +
+            'padding:10px 16px;border-radius:8px;background:' + (isError ? '#5c1a1a' : '#1a3a2a') +
+            ';color:#fff;font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,.35);max-width:90vw;';
+        document.body.appendChild(el);
+        setTimeout(function () { el.remove(); }, 3200);
+    }
+
     var LS_FAV_KEY = 'ls_favourites';
     var LS_HISTORY_KEY = 'ls_watch_history';
 
@@ -105,7 +119,9 @@
         postJson('/api/user-library/merge-guest', {
             favourites: getLocalFavourites(),
             history: getLocalHistory(),
-        }).catch(function () {});
+        }).catch(function () {
+            flashNotice('Не удалось перенести локальную библиотеку.', true);
+        });
     }
 
     function csrfToken() {
@@ -1036,11 +1052,16 @@
                     credentials: 'same-origin',
                     headers: { Accept: 'application/json' },
                 })
-                    .then(function (r) { return r.json(); })
+                    .then(function (r) {
+                        if (!r.ok) throw new Error('HTTP ' + r.status);
+                        return r.json();
+                    })
                     .then(function (data) {
                         cards.innerHTML = data && data.html ? data.html : '';
                     })
-                    .catch(function () {})
+                    .catch(function () {
+                        cards.innerHTML = '<p class="home-section-error">Не удалось загрузить список. Попробуйте ещё раз.</p>';
+                    })
                     .finally(function () {
                         cards.classList.remove('is-loading');
                     });
@@ -1092,11 +1113,16 @@
                     credentials: 'same-origin',
                     headers: { Accept: 'application/json' },
                 })
-                    .then(function (r) { return r.json(); })
+                    .then(function (r) {
+                        if (!r.ok) throw new Error('HTTP ' + r.status);
+                        return r.json();
+                    })
                     .then(function (data) {
                         cards.innerHTML = data && data.html ? data.html : '';
                     })
-                    .catch(function () {})
+                    .catch(function () {
+                        cards.innerHTML = '<p class="home-section-error">Не удалось загрузить список. Попробуйте ещё раз.</p>';
+                    })
                     .finally(function () {
                         cards.classList.remove('is-loading');
                     });
@@ -1268,7 +1294,9 @@
                         setLocalFavourite(seriesId, isFav);
                     }
                 })
-                .catch(function () {});
+                .catch(function () {
+                    flashNotice('Не удалось обновить данные. Обновите страницу.', true);
+                });
         }
 
         root.querySelectorAll('.vote-btn').forEach(function (btn) {
@@ -1287,7 +1315,9 @@
                         }
                         refreshEngagement();
                     })
-                    .catch(function () {});
+                    .catch(function () {
+                        flashNotice('Не удалось сохранить голос. Попробуйте ещё раз.', true);
+                    });
             });
         });
 
@@ -1304,12 +1334,17 @@
                 postJson(seriesApiPath(seriesId) + '/favourite', {})
                     .then(readJsonResponse)
                     .then(function (res) {
-                        if (!res.ok) return;
+                        if (!res.ok) {
+                            flashNotice('Не удалось обновить избранное.', true);
+                            return;
+                        }
                         var isFav = !!(res.data && res.data.is_favourite);
                         updateFavouriteButton(favBtn, isFav);
                         setLocalFavourite(seriesId, isFav);
                     })
-                    .catch(function () {});
+                    .catch(function () {
+                        flashNotice('Не удалось обновить избранное. Попробуйте ещё раз.', true);
+                    });
             });
         }
     }
@@ -1850,7 +1885,9 @@
                     .then(function (data) {
                         if (data && data.ok) updateVoteUi(article, data);
                     })
-                    .catch(function () {});
+                    .catch(function () {
+                        flashNotice('Не удалось сохранить оценку комментария.', true);
+                    });
             });
         }
 
@@ -2124,7 +2161,9 @@
             .then(function (data) {
                 if (data && data.enabled !== false) render(data);
             })
-            .catch(function () {});
+            .catch(function () {
+                flashNotice('Не удалось загрузить реакции.', true);
+            });
     }
 
     function fetchJson(url, options) {
@@ -2184,7 +2223,9 @@
             return fetchJson('/api/notifications/').then(function (data) {
                 renderItems(data.items || []);
                 updateCount(data.unread || 0);
-            }).catch(function () {});
+            }).catch(function () {
+                flashNotice('Не удалось загрузить уведомления.', true);
+            });
         }
 
         function closeDropdown() {
@@ -3683,7 +3724,9 @@
                     if (!data || !data.ok) return;
                     roots.forEach(function (root) { applyPayload(root, data); });
                 })
-                .catch(function () {});
+                .catch(function () {
+                    flashNotice('Не удалось сохранить оценку ожидания.', true);
+                });
         }
 
         var seriesMap = {};
@@ -3706,7 +3749,9 @@
                 .then(function (data) {
                     roots.forEach(function (root) { applyPayload(root, data); });
                 })
-                .catch(function () {});
+                .catch(function () {
+                    // Silent: widget can stay at server-rendered defaults.
+                });
 
             roots.forEach(function (root) {
                 root.querySelectorAll('[data-anticipation-vote]').forEach(function (btn) {

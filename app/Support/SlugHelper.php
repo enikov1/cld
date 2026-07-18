@@ -11,12 +11,15 @@ class SlugHelper
      */
     public static function make(?string $value, string $source): string
     {
-        $value = trim((string)$value);
+        $value = trim((string) $value);
         if ($value !== '') {
-            return Str::slug($value);
+            $slug = Str::slug($value);
+            return $slug !== '' ? $slug : 'item';
         }
 
-        return Str::slug($source);
+        $slug = Str::slug($source);
+
+        return $slug !== '' ? $slug : 'item';
     }
 
     /**

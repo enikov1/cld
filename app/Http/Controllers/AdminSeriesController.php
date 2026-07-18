@@ -134,27 +134,42 @@ class AdminSeriesController extends Controller
 
     public function checkKp(Request $request)
     {
+        return $this->checkSeriesIdentifier($request, 'kp_id');
+    }
+
+    public function checkImdb(Request $request)
+    {
+        return $this->checkSeriesIdentifier($request, 'imdb_id');
+    }
+
+    public function checkTmdb(Request $request)
+    {
+        return $this->checkSeriesIdentifier($request, 'tmdb_id');
+    }
+
+    private function checkSeriesIdentifier(Request $request, string $field)
+    {
         $data = $request->validate([
-            'kp_id' => ['required', 'string'],
+            $field => ['required', 'string'],
             'except_id' => ['nullable', 'integer'],
         ]);
 
-        $kpId = trim((string)$data['kp_id']);
+        $value = trim((string)$data[$field]);
         $exceptId = isset($data['except_id']) ? (int)$data['except_id'] : null;
 
-        $query = Series::query()->withTrashed()->where('kp_id', $kpId);
+        $query = Series::query()->withTrashed()->where($field, $value);
         if ($exceptId) {
             $query->where('id', '!=', $exceptId);
         }
 
-        $existing = $query->first(['id', 'kp_id', 'title']);
+        $existing = $query->first(['id', $field, 'title']);
 
         return response()->json([
             'ok' => true,
             'exists' => (bool)$existing,
             'item' => $existing ? [
                 'id' => $existing->id,
-                'kp_id' => $existing->kp_id,
+                $field => $existing->{$field},
                 'title' => $existing->title,
             ] : null,
         ]);
@@ -226,6 +241,8 @@ class AdminSeriesController extends Controller
         $slug = SlugHelper::make($data['slug'] ?? null, $data['title']);
         $kpId = trim((string)($data['kp_id'] ?? ''));
         $kpId = $kpId !== '' ? $kpId : null;
+        $imdbId = trim((string)($data['imdb_id'] ?? ''));
+        $imdbId = $imdbId !== '' ? $imdbId : null;
         $tmdbId = trim((string)($data['tmdb_id'] ?? ''));
         $tmdbId = $tmdbId !== '' ? $tmdbId : null;
         $originalKpId = trim((string)($data['original_kp_id'] ?? ''));
@@ -274,6 +291,21 @@ class AdminSeriesController extends Controller
                 }
             }
 
+            if ($imdbId !== null) {
+                $conflict = Series::query()
+                    ->withTrashed()
+                    ->where('imdb_id', $imdbId)
+                    ->where('id', '!=', $existing->id)
+                    ->first(['id', 'title']);
+
+                if ($conflict) {
+                    return response()->json([
+                        'ok' => false,
+                        'message' => 'IMDb ID ' . $imdbId . ' уже занят: ' . $conflict->title,
+                    ], 422);
+                }
+            }
+
             if ($tmdbId !== null) {
                 $conflict = Series::query()
                     ->withTrashed()
@@ -295,6 +327,16 @@ class AdminSeriesController extends Controller
                     return response()->json([
                         'ok' => false,
                         'message' => 'KP ID ' . $kpId . ' уже занят: ' . $taken->title,
+                    ], 422);
+                }
+            }
+
+            if ($imdbId !== null) {
+                $taken = Series::query()->withTrashed()->where('imdb_id', $imdbId)->first(['id', 'title']);
+                if ($taken) {
+                    return response()->json([
+                        'ok' => false,
+                        'message' => 'IMDb ID ' . $imdbId . ' уже занят: ' . $taken->title,
                     ], 422);
                 }
             }
@@ -343,6 +385,13 @@ class AdminSeriesController extends Controller
             } elseif ($isNew) {
                 $attrs[$key] = null;
             }
+        }
+
+        if (array_key_exists('imdb_id', $data)) {
+            $attrs['imdb_id'] = $imdbId;
+        }
+        if (array_key_exists('tmdb_id', $data)) {
+            $attrs['tmdb_id'] = $tmdbId;
         }
 
         foreach (['is_active', 'is_hidden', 'noindex', 'is_coming_soon'] as $boolKey) {

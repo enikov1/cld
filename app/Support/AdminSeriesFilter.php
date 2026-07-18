@@ -39,7 +39,7 @@ class AdminSeriesFilter
             'views_min' => self::nullableInt($request, 'views_min'),
             'sort' => self::normalizeSort((string)$request->query('sort', 'default')),
             'page' => max(1, (int)$request->query('page', 1)),
-            'per_page' => max(10, min(100, (int)$request->query('per_page', 50))),
+            'per_page' => max(10, min(2000, (int)$request->query('per_page', 50))),
         ];
     }
 
@@ -75,7 +75,11 @@ class AdminSeriesFilter
         }
 
         if (!empty($params['studio_id'])) {
-            $query->where('studio_id', (int)$params['studio_id']);
+            $studioId = (int) $params['studio_id'];
+            $query->where(function ($q) use ($studioId) {
+                $q->where('studio_id', $studioId)
+                    ->orWhereHas('studios', fn ($r) => $r->where('studios.id', $studioId));
+            });
         }
 
         if (!empty($params['genre_id'])) {

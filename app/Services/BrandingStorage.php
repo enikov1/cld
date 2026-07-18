@@ -12,9 +12,9 @@ class BrandingStorage
 
     private const MAX_BYTES = 2 * 1024 * 1024;
 
-    private const LOGO_EXTENSIONS = ['png', 'jpg', 'jpeg', 'svg'];
+    private const LOGO_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
 
-    private const FAVICON_EXTENSIONS = ['png', 'jpg', 'jpeg', 'ico', 'svg', 'webp'];
+    private const FAVICON_EXTENSIONS = ['png', 'jpg', 'jpeg', 'ico', 'webp'];
 
     private const BACKGROUND_EXTENSIONS = ['png', 'jpg', 'jpeg'];
 

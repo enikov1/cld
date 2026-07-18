@@ -46,7 +46,7 @@ class SearchController extends TplController
                 ->where('is_active', true)
                 ->where('is_hidden', false)
                 ->where(function ($query) use ($q) {
-                    $like = '%' . $q . '%';
+                    $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $q) . '%';
                     $query->where('title', 'like', $like)
                         ->orWhere('title_en', 'like', $like)
                         ->orWhere('title_original', 'like', $like)

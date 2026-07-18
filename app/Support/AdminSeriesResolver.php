@@ -19,22 +19,25 @@ class AdminSeriesResolver
             $query->withTrashed();
         }
 
+        // Prefer external IDs over PK so tmdb_id/kp_id cannot collide with another row's id.
+        // Group orWhere so SoftDeletes (deleted_at IS NULL) applies to both branches.
+        $series = (clone $query)
+            ->where(function ($q) use ($key) {
+                $q->where('kp_id', $key)->orWhere('tmdb_id', $key);
+            })
+            ->first();
+
+        if ($series) {
+            return $series;
+        }
+
         if (ctype_digit($key)) {
-            $byId = (clone $query)->find((int)$key);
+            $byId = (clone $query)->find((int) $key);
             if ($byId) {
                 return $byId;
             }
         }
 
-        $series = (clone $query)
-            ->where('kp_id', $key)
-            ->orWhere('tmdb_id', $key)
-            ->first();
-
-        if (!$series) {
-            throw (new ModelNotFoundException())->setModel(Series::class, [$key]);
-        }
-
-        return $series;
+        throw (new ModelNotFoundException())->setModel(Series::class, [$key]);
     }
 }

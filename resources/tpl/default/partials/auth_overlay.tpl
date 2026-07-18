@@ -24,7 +24,7 @@
                 <input type="hidden" name="_token" value="{csrf_token|raw}">
                 <div class="login-form__field">
                     <span class="fa fa-envelope"></span>
-                    <input class="dontuseinputclass" type="email" name="email" placeholder="Email" required value="{auth_email|raw}">
+                    <input class="dontuseinputclass" type="email" name="email" placeholder="Email" required value="{auth_email}">
                 </div>
                 <div class="login-form__field">
                     <span class="fa fa-lock"></span>
@@ -111,7 +111,7 @@
                 <input type="hidden" name="_token" value="{csrf_token|raw}">
                 <div class="login-form__field">
                     <span class="fa fa-envelope"></span>
-                    <input class="dontuseinputclass" type="email" name="email" placeholder="Email" required value="{auth_email|raw}">
+                    <input class="dontuseinputclass" type="email" name="email" placeholder="Email" required value="{auth_email}">
                 </div>
                 <button type="submit" class="dontusebuttonclass login-form__submit">Отправить ссылку</button>
             </form>
@@ -135,10 +135,10 @@
             [/auth_errors_list]
             <form action="/password/reset" method="post" class="login-form" id="passwordResetForm">
                 <input type="hidden" name="_token" value="{csrf_token|raw}">
-                <input type="hidden" name="token" value="{reset_token|raw}" id="resetTokenField">
+                <input type="hidden" name="token" value="{reset_token}" id="resetTokenField">
                 <div class="login-form__field">
                     <span class="fa fa-envelope"></span>
-                    <input class="dontuseinputclass" type="email" name="email" placeholder="Email" required value="{auth_email|raw}" id="resetEmailField">
+                    <input class="dontuseinputclass" type="email" name="email" placeholder="Email" required value="{auth_email}" id="resetEmailField">
                 </div>
                 <div class="login-form__field">
                     <span class="fa fa-lock"></span>

@@ -101,6 +101,12 @@ function filterSummary(filters?: HomeSectionFilters | null): string {
   }
   if (filters.kp_rating_min != null) parts.push(`КП ≥ ${filters.kp_rating_min}`)
   if (filters.imdb_rating_min != null) parts.push(`IMDb ≥ ${filters.imdb_rating_min}`)
+  if (filters.tmdb_popularity_min != null) parts.push(`TMDB ≥ ${filters.tmdb_popularity_min}`)
+  if (filters.views_min != null) parts.push(`просмотры ≥ ${filters.views_min}`)
+  if (filters.is_coming_soon != null) parts.push(filters.is_coming_soon ? 'скоро' : 'не скоро')
+  if (filters.popular_badge_active != null) parts.push(filters.popular_badge_active ? 'бейдж популярности' : 'без бейджа')
+  if (filters.has_poster != null) parts.push(filters.has_poster ? 'с постером' : 'без постера')
+  if (filters.has_tmdb_id != null) parts.push(filters.has_tmdb_id ? 'с TMDB' : 'без TMDB')
 
   return parts.length ? parts.join(', ') : 'Фильтры заданы'
 }

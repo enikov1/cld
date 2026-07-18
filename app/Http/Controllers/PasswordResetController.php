@@ -21,11 +21,26 @@ class PasswordResetController extends Controller
             'email' => ['required', 'email', 'max:' . SiteConfig::int('auth_email_max_length')],
         ]);
 
-        Password::sendResetLink(['email' => $data['email']]);
-        $message = SiteConfig::str('auth_msg_reset_link_sent');
+        $status = Password::sendResetLink(['email' => $data['email']]);
+
+        // Always show a generic success message (no user enumeration), except throttle.
+        $message = $status === Password::RESET_THROTTLED
+            ? 'Слишком много попыток. Подождите немного и попробуйте снова.'
+            : SiteConfig::str('auth_msg_reset_link_sent');
 
         if ($this->wantsFormJson($request)) {
+            if ($status === Password::RESET_THROTTLED) {
+                return $this->jsonError($request, $message, ['email' => [$message]]);
+            }
+
             return $this->jsonOk($request, $message, ['panel' => 'forgot']);
+        }
+
+        if ($status === Password::RESET_THROTTLED) {
+            return back()
+                ->withErrors(['email' => $message])
+                ->with('auth_panel', 'forgot')
+                ->withInput($request->only('email'));
         }
 
         return back()

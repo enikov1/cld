@@ -44,8 +44,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Validation\Rule;
 
 Route::get('/site/admin-path', function () {
+    // Avoid public disclosure of custom admin path in production.
+    if (!app()->environment('local') && !\App\Support\AdminAccess::hasValidToken(request())) {
+        return response()->json(['error' => 'Unauthorized'], 401);
+    }
+
     return response()->json([
         'path' => AdminPath::path(),
         'base' => AdminPath::base(),
@@ -183,6 +189,8 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
     Route::get('/series/lookup', [AdminSeriesController::class, 'lookup']);
     Route::get('/series/parse-kp-from-url', [AdminSeriesController::class, 'parseKpFromUrl']);
     Route::get('/series/check-kp', [AdminSeriesController::class, 'checkKp']);
+    Route::get('/series/check-imdb', [AdminSeriesController::class, 'checkImdb']);
+    Route::get('/series/check-tmdb', [AdminSeriesController::class, 'checkTmdb']);
     Route::post('/series/upsert', [AdminSeriesController::class, 'upsert']);
     Route::post('/series/import-tmdb', [AdminSeriesController::class, 'importFromTmdb']);
     Route::post('/series/{kp_id}/import-kp', [AdminSeriesController::class, 'importFromKp']);
@@ -346,7 +354,7 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
         return response()->json([
             'items' => CollectionItem::query()
                 ->where('collection_id', $collection->id)
-                ->with('series:id,kp_id,title,slug,year')
+                ->with('series:id,kp_id,tmdb_id,title,slug,year')
                 ->orderBy('rank_order')
                 ->get(),
         ]);
@@ -355,30 +363,36 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
     Route::post('/collections/{collection_slug}/items', function (Request $request, string $collection_slug) {
         $data = $request->validate([
             'items' => ['required', 'array'],
-            'items.*.kp_id' => ['required', 'string'],
+            'items.*.series_id' => ['nullable', 'integer'],
+            'items.*.kp_id' => ['nullable', 'string'],
+            'items.*.tmdb_id' => ['nullable', 'string'],
             'items.*.rank_order' => ['nullable', 'integer'],
         ]);
 
         $collection = Collection::query()->where('slug', $collection_slug)->firstOrFail();
+        $added = 0;
+        $skipped = 0;
 
         foreach ($data['items'] as $idx => $item) {
-            $series = Series::query()->where('kp_id', (string)$item['kp_id'])->first();
+            $series = \App\Support\SeriesItemResolver::fromItem($item);
             if (!$series) {
+                $skipped++;
                 continue;
             }
 
             CollectionItem::query()->updateOrCreate(
                 ['collection_id' => $collection->id, 'series_id' => $series->id],
-                ['rank_order' => $item['rank_order'] ?? (int)$idx]
+                ['rank_order' => $item['rank_order'] ?? (int) $idx]
             );
+            $added++;
         }
 
-        return response()->json(['ok' => true]);
+        return response()->json(['ok' => true, 'added' => $added, 'skipped' => $skipped]);
     });
 
-    Route::delete('/collections/{collection_slug}/items/{kp_id}', function (string $collection_slug, string $kp_id) {
+    Route::delete('/collections/{collection_slug}/items/{seriesKey}', function (string $collection_slug, string $seriesKey) {
         $collection = Collection::query()->where('slug', $collection_slug)->firstOrFail();
-        $series = Series::query()->where('kp_id', $kp_id)->firstOrFail();
+        $series = \App\Support\AdminSeriesResolver::byKey($seriesKey);
 
         CollectionItem::query()
             ->where('collection_id', $collection->id)
@@ -404,6 +418,8 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
             'meta_description' => ['nullable', 'string'],
             'seo_html' => ['nullable', 'string', 'max:65535'],
             'logo_url' => ['nullable', 'string'],
+            'tmdb_id' => ['nullable', 'integer', 'min:1'],
+            'tmdb_type' => ['nullable', 'string', Rule::in(['movie', 'tv', 'company'])],
             'sort_order' => ['nullable', 'integer'],
             'is_pinned' => ['nullable', 'boolean'],
             'is_active' => ['nullable', 'boolean'],
@@ -439,6 +455,8 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
             'meta_description' => $data['meta_description'] ?? null,
             'seo_html' => isset($data['seo_html']) ? str_replace("\r\n", "\n", (string)$data['seo_html']) : null,
             'logo_url' => $data['logo_url'] ?? null,
+            'tmdb_id' => $data['tmdb_id'] ?? null,
+            'tmdb_type' => $data['tmdb_type'] ?? null,
             'sort_order' => $data['sort_order'] ?? 0,
             'is_pinned' => $data['is_pinned'] ?? false,
             'is_active' => $data['is_active'] ?? true,
@@ -483,7 +501,7 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
         return response()->json([
             'items' => StudioItem::query()
                 ->where('studio_id', $studio->id)
-                ->with('series:id,kp_id,title,slug,year')
+                ->with('series:id,kp_id,tmdb_id,title,slug,year')
                 ->orderBy('rank_order')
                 ->get(),
         ]);
@@ -492,35 +510,41 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
     Route::post('/studios/{studio_slug}/items', function (Request $request, string $studio_slug) {
         $data = $request->validate([
             'items' => ['required', 'array'],
-            'items.*.kp_id' => ['required', 'string'],
+            'items.*.series_id' => ['nullable', 'integer'],
+            'items.*.kp_id' => ['nullable', 'string'],
+            'items.*.tmdb_id' => ['nullable', 'string'],
             'items.*.rank_order' => ['nullable', 'integer'],
         ]);
 
         $studio = Studio::query()->where('slug', $studio_slug)->firstOrFail();
+        $added = 0;
+        $skipped = 0;
 
         foreach ($data['items'] as $idx => $item) {
-            $series = Series::query()->where('kp_id', (string)$item['kp_id'])->first();
+            $series = \App\Support\SeriesItemResolver::fromItem($item);
             if (!$series) {
+                $skipped++;
                 continue;
             }
 
             StudioItem::query()->updateOrCreate(
                 ['studio_id' => $studio->id, 'series_id' => $series->id],
-                ['rank_order' => $item['rank_order'] ?? (int)$idx]
+                ['rank_order' => $item['rank_order'] ?? (int) $idx]
             );
 
             if (!$series->studio_id) {
                 $series->studio_id = $studio->id;
                 $series->save();
             }
+            $added++;
         }
 
-        return response()->json(['ok' => true]);
+        return response()->json(['ok' => true, 'added' => $added, 'skipped' => $skipped]);
     });
 
-    Route::delete('/studios/{studio_slug}/items/{kp_id}', function (string $studio_slug, string $kp_id) {
+    Route::delete('/studios/{studio_slug}/items/{seriesKey}', function (string $studio_slug, string $seriesKey) {
         $studio = Studio::query()->where('slug', $studio_slug)->firstOrFail();
-        $series = Series::query()->where('kp_id', $kp_id)->firstOrFail();
+        $series = \App\Support\AdminSeriesResolver::byKey($seriesKey);
 
         StudioItem::query()
             ->where('studio_id', $studio->id)
