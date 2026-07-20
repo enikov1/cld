@@ -32,11 +32,14 @@ class SeriesCardMapper
         $newEpisodeLabel = SiteConfig::str('card_badge_new_episode_label') ?: 'Новая серия';
         $popularLabel = SiteConfig::str('card_badge_popular_label') ?: 'Популярно';
 
+        $progressMap = EpisodeProgressService::resolvedProgressForSeries($seriesList);
+
         $out = [];
         foreach ($seriesList as $s) {
             $id = (int)$s->id;
-            $season = $s->season_number;
-            $episode = $s->last_episode_number;
+            $progress = $progressMap[$id] ?? EpisodeProgressService::resolvedProgress($s);
+            $season = $progress['season_number'];
+            $episode = $progress['last_episode_number'];
 
             $out[] = [
                 'id' => $id,
@@ -50,7 +53,7 @@ class SeriesCardMapper
                 'broadcast_status' => $s->broadcast_status,
                 'season_number' => $season,
                 'last_episode_number' => $episode,
-                'episode_progress_label' => $s->episodeProgressLabel(),
+                'episode_progress_label' => $progress['label'],
                 'season_badge' => $season ? 'S' . $season : '',
                 'episode_badge' => $episode ? 'E' . $episode : '',
                 'top_reaction_emoji' => $topEmojis[$id] ?? '',

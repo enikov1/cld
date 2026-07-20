@@ -183,7 +183,9 @@
                         [series.episode_progress_label]
                             <div class="serial-detail">
                                 <div class="serial-detail__name">Серии:</div>
-                                <div class="serial-detail__value">{series.episode_progress_label}</div>
+                                <div class="serial-detail__value">
+                                    {series.episode_progress_label}[series.next_episode_reminder]<span class="serial-detail__next-ep"> · {series.next_episode_reminder}</span>[/series.next_episode_reminder]
+                                </div>
                             </div>
                         [/series.episode_progress_label]
                     </div>

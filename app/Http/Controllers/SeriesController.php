@@ -64,6 +64,8 @@ class SeriesController extends TplController
 
         $schedule = EpisodeProgressService::scheduleForSeries($series);
         $hasSchedule = count($schedule) > 0;
+        $progress = EpisodeProgressService::resolvedProgress($series);
+        $nextReminder = EpisodeProgressService::nextUpcomingReminder($series);
         $reactions = ReactionWidgetService::payloadForSeries($series, request());
         $hasReactions = (bool)($reactions['enabled'] ?? false);
         $anticipation = AnticipationService::payloadForSeries($series, request());
@@ -122,9 +124,13 @@ class SeriesController extends TplController
             'broadcast_status_label' => $series->broadcastStatusLabel(),
             'status_badge_class' => $statusBadge['class'] ?? '',
             'status_badge_label' => $statusBadge['label'] ?? '',
-            'season_number' => $series->season_number,
-            'last_episode_number' => $series->last_episode_number,
-            'episode_progress_label' => $series->episodeProgressLabel(),
+            'season_number' => $progress['season_number'],
+            'last_episode_number' => $progress['last_episode_number'],
+            'episode_progress_label' => $progress['label'],
+            'next_episode_reminder' => $nextReminder['label'] ?? '',
+            'next_episode_season' => isset($nextReminder['season_number']) ? (string)$nextReminder['season_number'] : '',
+            'next_episode_number' => isset($nextReminder['episode_number']) ? (string)$nextReminder['episode_number'] : '',
+            'next_episode_days_until' => isset($nextReminder['days_until']) ? (string)$nextReminder['days_until'] : '',
             'premiere_date_label' => $premiereLabel,
             'premiere_day_month_label' => $series->premiereDayMonthLabel(),
             'translation' => $series->translation,
@@ -184,8 +190,8 @@ class SeriesController extends TplController
         ];
 
         $labelTags = SeasonEpisodeLabels::forSeries(
-            $series->season_number,
-            $series->last_episode_number
+            $progress['season_number'],
+            $progress['last_episode_number']
         );
 
         $notificationSubscribed = false;

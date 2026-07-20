@@ -816,6 +816,15 @@ body.dt {
     display: inline;
 }
 
+.serial-detail__next-ep {
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.dt .serial-detail__next-ep {
+    color: #9ca3af;
+}
+
 .serial-detail__studios {
     display: flex;
     flex-wrap: wrap;

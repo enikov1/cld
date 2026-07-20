@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\EpisodeProgressService;
 use App\Services\TaxonomyService;
 use App\Support\AgeLimitFormatter;
 use Illuminate\Database\Eloquent\Model;
@@ -224,20 +225,11 @@ class Series extends Model
 
     /**
      * Текст для шаблона: «5 сезон, 12 серия» или пустая строка.
+     * Если в графике есть вышедшие серии — берём последнюю оттуда, иначе поля сериала.
      */
     public function episodeProgressLabel(): string
     {
-        $parts = [];
-
-        if ($this->season_number) {
-            $parts[] = $this->season_number . ' сезон';
-        }
-
-        if ($this->last_episode_number) {
-            $parts[] = $this->last_episode_number . ' серия';
-        }
-
-        return implode(', ', $parts);
+        return EpisodeProgressService::resolvedProgress($this)['label'];
     }
 
     public function studio()
