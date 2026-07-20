@@ -283,7 +283,7 @@ body.dt {
 }
 
 .carou-track .th-item,
-.carou-track .swiper-slide {
+.carou-content:not([data-carou-type="collections"]) .carou-track .swiper-slide {
     flex: 0 0 180px;
     width: 180px;
     height: auto;
@@ -391,34 +391,65 @@ body.dt {
 }
 
 
-/* Баннеры подборок */
+/* Баннеры подборок — карусель + более лёгкое затемнение */
 
 .b-collections__newest {
     margin: 22px 0;
-    padding: 18px;
+    padding: 14px;
     background: #f1f3f5;
     border-radius: 18px;
 }
 
-.b-collections__newest_inner {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
+.b-collections__newest_slider {
+    position: relative;
 }
 
-.b-collections__newest_card {
+.b-collections__newest_slider.swiper {
+    overflow: hidden;
+}
+
+.b-collections__newest_inner {
+    display: flex;
+    gap: 0;
+    grid-template-columns: none;
+}
+
+.b-collections__newest_inner.carou-track.swiper-wrapper {
+    gap: 0;
+    overflow: visible;
+    padding-bottom: 0;
+}
+
+.b-collections__newest_card,
+.b-collections__newest_inner a.b-collections__newest_card,
+.b-collections__newest_inner.carou-track .swiper-slide,
+.b-collections__newest_inner .swiper-slide {
     position: relative;
     display: flex;
     align-items: center;
-    aspect-ratio: 16 / 4;
-    min-height: 0;
-    padding: 24px 34px;
+    /* сброс 180px от .carou-track .swiper-slide — ширину задаёт inline от Swiper */
+    flex: 0 0 auto !important;
+    max-width: none !important;
+    height: 200px !important;
+    min-height: 200px !important;
+    max-height: 200px !important;
+    aspect-ratio: auto !important;
+    padding: 24px 28px;
     overflow: hidden;
-    border-radius: 16px;
-    background: linear-gradient(135deg, #1f2937, #111827);
+    border-radius: 14px;
+    background: linear-gradient(135deg, #374151, #1f2937);
     color: #fff;
     text-decoration: none;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.1);
+    float: none;
+    box-sizing: border-box;
+    isolation: isolate;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.b-collections__newest_card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.16);
 }
 
 .b-collections__newest_card img {
@@ -427,7 +458,40 @@ body.dt {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    opacity: 0.45;
+    z-index: -3;
+    opacity: 1;
+    transition: transform 0.35s ease, filter 0.35s ease;
+}
+
+.b-collections__newest_card:hover img {
+    transform: scale(1.05);
+    filter: saturate(1.06) contrast(1.04);
+}
+
+/* Лёгкое затемнение только для читаемости текста */
+.b-collections__newest_card::before,
+.b-collections__newest_inner a::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    background: linear-gradient(
+        90deg,
+        rgba(0, 0, 0, 0.42) 0%,
+        rgba(0, 0, 0, 0.22) 45%,
+        rgba(0, 0, 0, 0.08) 100%
+    );
+}
+
+.b-collections__newest_card::after,
+.b-collections__newest_inner a::after {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    z-index: -1;
+    border-radius: 13px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    pointer-events: none;
 }
 
 .b-collections__newest_card span {
@@ -435,18 +499,146 @@ body.dt {
     z-index: 2;
     display: inline-flex;
     align-items: center;
+    max-width: 90%;
+    background: transparent;
+}
+
+.b-collections__newest_card span::before {
+    content: "";
+    width: 4px;
+    height: 48px;
+    margin-right: 14px;
+    flex: 0 0 auto;
+    border-radius: 20px;
+    background: #6fca43;
+    box-shadow: 0 0 14px rgba(111, 202, 67, 0.4);
 }
 
 .b-collections__newest_card strong {
     display: block;
-    font-size: 17px;
+    color: #fff;
+    font-size: 18px;
     font-weight: 800;
+    line-height: 1.3;
+    letter-spacing: 0.03em;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55), 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.b-collections__newest_slider .carou-nav {
+    z-index: 12;
 }
 
 .dt .b-collections__newest {
     background: #171717;
+}
+
+.dt .b-collections__newest_card {
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+
+.dt .b-collections__newest_card:hover {
+    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.45);
+}
+
+.dt .b-collections__newest_card::before,
+.dt .b-collections__newest_inner a::before {
+    background: linear-gradient(
+        90deg,
+        rgba(0, 0, 0, 0.48) 0%,
+        rgba(0, 0, 0, 0.28) 45%,
+        rgba(0, 0, 0, 0.12) 100%
+    );
+}
+
+.dt .b-collections__newest_inner span,
+.dt .b-collections__newest_card span {
+    background-color: transparent;
+}
+
+@media (max-width: 980px) {
+    .b-collections__newest {
+        padding: 12px;
+        border-radius: 16px;
+    }
+
+    .b-collections__newest_card,
+    .b-collections__newest_inner a.b-collections__newest_card,
+    .b-collections__newest_inner .swiper-slide {
+        height: 180px;
+        min-height: 180px;
+        max-height: 180px;
+        padding: 20px 22px;
+        border-radius: 12px;
+    }
+
+    .b-collections__newest_card::after,
+    .b-collections__newest_inner a::after {
+        border-radius: 11px;
+    }
+
+    .b-collections__newest_card strong {
+        font-size: 16px;
+    }
+
+    .b-collections__newest_card span::before {
+        height: 40px;
+    }
+}
+
+@media (max-width: 640px) {
+    .b-collections__newest {
+        margin: 16px 0;
+        padding: 10px;
+        border-radius: 14px;
+    }
+
+    .b-collections__newest_card,
+    .b-collections__newest_inner a.b-collections__newest_card,
+    .b-collections__newest_inner .swiper-slide {
+        height: 160px;
+        min-height: 160px;
+        max-height: 160px;
+        padding: 18px;
+        border-radius: 12px;
+    }
+
+    .b-collections__newest_card strong {
+        font-size: 14px;
+        letter-spacing: 0.02em;
+    }
+
+    .b-collections__newest_card span::before {
+        width: 3px;
+        height: 34px;
+        margin-right: 10px;
+    }
+}
+
+@media (max-width: 420px) {
+    .b-collections__newest {
+        margin-left: -10px;
+        margin-right: -10px;
+        border-radius: 0;
+        padding: 10px 8px;
+    }
+
+    .b-collections__newest_card,
+    .b-collections__newest_inner a.b-collections__newest_card,
+    .b-collections__newest_inner .swiper-slide {
+        height: 150px;
+        min-height: 150px;
+        max-height: 150px;
+        padding: 16px;
+    }
+
+    .b-collections__newest_card span {
+        max-width: 95%;
+    }
+
+    .b-collections__newest_card strong {
+        font-size: 13px;
+    }
 }
 
 .img-resp-4x3 {
@@ -4414,59 +4606,99 @@ body.dt .movie-tip__close:hover {
 .schedule-cal__day {
     min-width: 0;
     min-height: 44px;
-    border: 0;
-    border-radius: 8px;
-    background: transparent;
-    color: #111827;
-    font-size: 14px;
-    font-weight: 500;
+    border: 0 !important;
+    border-radius: 8px !important;
+    background: #fff !important;
+    color: #111827 !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    line-height: 1.2 !important;
+    height: auto !important;
+    padding: 6px 2px !important;
+    text-transform: none !important;
     cursor: default;
-    display: flex;
+    display: flex !important;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 3px;
-    padding: 6px 2px;
     position: relative;
+    box-shadow: inset 0 0 0 1px #e5e7eb !important;
+    transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .schedule-cal__day.is-other {
-    color: #9ca3af;
-    opacity: 0.55;
+    color: #9ca3af !important;
+    background: #f3f4f6 !important;
+    opacity: 0.7;
+    box-shadow: none !important;
 }
 
-.schedule-cal__day.is-today {
-    background: rgba(59, 130, 246, 0.12);
-    color: #1d4ed8;
-    font-weight: 700;
+.schedule-cal__day:not(.is-other) {
+    cursor: pointer;
 }
 
 .schedule-cal__day.has-eps {
-    cursor: pointer;
-    background: #fff;
-    box-shadow: inset 0 0 0 1px #d1d5db;
+    background: #fff !important;
+    box-shadow: inset 0 0 0 1px #d1d5db !important;
 }
 
-.schedule-cal__day:not(.is-other):not(.has-eps) {
-    cursor: pointer;
+/* Сегодня: зелёное кольцо и лёгкий фон */
+.schedule-cal__day.is-today:not(.is-other) {
+    background: #edf8e6 !important;
+    color: #2f6b14 !important;
+    font-weight: 700 !important;
+    box-shadow: inset 0 0 0 2px #79c142 !important;
 }
 
-.schedule-cal__day:not(.is-other):hover,
-.schedule-cal__day.has-eps:hover,
-.schedule-cal__day.is-selected {
-    background: #2563eb;
+.schedule-cal__day.has-eps.is-today:not(.is-selected) {
+    background: #edf8e6 !important;
+    box-shadow: inset 0 0 0 2px #79c142 !important;
+}
+
+.schedule-cal__day.is-today:not(.is-selected) .schedule-cal__count {
+    background: #79c142;
     color: #fff;
-    box-shadow: none;
 }
 
-.schedule-cal__day.has-eps:hover .schedule-cal__count,
-.schedule-cal__day.is-selected .schedule-cal__count {
+/* Выбранный день: синяя заливка */
+.schedule-cal__day.is-selected:not(.is-other),
+.schedule-cal__day.has-eps.is-selected {
+    background: #2563eb !important;
+    color: #fff !important;
+    font-weight: 700 !important;
+    box-shadow: inset 0 0 0 2px #1d4ed8, 0 4px 12px rgba(37, 99, 235, 0.35) !important;
+}
+
+/* Сегодня + выбран: синяя заливка и зелёное внешнее кольцо */
+.schedule-cal__day.is-today.is-selected {
+    background: #2563eb !important;
+    color: #fff !important;
+    font-weight: 700 !important;
+    box-shadow: inset 0 0 0 2px #1d4ed8, 0 0 0 3px #79c142, 0 4px 12px rgba(37, 99, 235, 0.35) !important;
+}
+
+.schedule-cal__day.is-selected .schedule-cal__count,
+.schedule-cal__day.has-eps.is-selected .schedule-cal__count {
     background: #fff;
     color: #2563eb;
 }
 
-.schedule-cal__day.has-eps.is-today:not(.is-selected) {
-    box-shadow: inset 0 0 0 1px #2563eb;
+.schedule-cal__day:not(.is-other):not(.is-selected):hover {
+    background: #dbeafe !important;
+    color: #1e40af !important;
+    box-shadow: inset 0 0 0 1px #2563eb !important;
+}
+
+.schedule-cal__day.has-eps:not(.is-selected):hover {
+    background: #dbeafe !important;
+    color: #1e40af !important;
+    box-shadow: inset 0 0 0 1px #2563eb !important;
+}
+
+.schedule-cal__day.has-eps:not(.is-selected):hover .schedule-cal__count {
+    background: #2563eb;
+    color: #fff;
 }
 
 .schedule-cal__count {
@@ -4617,19 +4849,50 @@ body.dt .movie-tip__close:hover {
 }
 
 .dt .schedule-cal__day {
-    color: #e5e7eb;
+    color: #e5e7eb !important;
+    background: #1f2937 !important;
+    box-shadow: inset 0 0 0 1px #374151 !important;
+}
+
+.dt .schedule-cal__day.is-other {
+    background: #111827 !important;
+    color: #6b7280 !important;
 }
 
 .dt .schedule-cal__day.has-eps {
-    background: #111827;
-    box-shadow: inset 0 0 0 1px #374151;
+    background: #111827 !important;
+    box-shadow: inset 0 0 0 1px #374151 !important;
 }
 
-.dt .schedule-cal__day:not(.is-other):hover,
-.dt .schedule-cal__day.has-eps:hover,
-.dt .schedule-cal__day.is-selected {
-    background: #2563eb;
-    color: #fff;
+.dt .schedule-cal__day.is-today:not(.is-other) {
+    background: rgba(121, 193, 66, 0.16) !important;
+    color: #b6eb94 !important;
+    box-shadow: inset 0 0 0 2px #79c142 !important;
+}
+
+.dt .schedule-cal__day.has-eps.is-today:not(.is-selected) {
+    background: rgba(121, 193, 66, 0.16) !important;
+    box-shadow: inset 0 0 0 2px #79c142 !important;
+}
+
+.dt .schedule-cal__day.is-selected:not(.is-other),
+.dt .schedule-cal__day.has-eps.is-selected {
+    background: #2563eb !important;
+    color: #fff !important;
+    box-shadow: inset 0 0 0 2px #60a5fa, 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+}
+
+.dt .schedule-cal__day.is-today.is-selected {
+    background: #2563eb !important;
+    color: #fff !important;
+    box-shadow: inset 0 0 0 2px #60a5fa, 0 0 0 3px #79c142, 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+}
+
+.dt .schedule-cal__day:not(.is-other):not(.is-selected):hover,
+.dt .schedule-cal__day.has-eps:not(.is-selected):hover {
+    background: rgba(37, 99, 235, 0.22) !important;
+    color: #bfdbfe !important;
+    box-shadow: inset 0 0 0 1px #2563eb !important;
 }
 
 .dt .schedule-cal__day-panel {
@@ -4665,6 +4928,7 @@ body.dt .movie-tip__close:hover {
 
     .schedule-cal__day-panel {
         min-height: 0;
+        scroll-margin-top: 12px;
     }
 
     .schedule-cal__day-list {

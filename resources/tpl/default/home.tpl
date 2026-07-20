@@ -35,14 +35,23 @@
     </div>
     [/has_watch_history] [promo_collections]
     <div class="b-collections__newest">
-        <div class="b-collections__newest_inner">
-            [loop promo_collections]
-            <a href="{item.url|raw}" class="b-collections__newest_card[item.banner_url] has-cover[/item.banner_url]">
-                            [item.banner_url]
-                                <img src="{item.banner_url|raw}" alt="{item.title}" loading="lazy">
-                            [/item.banner_url]
-                            <span><strong>{item.title}</strong></span>
-                        </a> [/loop]
+        <div class="b-collections__newest_slider carou-content" data-carou data-carou-type="collections" data-carou-space="14">
+            <button class="carou-nav carou-nav--prev dontusebuttonclass" type="button" aria-label="Назад">
+                <span class="fa fa-angle-left"></span>
+            </button>
+            <div class="b-collections__newest_inner carou-track">
+                [loop promo_collections]
+                <a href="{item.url|raw}" class="b-collections__newest_card[item.banner_url] has-cover[/item.banner_url]">
+                    [item.banner_url]
+                        <img src="{item.banner_url|raw}" alt="{item.title}" loading="lazy">
+                    [/item.banner_url]
+                    <span><strong>{item.title}</strong></span>
+                </a>
+                [/loop]
+            </div>
+            <button class="carou-nav carou-nav--next dontusebuttonclass" type="button" aria-label="Вперёд">
+                <span class="fa fa-angle-right"></span>
+            </button>
         </div>
     </div>
     [/promo_collections] [promo_studios]

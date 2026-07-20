@@ -3942,10 +3942,16 @@
                 if (hasEps) classes.push('has-eps');
                 if (selectedDate === iso) classes.push('is-selected');
 
-                html += '<button type="button" class="' + classes.join(' ') + '"'
+                html += '<button type="button" class="dontusebuttonclass ' + classes.join(' ') + '"'
                     + ' data-cal-date="' + iso + '"'
                     + (inMonth ? '' : ' disabled tabindex="-1"')
-                    + ' aria-label="' + formatRuDate(iso) + (hasEps ? (', серий: ' + epsCount) : '') + '"'
+                    + (state.today === iso ? ' aria-current="date"' : '')
+                    + (selectedDate === iso ? ' aria-pressed="true"' : ' aria-pressed="false"')
+                    + ' aria-label="' + formatRuDate(iso)
+                    + (state.today === iso ? ', сегодня' : '')
+                    + (selectedDate === iso ? ', выбран' : '')
+                    + (hasEps ? (', серий: ' + epsCount) : '')
+                    + '"'
                     + '>'
                     + '<span>' + dayNum + '</span>'
                     + (hasEps ? '<span class="schedule-cal__count" aria-hidden="true">' + epsCount + '</span>' : '')
@@ -3953,6 +3959,15 @@
             }
 
             gridEl.innerHTML = html;
+        }
+
+        function scrollToDayPanelIfMobile() {
+            if (!window.matchMedia('(max-width: 991px)').matches) return;
+            var panel = root.querySelector('.schedule-cal__day-panel');
+            if (!panel) return;
+            window.requestAnimationFrame(function () {
+                panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
         }
 
         function applyData(data, preferDate) {
@@ -4016,6 +4031,7 @@
             selectedDate = date;
             renderGrid();
             renderDayPanel(date);
+            scrollToDayPanelIfMobile();
         });
 
         if (prevBtn) {
