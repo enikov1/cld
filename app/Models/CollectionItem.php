@@ -12,10 +12,12 @@ class CollectionItem extends Model
         'collection_id',
         'series_id',
         'rank_order',
+        'is_auto',
     ];
 
     protected $casts = [
         'rank_order' => 'integer',
+        'is_auto' => 'boolean',
     ];
 
     public function collection()

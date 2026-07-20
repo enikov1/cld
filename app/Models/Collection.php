@@ -23,6 +23,8 @@ class Collection extends Model
         'is_active',
         'is_hidden',
         'noindex',
+        'auto_add_enabled',
+        'auto_keywords',
     ];
 
     protected $casts = [
@@ -33,6 +35,8 @@ class Collection extends Model
         'is_pinned' => 'boolean',
         'sort_order' => 'integer',
         'studio_id' => 'integer',
+        'auto_add_enabled' => 'boolean',
+        'auto_keywords' => 'array',
     ];
 
     public function scopeCatalogOrder($query)
@@ -48,7 +52,7 @@ class Collection extends Model
     public function series()
     {
         return $this->belongsToMany(Series::class, 'collection_items', 'collection_id', 'series_id')
-            ->withPivot(['rank_order'])
+            ->withPivot(['rank_order', 'is_auto'])
             ->orderBy('collection_items.rank_order');
     }
 

@@ -94,6 +94,8 @@ export type SeriesItem = {
   studio_ids?: number[]
   studio?: { id: number; slug: string; title: string } | null
   studios?: { id: number; slug: string; title: string; logo_url?: string | null }[]
+  collection_ids?: number[]
+  collections?: { id: number; slug: string; title: string; is_auto?: boolean }[]
 }
 
 export type CollectionItem = {
@@ -111,6 +113,8 @@ export type CollectionItem = {
   is_hidden: boolean
   noindex: boolean
   studio_id?: number | null
+  auto_add_enabled?: boolean
+  auto_keywords?: string[] | null
 }
 
 export type StudioItem = {
@@ -144,6 +148,7 @@ export type CollectionSeriesItem = {
   collection_id: number
   series_id: number
   rank_order: number
+  is_auto?: boolean
   series?: SeriesItem | null
 }
 

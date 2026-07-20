@@ -279,7 +279,14 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
             'is_active' => ['nullable', 'boolean'],
             'is_hidden' => ['nullable', 'boolean'],
             'noindex' => ['nullable', 'boolean'],
+            'auto_add_enabled' => ['nullable', 'boolean'],
+            'auto_keywords' => ['nullable'],
+            'series_ids' => ['nullable', 'array'],
+            'series_ids.*' => ['integer', 'exists:series,id'],
         ]);
+
+        $matcher = app(\App\Services\CollectionAutoMatcher::class);
+        $keywordsChanged = false;
 
         $manual = trim((string)($data['slug'] ?? ''));
         $collection = !empty($data['id'])
@@ -288,6 +295,12 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
 
         if ($collection) {
             $slug = $collection->slug;
+            $oldKeywords = $matcher->parseKeywords($collection->auto_keywords);
+            $newKeywords = array_key_exists('auto_keywords', $data)
+                ? $matcher->parseKeywords($data['auto_keywords'])
+                : $oldKeywords;
+            $keywordsChanged = $oldKeywords !== $newKeywords
+                || (array_key_exists('auto_add_enabled', $data) && (bool) $data['auto_add_enabled'] !== (bool) $collection->auto_add_enabled);
         } elseif ($manual !== '') {
             $slug = \Illuminate\Support\Str::slug($manual);
         } else {
@@ -317,6 +330,17 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
             'noindex' => $data['noindex'] ?? false,
         ];
 
+        if (array_key_exists('auto_add_enabled', $data)) {
+            $attrs['auto_add_enabled'] = (bool) $data['auto_add_enabled'];
+        } elseif (!$collection) {
+            $attrs['auto_add_enabled'] = false;
+        }
+
+        if (array_key_exists('auto_keywords', $data)) {
+            $parsed = $matcher->parseKeywords($data['auto_keywords']);
+            $attrs['auto_keywords'] = $parsed !== [] ? $parsed : null;
+        }
+
         if ($collection) {
             $collection->update($attrs);
         } else {
@@ -324,11 +348,43 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
                 'slug' => $slug,
                 'source_updated_at' => $data['source_updated_at'] ?? now(),
             ]));
+            $keywordsChanged = !empty($attrs['auto_add_enabled']) && !empty($attrs['auto_keywords']);
+        }
+
+        if (array_key_exists('series_ids', $data)) {
+            $matcher->syncExplicitMembership($collection, $data['series_ids'] ?? []);
+        }
+
+        $autoSync = ['added' => 0, 'removed' => 0];
+        if ($keywordsChanged) {
+            $autoSync = $matcher->refreshAutoItems($collection->fresh());
         }
 
         \App\Support\TplCache::bumpGlobalVersion();
 
-        return response()->json(['ok' => true, 'item' => $collection->fresh()]);
+        $seriesIds = CollectionItem::query()
+            ->where('collection_id', $collection->id)
+            ->orderBy('rank_order')
+            ->pluck('series_id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        return response()->json([
+            'ok' => true,
+            'item' => $collection->fresh(),
+            'series_ids' => $seriesIds,
+            'auto_sync' => $autoSync,
+        ]);
+    });
+
+    Route::post('/collections/{collection_slug}/auto-sync', function (string $collection_slug) {
+        $collection = Collection::query()->where('slug', $collection_slug)->firstOrFail();
+        $result = app(\App\Services\CollectionAutoMatcher::class)->refreshAutoItems($collection);
+
+        \App\Support\TplCache::bumpGlobalVersion();
+
+        return response()->json(['ok' => true, ...$result]);
     });
 
     Route::post('/collections/{slug}/cover', function (Request $request, string $slug) {
@@ -336,17 +392,34 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
 
         $request->validate([
             'cover' => ['required', 'file', 'image', 'max:' . $maxKb],
+            'title' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $collection = Collection::query()->where('slug', $slug)->firstOrFail();
+        $slugInput = in_array($slug, ['_draft', 'new'], true) ? '' : $slug;
+        $normalizedSlug = SlugHelper::make(
+            $slugInput,
+            trim((string) $request->input('title', '')),
+        );
+
+        $collection = Collection::query()->where('slug', $normalizedSlug)->first();
         $url = app(PosterStorage::class)->storeFromUpload(
             $request->file('cover'),
-            PosterContext::forCollection($collection),
+            $collection
+                ? PosterContext::forCollection($collection)
+                : PosterContext::forCollectionSlug($normalizedSlug),
         );
-        $collection->cover_url = $url;
-        $collection->save();
 
-        return response()->json(['ok' => true, 'cover_url' => $url, 'item' => $collection]);
+        if ($collection) {
+            $collection->cover_url = $url;
+            $collection->save();
+        }
+
+        return response()->json([
+            'ok' => true,
+            'cover_url' => $url,
+            'slug' => $normalizedSlug,
+            'item' => $collection,
+        ]);
     });
 
     Route::get('/collections/{collection_slug}/items', function (string $collection_slug) {
@@ -357,7 +430,30 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
                 ->where('collection_id', $collection->id)
                 ->with('series:id,kp_id,tmdb_id,title,slug,year')
                 ->orderBy('rank_order')
-                ->get(),
+                ->get()
+                ->map(fn (CollectionItem $item) => [
+                    'id' => $item->id,
+                    'collection_id' => $item->collection_id,
+                    'series_id' => $item->series_id,
+                    'rank_order' => $item->rank_order,
+                    'is_auto' => (bool) $item->is_auto,
+                    'series' => $item->series,
+                ]),
+            'series_ids' => CollectionItem::query()
+                ->where('collection_id', $collection->id)
+                ->orderBy('rank_order')
+                ->pluck('series_id')
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all(),
+            'manual_series_ids' => CollectionItem::query()
+                ->where('collection_id', $collection->id)
+                ->where('is_auto', false)
+                ->orderBy('rank_order')
+                ->pluck('series_id')
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all(),
         ]);
     });
 
@@ -383,7 +479,7 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
 
             CollectionItem::query()->updateOrCreate(
                 ['collection_id' => $collection->id, 'series_id' => $series->id],
-                ['rank_order' => $item['rank_order'] ?? (int) $idx]
+                ['rank_order' => $item['rank_order'] ?? (int) $idx, 'is_auto' => false]
             );
             $added++;
         }

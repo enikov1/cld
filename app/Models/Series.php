@@ -276,7 +276,7 @@ class Series extends Model
     public function collections()
     {
         return $this->belongsToMany(Collection::class, 'collection_items', 'series_id', 'collection_id')
-            ->withPivot(['rank_order'])
+            ->withPivot(['rank_order', 'is_auto'])
             ->orderBy('collection_items.rank_order');
     }
 

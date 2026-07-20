@@ -235,6 +235,8 @@ class AdminSeriesController extends Controller
             'studio_id' => ['nullable', 'integer', 'exists:studios,id'],
             'studio_ids' => ['nullable', 'array'],
             'studio_ids.*' => ['integer', 'exists:studios,id'],
+            'collection_ids' => ['nullable', 'array'],
+            'collection_ids.*' => ['integer', 'exists:collections,id'],
             'download_poster' => ['nullable', 'boolean'],
         ]);
 
@@ -463,13 +465,24 @@ class AdminSeriesController extends Controller
             $this->syncStudios($series, $data['studio_id'] ? [(int)$data['studio_id']] : []);
         }
 
+        if (array_key_exists('collection_ids', $data)) {
+            app(\App\Services\CollectionAutoMatcher::class)->syncSeriesCollections(
+                $series,
+                $data['collection_ids'] ?? [],
+            );
+        }
+
+        app(\App\Services\CollectionAutoMatcher::class)->syncSeriesToAutoCollections(
+            $series->fresh()->load(['genres']),
+        );
+
         $series->refresh();
         \App\Services\EpisodeNotifier::fromSeriesProgress($series, $oldSeason, $oldEpisode);
         TplCache::forgetSeries($series->id);
 
         return response()->json([
             'ok' => true,
-            'item' => $this->serializeSeries($series->fresh()->load(['genres', 'countries', 'actors', 'directors', 'studio', 'studios'])),
+            'item' => $this->serializeSeries($series->fresh()->load(['genres', 'countries', 'actors', 'directors', 'studio', 'studios', 'collections'])),
         ]);
     }
 
@@ -575,7 +588,7 @@ class AdminSeriesController extends Controller
 
         return response()->json([
             'ok' => true,
-            'item' => $this->serializeSeries($series->fresh()->load(['genres', 'countries', 'actors', 'directors', 'studio', 'studios'])),
+            'item' => $this->serializeSeries($series->fresh()->load(['genres', 'countries', 'actors', 'directors', 'studio', 'studios', 'collections'])),
         ]);
     }
 
@@ -607,7 +620,7 @@ class AdminSeriesController extends Controller
                         $people['_actor_people'],
                         $people['_director_people'],
                     );
-                    $result['series'] = $result['series']->fresh()->load(['genres', 'countries', 'actors', 'directors', 'studio', 'studios']);
+                    $result['series'] = $result['series']->fresh()->load(['genres', 'countries', 'actors', 'directors', 'studio', 'studios', 'collections']);
                 }
             }
         }
@@ -716,7 +729,7 @@ class AdminSeriesController extends Controller
 
         return response()->json([
             'ok' => true,
-            'item' => $this->serializeSeries($series->load(['genres', 'countries', 'actors', 'directors'])),
+            'item' => $this->serializeSeries($series->load(['genres', 'countries', 'actors', 'directors', 'studio', 'studios', 'collections'])),
         ]);
     }
 
@@ -727,7 +740,7 @@ class AdminSeriesController extends Controller
      */
     private function serializeSeries(Series $series, array $views3d = [], array $views7d = []): array
     {
-        $series->loadMissing(['genres', 'countries', 'actors', 'directors', 'studio', 'studios']);
+        $series->loadMissing(['genres', 'countries', 'actors', 'directors', 'studio', 'studios', 'collections']);
 
         $studios = collect();
         if ($series->studio) {
@@ -749,6 +762,18 @@ class AdminSeriesController extends Controller
             'actor_ids' => $series->actors->pluck('id')->values()->all(),
             'director_ids' => $series->directors->pluck('id')->values()->all(),
             'studio_ids' => array_map(fn ($s) => (int)$s['id'], $studiosList),
+            'collection_ids' => $series->collections
+                ->filter(fn ($c) => !($c->pivot->is_auto ?? false))
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all(),
+            'collections' => $series->collections->map(fn ($c) => [
+                'id' => $c->id,
+                'slug' => $c->slug,
+                'title' => $c->title,
+                'is_auto' => (bool) ($c->pivot->is_auto ?? false),
+            ])->values()->all(),
             'views_3d' => $views3d[(int)$series->id] ?? 0,
             'views_7d' => $views7d[(int)$series->id] ?? 0,
             'genres' => $series->genres->map(fn ($g) => ['id' => $g->id, 'slug' => $g->slug, 'name' => $g->name])->values()->all(),

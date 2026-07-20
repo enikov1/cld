@@ -7,6 +7,25 @@ import TemplateCodeEditor from '../components/TemplateCodeEditor'
 import { useAdminTheme } from '../theme/useAdminTheme'
 import type { CollectionItem, CollectionSeriesItem, SeriesItem, StudioItem } from '../types'
 
+function mergeSeriesOptions(
+  base: { value: number; label: string }[],
+  selectedIds: number[],
+  series: SeriesItem[],
+) {
+  const map = new Map<number, { value: number; label: string }>()
+  for (const option of base) {
+    map.set(option.value, option)
+  }
+  for (const id of selectedIds) {
+    if (map.has(id)) continue
+    const item = series.find((s) => s.id === id)
+    if (item) {
+      map.set(id, { value: id, label: `${item.title} (${item.kp_id || item.tmdb_id || item.id})` })
+    }
+  }
+  return Array.from(map.values())
+}
+
 export default function CollectionsPage() {
   const { isDark } = useAdminTheme()
   const [collections, setCollections] = useState<CollectionItem[]>([])
@@ -18,16 +37,23 @@ export default function CollectionsPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<CollectionItem | null>(null)
   const [addModalOpen, setAddModalOpen] = useState(false)
+  const [autoSyncing, setAutoSyncing] = useState(false)
   const [form] = Form.useForm()
   const [addForm] = Form.useForm()
+  const watchedSeriesIds = (Form.useWatch('series_ids', form) as number[] | undefined) ?? []
+  const watchedSlug = String(Form.useWatch('slug', form) ?? '').trim()
+  const watchedTitle = String(Form.useWatch('title', form) ?? '').trim()
 
   const seriesOptions = useMemo(
-    () =>
+    () => mergeSeriesOptions(
       series.map((s) => ({
         value: s.id,
         label: `${s.title} (${s.kp_id || s.tmdb_id || s.id})`,
       })),
-    [series],
+      watchedSeriesIds,
+      series,
+    ),
+    [series, watchedSeriesIds],
   )
 
   const activeCollection = useMemo(
@@ -71,6 +97,11 @@ export default function CollectionsPage() {
     }
   }, [])
 
+  const loadCollectionSeriesIds = useCallback(async (slug: string) => {
+    const data = await api<{ series_ids: number[] }>(`/api/admin/collections/${slug}/items`)
+    return data.series_ids ?? []
+  }, [])
+
   useEffect(() => {
     Promise.all([loadCollections(), loadSeries(), loadStudios()]).catch((e) => message.error(String((e as Error).message)))
   }, [loadCollections, loadSeries, loadStudios])
@@ -82,32 +113,84 @@ export default function CollectionsPage() {
   function openCreate() {
     setEditing(null)
     form.resetFields()
-    form.setFieldsValue({ is_active: true, is_pinned: false, is_hidden: false, noindex: false, sort_order: 0, seo_html: '' })
+    form.setFieldsValue({
+      is_active: true,
+      is_pinned: false,
+      is_hidden: false,
+      noindex: false,
+      auto_add_enabled: false,
+      auto_keywords: [],
+      series_ids: [],
+      sort_order: 0,
+      seo_html: '',
+    })
     setModalOpen(true)
   }
 
-  function openEdit(row: CollectionItem) {
+  async function openEdit(row: CollectionItem) {
     setEditing(row)
     form.setFieldsValue({
       ...row,
       seo_html: row.seo_html ?? '',
+      auto_keywords: row.auto_keywords ?? [],
+      auto_add_enabled: row.auto_add_enabled ?? false,
+      series_ids: [],
     })
     setModalOpen(true)
+    try {
+      const seriesIds = await loadCollectionSeriesIds(row.slug)
+      form.setFieldValue('series_ids', seriesIds)
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
   }
 
   async function saveCollection(values: Record<string, unknown>) {
     try {
       const payload = editing ? { ...values, id: editing.id } : values
-      const res = await api<{ item: CollectionItem }>('/api/admin/collections/upsert', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      })
-      message.success(editing ? 'Подборка обновлена' : 'Подборка создана')
+      const res = await api<{ item: CollectionItem; series_ids?: number[]; auto_sync?: { added: number; removed: number } }>(
+        '/api/admin/collections/upsert',
+        {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        },
+      )
+      const autoSync = res.auto_sync
+      if (autoSync && (autoSync.added > 0 || autoSync.removed > 0)) {
+        message.success(`Подборка сохранена. Автоподбор: +${autoSync.added}, −${autoSync.removed}`)
+      } else {
+        message.success(editing ? 'Подборка обновлена' : 'Подборка создана')
+      }
       setModalOpen(false)
       setActiveSlug(res.item.slug)
       await loadCollections()
+      await loadItems(res.item.slug)
     } catch (e) {
       message.error(String((e as Error).message))
+    }
+  }
+
+  async function runAutoSync() {
+    const slug = editing?.slug || activeSlug
+    if (!slug) {
+      message.warning('Сначала сохраните подборку')
+      return
+    }
+    setAutoSyncing(true)
+    try {
+      const res = await api<{ added: number; removed: number }>(`/api/admin/collections/${slug}/auto-sync`, {
+        method: 'POST',
+      })
+      message.success(`Автоподбор: добавлено ${res.added}, удалено ${res.removed}`)
+      if (editing) {
+        const seriesIds = await loadCollectionSeriesIds(slug)
+        form.setFieldValue('series_ids', seriesIds)
+      }
+      await loadItems(slug)
+    } catch (e) {
+      message.error(String((e as Error).message))
+    } finally {
+      setAutoSyncing(false)
     }
   }
 
@@ -155,6 +238,12 @@ export default function CollectionsPage() {
       render: (_, row) => (row.meta_title?.trim() || row.seo_html?.trim() ? <Tag color="blue">Есть</Tag> : <Tag>Нет</Tag>),
     },
     {
+      title: 'Авто',
+      key: 'auto',
+      width: 70,
+      render: (_, row) => (row.auto_add_enabled ? <Tag color="purple">Да</Tag> : null),
+    },
+    {
       title: '',
       key: 'pin',
       width: 90,
@@ -181,7 +270,7 @@ export default function CollectionsPage() {
           size="small"
           onClick={(e) => {
             e.stopPropagation()
-            openEdit(row)
+            void openEdit(row)
           }}
         >
           Изменить
@@ -197,6 +286,12 @@ export default function CollectionsPage() {
     { title: 'Название', key: 'title', render: (_, r) => r.series?.title ?? '—' },
     { title: 'Год', key: 'year', width: 80, render: (_, r) => r.series?.year ?? '—' },
     {
+      title: 'Источник',
+      key: 'source',
+      width: 90,
+      render: (_, r) => (r.is_auto ? <Tag color="purple">Авто</Tag> : <Tag>Ручной</Tag>),
+    },
+    {
       title: '',
       key: 'actions',
       width: 100,
@@ -209,7 +304,15 @@ export default function CollectionsPage() {
     },
   ]
 
-  const coverSlug = editing?.slug || form.getFieldValue('slug')
+  const coverSlug = editing?.slug || watchedSlug
+
+  function resolveCoverUploadSlug(): string {
+    return String(editing?.slug ?? form.getFieldValue('slug') ?? '').trim()
+  }
+
+  function resolveCoverUploadTitle(): string {
+    return String(form.getFieldValue('title') ?? '').trim()
+  }
 
   return (
     <Row gutter={[16, 16]}>
@@ -264,6 +367,19 @@ export default function CollectionsPage() {
         width={920}
         destroyOnHidden
         styles={{ body: { maxHeight: '75vh', overflowY: 'auto' } }}
+        footer={(_, { OkBtn, CancelBtn }) => (
+          <>
+            <Button
+              onClick={() => void runAutoSync()}
+              loading={autoSyncing}
+              disabled={!form.getFieldValue('auto_add_enabled')}
+            >
+              Применить автоподбор
+            </Button>
+            <CancelBtn />
+            <OkBtn />
+          </>
+        )}
       >
         <Form form={form} layout="vertical" onFinish={saveCollection}>
           <Form.Item
@@ -278,6 +394,36 @@ export default function CollectionsPage() {
           </Form.Item>
           <Form.Item label="Студия" name="studio_id" extra="Опционально — привязка подборки к студии">
             <Select allowClear options={studioOptions} placeholder="Не выбрана" />
+          </Form.Item>
+          <Form.Item
+            label="Сериалы"
+            name="series_ids"
+            extra="Ручной выбор сериалов в подборке. Автоматически добавленные сериалы тоже отображаются здесь."
+          >
+            <Select
+              mode="multiple"
+              allowClear
+              showSearch
+              options={seriesOptions}
+              optionFilterProp="label"
+              placeholder="Выберите один или несколько"
+              disabled={!series.length}
+            />
+          </Form.Item>
+          <Form.Item label="Автодобавление по словам" name="auto_add_enabled" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+          <Form.Item
+            label="Ключевые слова"
+            name="auto_keywords"
+            extra="Через запятую или Enter. Ищется в названии, описании и жанрах сериала (без учёта регистра)."
+          >
+            <Select
+              mode="tags"
+              tokenSeparators={[',', ';']}
+              placeholder="вампир, vampire, упыри"
+              open={false}
+            />
           </Form.Item>
           <Form.Item label="Meta title" name="meta_title" extra="Если пусто — «{название} — подборка сериалов»">
             <Input />
@@ -299,16 +445,26 @@ export default function CollectionsPage() {
           </Form.Item>
           <Upload
             beforeUpload={async (file) => {
-              const slug = coverSlug
-              if (!slug) {
-                message.warning('Сначала укажите slug или сохраните подборку')
+              const slug = resolveCoverUploadSlug()
+              const title = resolveCoverUploadTitle()
+              if (!slug && !title) {
+                message.warning('Сначала укажите slug или название подборки')
                 return false
               }
               const fd = new FormData()
               fd.append('cover', file)
+              if (title) {
+                fd.append('title', title)
+              }
               try {
-                const res = await apiUpload<{ cover_url: string }>(`/api/admin/collections/${slug}/cover`, fd)
+                const res = await apiUpload<{ cover_url: string; slug?: string }>(
+                  `/api/admin/collections/${encodeURIComponent(slug || '_draft')}/cover`,
+                  fd,
+                )
                 form.setFieldValue('cover_url', res.cover_url)
+                if (!slug && res.slug) {
+                  form.setFieldValue('slug', res.slug)
+                }
                 message.success('Обложка загружена')
               } catch (e) {
                 message.error(String((e as Error).message))
@@ -318,7 +474,9 @@ export default function CollectionsPage() {
             showUploadList={false}
             accept="image/*"
           >
-            <Button style={{ marginBottom: 12 }}>Загрузить обложку</Button>
+            <Button style={{ marginBottom: 12 }} disabled={!coverSlug && !watchedTitle}>
+              Загрузить обложку
+            </Button>
           </Upload>
           <Row gutter={16}>
             <Col span={6}>

@@ -39,7 +39,7 @@ import { apiUpload } from '../api/upload'
 import SeriesPlayersEditor, { type SeriesPlayersEditorHandle } from '../components/SeriesPlayersEditor'
 import SeriesLookupSearch from '../components/SeriesLookupSearch'
 import SeriesScheduleEditor, { type SeriesScheduleEditorHandle } from '../components/SeriesScheduleEditor'
-import type { SeriesItem, StudioItem, TaxonomyOption } from '../types'
+import type { CollectionItem, SeriesItem, StudioItem, TaxonomyOption } from '../types'
 import { BROADCAST_STATUSES, CONTENT_TYPES } from '../types'
 import { resolveMediaUrl, siteOrigin } from '../utils/mediaUrl'
 import { buildDescriptionAiPrompt } from '../utils/descriptionAiPrompt'
@@ -195,6 +195,20 @@ function mergeStudioOptions(
   return Array.from(map.values())
 }
 
+function mergeCollectionOptions(
+  base: SelectOption[],
+  collections?: { id: number; title: string }[] | null,
+): SelectOption[] {
+  const map = new Map<number, SelectOption>()
+  for (const option of base) {
+    map.set(option.value, option)
+  }
+  for (const item of collections ?? []) {
+    map.set(item.id, { value: item.id, label: item.title })
+  }
+  return Array.from(map.values())
+}
+
 function seriesListRouteKey(row: SeriesItem): string {
   return String(row.kp_id || row.tmdb_id || row.id)
 }
@@ -244,6 +258,7 @@ function seriesToFormValues(item: SeriesItem): Record<string, unknown> {
     meta_description: item.meta_description,
     studio_id: item.studio_id,
     studio_ids: item.studio_ids ?? (item.studio_id ? [item.studio_id] : []),
+    collection_ids: item.collection_ids ?? [],
     sort_order: item.sort_order,
     is_active: item.is_active,
     is_hidden: item.is_hidden,
@@ -262,6 +277,7 @@ export default function SeriesPage() {
   const deepLinkHandled = useRef(false)
   const [items, setItems] = useState<SeriesItem[]>([])
   const [studios, setStudios] = useState<StudioItem[]>([])
+  const [collections, setCollections] = useState<CollectionItem[]>([])
   const [taxonomy, setTaxonomy] = useState<{ genres: TaxonomyOption[]; countries: TaxonomyOption[]; people: TaxonomyOption[] }>({
     genres: [],
     countries: [],
@@ -304,6 +320,11 @@ export default function SeriesPage() {
     setStudios(data.items)
   }, [])
 
+  const loadCollections = useCallback(async () => {
+    const data = await api<{ items: CollectionItem[] }>('/api/admin/collections')
+    setCollections(data.items)
+  }, [])
+
   const studioOptions = useMemo(
     () => mergeStudioOptions(
       studios.map((s) => ({ value: s.id, label: s.title })),
@@ -311,6 +332,19 @@ export default function SeriesPage() {
       editing?.studio,
     ),
     [studios, editing?.studios, editing?.studio],
+  )
+
+  const collectionOptions = useMemo(
+    () => mergeCollectionOptions(
+      collections.map((c) => ({ value: c.id, label: c.title })),
+      editing?.collections,
+    ),
+    [collections, editing?.collections],
+  )
+
+  const autoCollectionTitles = useMemo(
+    () => (editing?.collections ?? []).filter((c) => c.is_auto).map((c) => c.title),
+    [editing?.collections],
   )
 
   const loadTaxonomy = useCallback(async () => {
@@ -380,7 +414,7 @@ export default function SeriesPage() {
       sort: 'default',
       with_trashed: false,
     })
-    Promise.all([loadTaxonomy(), loadStudios()])
+    Promise.all([loadTaxonomy(), loadStudios(), loadCollections()])
       .then(() => loadSeries(1, 50, filterForm.getFieldsValue()))
       .catch((e) => message.error(String((e as Error).message)))
   }, [])
@@ -1303,6 +1337,24 @@ export default function SeriesPage() {
                         allowClear
                         showSearch
                         options={studioOptions}
+                        optionFilterProp="label"
+                        placeholder="Не выбраны"
+                      />
+                    </Form.Item>
+                    <Form.Item
+                      label="Подборки"
+                      name="collection_ids"
+                      extra={
+                        autoCollectionTitles.length
+                          ? `Также в подборках автоматически: ${autoCollectionTitles.join(', ')}`
+                          : 'Можно выбрать несколько — сериал появится в каждой подборке'
+                      }
+                    >
+                      <Select
+                        mode="multiple"
+                        allowClear
+                        showSearch
+                        options={collectionOptions}
                         optionFilterProp="label"
                         placeholder="Не выбраны"
                       />
