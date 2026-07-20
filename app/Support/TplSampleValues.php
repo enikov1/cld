@@ -100,7 +100,13 @@ class TplSampleValues
             'auth_panel' => '',
             'mega_category_slug' => 'genre',
             'THEME' => ThemeManager::webPath(),
+            'theme.stylesheets' => [ThemeManager::assetUrl('site.css')],
+            'theme.scripts' => [
+                ThemeManager::assetUrl('site.js'),
+            ],
             'theme.js' => ThemeManager::assetUrl('site.js'),
+            'theme.home_carousels_js' => ThemeManager::assetUrl('home-carousels.js'),
+            'theme.home_carousels_css' => ThemeManager::assetUrl('home-carousels.css'),
             'theme.logo' => ThemeManager::assetPath('logo.svg') ? ThemeManager::assetUrl('logo.svg') : '',
         ];
     }

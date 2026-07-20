@@ -53,6 +53,9 @@
         </nav>
 
         <form class="ls-search js-quick-search" action="/search" method="get" autocomplete="off">
+            <button class="dontusebuttonclass ls-search__close js-header-search-close" type="button" aria-label="Закрыть поиск" hidden>
+                <span class="fa fa-times"></span>
+            </button>
             <input type="text" class="dontuseinputclass" name="q" placeholder="{search_placeholder_desktop}" value="{search_query}" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="lsQuickSearchPanel" aria-autocomplete="list">
             <button class="dontusebuttonclass" type="submit" aria-label="Найти">
                 <span class="fa fa-search"></span>
@@ -61,6 +64,9 @@
         </form>
 
         <div class="ls-actions">
+            <button class="dontusebuttonclass ls-action ls-action--search js-header-search-open" type="button" title="Поиск" aria-label="Поиск">
+                <span class="fa fa-search"></span>
+            </button>
             [favourites_enabled]
                 <a class="dontusebuttonclass ls-action ls-action--favourites" href="/favourites/" title="{favourites_ui_page_title}">
                     <span class="fa fa-heart"></span>

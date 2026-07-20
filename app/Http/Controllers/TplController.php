@@ -73,7 +73,7 @@ abstract class TplController extends Controller
         return array_merge([
             'csrf_token' => csrf_token(),
             'search_query' => (string)request()->query('q', ''),
-            'site_config_json' => json_encode(SiteConfig::forJs(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            'site_config_json' => json_encode($this->siteConfigForJs(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             'auth' => [
                 'logged_in' => (bool)$user,
                 'is_admin' => (bool)($user?->isAdmin()),
@@ -99,6 +99,24 @@ abstract class TplController extends Controller
             'has_notifications' => SiteConfig::bool('notifications_enabled'),
             'favourites_enabled' => SiteConfig::bool('favourites_enabled'),
         ], NavMenuBuilder::forTpl(), SiteConfig::forTpl());
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function siteConfigForJs(): array
+    {
+        $payload = SiteConfig::forJs();
+        $theme = ThemeManager::assetVars();
+
+        if (!empty($theme['home_carousels_js'])) {
+            $payload['home_carousels_js'] = $theme['home_carousels_js'];
+        }
+        if (!empty($theme['home_carousels_css'])) {
+            $payload['home_carousels_css'] = $theme['home_carousels_css'];
+        }
+
+        return $payload;
     }
 
     /**

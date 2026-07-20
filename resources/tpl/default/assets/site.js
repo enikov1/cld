@@ -631,6 +631,79 @@
         });
     }
 
+    function initHeaderSearch() {
+        var header = document.getElementById('header');
+        if (!header) return;
+
+        var searchForm = header.querySelector('.ls-search');
+        var openBtn = header.querySelector('.js-header-search-open');
+        var closeBtn = header.querySelector('.js-header-search-close');
+        var input = searchForm ? searchForm.querySelector('input[name="q"]') : null;
+        if (!searchForm || !input) return;
+
+        function isCompactSearchMode() {
+            return window.matchMedia('(max-width: 640px)').matches;
+        }
+
+        function openHeaderSearch() {
+            header.classList.add('search-is-open');
+            if (closeBtn) closeBtn.hidden = false;
+            window.setTimeout(function () {
+                input.focus();
+                var len = input.value.length;
+                try {
+                    input.setSelectionRange(len, len);
+                } catch (e) {}
+            }, 30);
+        }
+
+        function closeHeaderSearch() {
+            if (!header.classList.contains('search-is-open')) return;
+            header.classList.remove('search-is-open');
+            if (closeBtn) closeBtn.hidden = true;
+            var panel = searchForm.querySelector('.ls-search__panel');
+            if (panel) {
+                panel.hidden = true;
+                panel.innerHTML = '';
+                input.setAttribute('aria-expanded', 'false');
+            }
+            if (openBtn && isCompactSearchMode()) openBtn.focus();
+        }
+
+        if (openBtn) {
+            openBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                openHeaderSearch();
+            });
+        }
+
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                closeHeaderSearch();
+            });
+        }
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && header.classList.contains('search-is-open')) {
+                closeHeaderSearch();
+            }
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!header.classList.contains('search-is-open')) return;
+            if (searchForm.contains(e.target) || (openBtn && openBtn.contains(e.target))) return;
+            closeHeaderSearch();
+        });
+
+        window.addEventListener('resize', function () {
+            if (!header.classList.contains('search-is-open')) return;
+            if (!isCompactSearchMode()) {
+                closeHeaderSearch();
+            }
+        });
+    }
+
     function initQuickSearch() {
         document.querySelectorAll('.js-quick-search').forEach(function (form) {
             var input = form.querySelector('input[name="q"]');
@@ -775,6 +848,12 @@
         }
 
         function openMobileMenu() {
+            var header = document.getElementById('header');
+            if (header) {
+                header.classList.remove('search-is-open');
+                var closeBtn = header.querySelector('.js-header-search-close');
+                if (closeBtn) closeBtn.hidden = true;
+            }
             document.body.classList.add('ls-menu-open');
             menu.setAttribute('aria-hidden', 'false');
             if (overlay) overlay.setAttribute('aria-hidden', 'false');
@@ -874,149 +953,59 @@
         });
     }
 
-    function initHomeCarousel() {
-        document.querySelectorAll('[data-carou]').forEach(function (root) {
-            if (root.getAttribute('data-carou-bound') === '1') return;
-            root.setAttribute('data-carou-bound', '1');
+    function loadHomeCarouselsAssets() {
+        if (typeof window.lsInitHomeCarousels === 'function') {
+            return Promise.resolve();
+        }
 
-            var track = root.querySelector('.carou-track');
-            if (!track) return;
+        if (window.__lsHomeCarouselsLoading) {
+            return window.__lsHomeCarouselsLoading;
+        }
 
-            var prev = root.querySelector('.carou-nav--prev');
-            var next = root.querySelector('.carou-nav--next');
+        var jsUrl = cfg('home_carousels_js', '');
+        if (!jsUrl) {
+            return Promise.resolve();
+        }
 
-            function getStep() {
-                var first = track.querySelector('.th-item');
-                if (!first) return 280;
-                var gap = parseFloat(getComputedStyle(track).gap) || 10;
-                return first.offsetWidth + gap;
+        window.__lsHomeCarouselsLoading = new Promise(function (resolve, reject) {
+            var cssUrl = cfg('home_carousels_css', '');
+            if (cssUrl && !document.querySelector('link[data-ls-home-carousels]')) {
+                var link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = cssUrl;
+                link.setAttribute('data-ls-home-carousels', '1');
+                document.head.appendChild(link);
             }
 
-            function updateNav() {
-                var maxScroll = Math.max(0, track.scrollWidth - track.clientWidth);
-                var canScroll = maxScroll > 1;
-                var atStart = track.scrollLeft <= 2;
-                var atEnd = track.scrollLeft >= maxScroll - 2;
-                root.classList.toggle('carou-content--no-scroll', !canScroll);
-                root.classList.toggle('carou-content--at-start', atStart);
-                root.classList.toggle('carou-content--at-end', atEnd);
-                if (prev) prev.disabled = !canScroll || atStart;
-                if (next) next.disabled = !canScroll || atEnd;
-            }
-
-            function scheduleNavUpdate() {
-                window.requestAnimationFrame(updateNav);
-            }
-
-            function scrollBy(delta) {
-                track.scrollBy({ left: delta, behavior: 'smooth' });
-            }
-
-            if (prev) {
-                prev.addEventListener('click', function () {
-                    scrollBy(-getStep());
-                });
-            }
-            if (next) {
-                next.addEventListener('click', function () {
-                    scrollBy(getStep());
-                });
-            }
-
-            track.addEventListener('scroll', scheduleNavUpdate, { passive: true });
-            window.addEventListener('resize', scheduleNavUpdate);
-            if (typeof ResizeObserver !== 'undefined') {
-                var ro = new ResizeObserver(scheduleNavUpdate);
-                ro.observe(track);
-            }
-            track.querySelectorAll('img').forEach(function (img) {
-                if (!img.complete) {
-                    img.addEventListener('load', scheduleNavUpdate, { once: true });
-                }
-            });
-            scheduleNavUpdate();
-            window.setTimeout(scheduleNavUpdate, 100);
-            window.setTimeout(scheduleNavUpdate, 400);
-
-            var pointerId = null;
-            var startX = 0;
-            var startScrollLeft = 0;
-            var isDragging = false;
-            var suppressClick = false;
-            var dragThreshold = 8;
-
-            function resetDragState(e) {
-                if (pointerId == null || (e && e.pointerId != null && e.pointerId !== pointerId)) {
-                    return;
-                }
-
-                if (isDragging) {
-                    track.classList.remove('is-dragging');
-                    try {
-                        track.releasePointerCapture(pointerId);
-                    } catch (err) {
-                        /* ignore */
-                    }
-                }
-
-                isDragging = false;
-                pointerId = null;
-
-                if (suppressClick) {
-                    window.setTimeout(function () {
-                        suppressClick = false;
-                    }, 50);
-                }
-            }
-
-            track.addEventListener('pointerdown', function (e) {
-                if (e.pointerType === 'mouse' && e.button !== 0) return;
-                if (e.target.closest('.carou-nav')) return;
-
-                pointerId = e.pointerId;
-                startX = e.clientX;
-                startScrollLeft = track.scrollLeft;
-                isDragging = false;
-                suppressClick = false;
-            });
-
-            track.addEventListener('pointermove', function (e) {
-                if (pointerId == null || e.pointerId !== pointerId) return;
-
-                var dx = e.clientX - startX;
-                if (!isDragging) {
-                    if (Math.abs(dx) <= dragThreshold) return;
-                    isDragging = true;
-                    suppressClick = true;
-                    track.classList.add('is-dragging');
-                    try {
-                        track.setPointerCapture(e.pointerId);
-                    } catch (err) {
-                        /* ignore */
-                    }
-                }
-
-                track.scrollLeft = startScrollLeft - dx;
-                updateNav();
-            });
-
-            track.addEventListener('pointerup', resetDragState);
-            track.addEventListener('pointercancel', resetDragState);
-            track.addEventListener('lostpointercapture', function () {
-                isDragging = false;
-                track.classList.remove('is-dragging');
-            });
-
-            track.addEventListener('click', function (e) {
-                if (!suppressClick) return;
-                e.preventDefault();
-                e.stopPropagation();
-            }, true);
-
-            track.addEventListener('dragstart', function (e) {
-                e.preventDefault();
-            });
+            var script = document.createElement('script');
+            script.src = jsUrl;
+            script.async = true;
+            script.setAttribute('data-ls-home-carousels', '1');
+            script.onload = function () {
+                resolve();
+            };
+            script.onerror = function () {
+                window.__lsHomeCarouselsLoading = null;
+                reject(new Error('home-carousels load failed'));
+            };
+            document.head.appendChild(script);
         });
+
+        return window.__lsHomeCarouselsLoading;
+    }
+
+    function initHomeCarousel() {
+        if (!document.querySelector('[data-carou]')) {
+            return;
+        }
+
+        loadHomeCarouselsAssets()
+            .then(function () {
+                if (typeof window.lsInitHomeCarousels === 'function') {
+                    window.lsInitHomeCarousels();
+                }
+            })
+            .catch(function () {});
     }
 
     function initHomeSectionTabs() {
@@ -4053,6 +4042,7 @@
         initCsrfRefresh();
         initAuthModal();
         initQuickSearch();
+        initHeaderSearch();
         initMobileMenu();
         initThemeToggle();
         initHomeCarousel();

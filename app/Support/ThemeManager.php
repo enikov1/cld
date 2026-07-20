@@ -175,8 +175,21 @@ class ThemeManager
             $vars['logo'] = self::assetUrl('logo.svg', $name);
         }
 
+        // Swiper-карусели главной — URL для ленивой подгрузки (не в общем layout).
+        if (self::assetPath('home-carousels.js', $name)) {
+            $vars['home_carousels_js'] = self::assetUrl('home-carousels.js', $name);
+        }
+        if (self::assetPath('home-carousels.css', $name)) {
+            $vars['home_carousels_css'] = self::assetUrl('home-carousels.css', $name);
+        }
+
+        $scripts = [];
         if (self::assetPath('site.js', $name)) {
-            $vars['js'] = self::assetUrl('site.js', $name);
+            $scripts[] = self::assetUrl('site.js', $name);
+        }
+        if ($scripts) {
+            $vars['scripts'] = $scripts;
+            $vars['js'] = $scripts[array_key_last($scripts)];
         }
 
         return $vars;

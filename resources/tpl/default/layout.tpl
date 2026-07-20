@@ -77,12 +77,20 @@
     </div>
     {auth_overlay|raw}
     <div class="bookmark-toast" id="bookmarkToast" hidden role="status" aria-live="polite"></div>
-    [theme.js]
     <script type="application/json" id="site-config">
         {site_config_json|raw}
     </script>
+    [theme.scripts]
+    [loop theme.scripts]
+    <script src="{item|raw}" defer></script>
+    [/loop]
+    [/theme.scripts]
+    [not-theme.scripts]
+    [theme.js]
     <script src="{theme.js|raw}" defer></script>
-    [/theme.js] [seo_counters_code] {seo_counters_code|raw} [/seo_counters_code]
+    [/theme.js]
+    [/not-theme.scripts]
+    [seo_counters_code] {seo_counters_code|raw} [/seo_counters_code]
 </body>
 
 </html>

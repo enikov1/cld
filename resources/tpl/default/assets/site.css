@@ -81,8 +81,34 @@ body.dt {
     flex: 0 0 168px;
 }
 
+.ls-search__close,
+.ls-search button.ls-search__close {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 100%;
+    flex: 0 0 38px;
+    border: 0;
+    background: transparent;
+    color: #8a8d91;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.ls-search button.ls-search__close:hover {
+    background: transparent;
+    color: var(--ls-green, #63bd37);
+}
+
 .ls-actions {
     gap: 6px;
+    flex-shrink: 0;
+    max-width: 100%;
+}
+
+.ls-action--search {
+    display: none;
 }
 
 .ls-action--favourites .fa-heart {
@@ -201,7 +227,7 @@ body.dt {
 }
 
 
-/* Карусель «Популярное за месяц» */
+/* Карусель «Популярное за месяц» — Swiper freeMode (модульный бандл) */
 
 .carou-sect {
     margin-bottom: 20px;
@@ -218,19 +244,29 @@ body.dt {
     position: relative;
 }
 
+.carou-content.swiper {
+    overflow: hidden;
+}
+
 .carou-track {
     display: flex;
     gap: 10px;
     overflow-x: auto;
     overflow-y: hidden;
-    scroll-snap-type: x mandatory;
     scrollbar-width: none;
     padding-bottom: 4px;
     cursor: grab;
     user-select: none;
-    -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
+}
+
+.carou-track.swiper-wrapper {
+    gap: 0;
+    overflow: visible;
+    scroll-snap-type: none;
+    scroll-behavior: auto;
+    -webkit-overflow-scrolling: auto;
     touch-action: pan-y;
+    box-sizing: content-box;
 }
 
 /* Карусель на главной не использует Owl Carousel JS — не даём legacy CSS скрыть трек */
@@ -242,22 +278,17 @@ body.dt {
     display: none;
 }
 
-.carou-track.is-dragging {
+.carou-content.swiper:active .carou-track {
     cursor: grabbing;
-    scroll-snap-type: none;
-    scroll-behavior: auto;
-    touch-action: none;
 }
 
-.carou-track.is-dragging a {
-    pointer-events: none;
-}
-
-.carou-track .th-item {
+.carou-track .th-item,
+.carou-track .swiper-slide {
     flex: 0 0 180px;
     width: 180px;
+    height: auto;
     float: none;
-    scroll-snap-align: start;
+    box-sizing: border-box;
 }
 
 .carou-nav {
@@ -284,7 +315,7 @@ body.dt {
     line-height: 1;
 }
 
-.carou-nav:hover:not(:disabled) {
+.carou-nav:hover:not(:disabled):not(.is-disabled) {
     background: #79c142;
     border-color: #79c142;
     color: #fff;
@@ -296,7 +327,8 @@ body.dt {
     outline-offset: 2px;
 }
 
-.carou-nav:disabled {
+.carou-nav:disabled,
+.carou-nav.is-disabled {
     opacity: 0.35;
     cursor: default;
     pointer-events: none;
@@ -333,7 +365,7 @@ body.dt {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
 }
 
-.dt .carou-nav:hover:not(:disabled) {
+.dt .carou-nav:hover:not(:disabled):not(.is-disabled) {
     background: #79c142;
     border-color: #79c142;
     color: #fff;
@@ -2675,6 +2707,183 @@ body.dt .movie-tip__close:hover {
     }
     .ls-mega__links.columns {
         grid-template-columns: 1fr;
+    }
+}
+
+/* Планшеты и смартфоны: шапка без переполнения + адаптивный поиск */
+@media (max-width: 980px) {
+    .ls-header__inner,
+    .ls-header__inner.wrap-center {
+        height: 60px;
+        gap: 8px;
+        padding: 0 10px;
+        min-width: 0;
+    }
+
+    .ls-logo {
+        min-width: 0;
+        flex: 0 1 auto;
+        max-width: min(150px, 42vw);
+    }
+
+    .ls-logo img {
+        width: auto;
+        height: auto;
+        max-width: 100%;
+        max-height: 44px;
+    }
+
+    /* Избранное и админка уже в боковом меню — не дублируем в шапке */
+    .ls-action--favourites,
+    .ls-action--admin {
+        display: none;
+    }
+
+    .ls-actions {
+        gap: 2px;
+        margin-left: auto;
+    }
+
+    .ls-action {
+        width: 34px;
+        height: 34px;
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+
+    .ls-burger {
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+    }
+
+    .ls-burger span {
+        width: 20px;
+    }
+
+    /* Планшет: поиск в свободном месте между лого и иконками */
+    .ls-search {
+        display: flex !important;
+        position: relative;
+        left: auto;
+        right: auto;
+        top: auto;
+        transform: none;
+        width: auto;
+        flex: 1 1 auto;
+        flex-basis: auto;
+        min-width: 0;
+        max-width: 320px;
+        height: 36px;
+        margin: 0 4px;
+        overflow: visible;
+    }
+
+    .ls-search input.dontuseinputclass,
+    .ls-search input {
+        font-size: 13px;
+        padding: 0 8px;
+    }
+
+    .ls-action--search {
+        display: none;
+    }
+
+    .ls-header.search-is-open .ls-search {
+        position: absolute;
+        left: 8px;
+        right: 8px;
+        top: 50%;
+        width: auto;
+        max-width: none;
+        flex: none;
+        margin: 0;
+        height: 40px;
+        z-index: 120;
+        transform: translateY(-50%);
+        background: var(--ls-bg, #fff);
+        border-color: rgba(99, 189, 55, 0.85);
+        box-shadow: 0 0 0 3px rgba(99, 189, 55, 0.12), 0 8px 24px rgba(0, 0, 0, 0.08);
+    }
+
+    .ls-header.search-is-open .ls-search__close,
+    .ls-header.search-is-open .ls-search button.ls-search__close {
+        display: flex;
+    }
+
+    .ls-header.search-is-open .ls-search__close[hidden],
+    .ls-header.search-is-open .ls-search button.ls-search__close[hidden] {
+        display: flex !important;
+    }
+
+    .ls-header.search-is-open .ls-logo,
+    .ls-header.search-is-open .ls-actions {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+    }
+
+    .ls-search__panel {
+        left: 0;
+        right: 0;
+        width: auto;
+        max-width: none;
+    }
+}
+
+@media (max-width: 640px) {
+    .ls-header__inner,
+    .ls-header__inner.wrap-center {
+        padding: 0 8px;
+        gap: 4px;
+    }
+
+    .ls-logo {
+        max-width: min(132px, 40vw);
+    }
+
+    .ls-logo img {
+        max-height: 40px;
+    }
+
+    /* Смартфон: иконка поиска → разворот на всю шапку */
+    .ls-search {
+        display: none !important;
+    }
+
+    .ls-action--search {
+        display: flex;
+    }
+
+    .ls-header.search-is-open .ls-search {
+        display: flex !important;
+    }
+
+    .ls-actions {
+        gap: 0;
+    }
+
+    .ls-action {
+        width: 32px;
+        height: 32px;
+        font-size: 17px;
+    }
+
+    .ls-burger {
+        width: 34px;
+        height: 34px;
+    }
+
+    .ls-burger span {
+        width: 18px;
+        height: 2px;
+        gap: 4px;
+    }
+}
+
+@media (max-width: 380px) {
+    .ls-logo {
+        max-width: min(118px, 36vw);
     }
 }
 
