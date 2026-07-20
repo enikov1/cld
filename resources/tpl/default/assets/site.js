@@ -3814,6 +3814,241 @@
         });
     }
 
+    function initScheduleCalendar() {
+        var root = document.querySelector('[data-schedule-calendar]');
+        if (!root || root.getAttribute('data-cal-bound') === '1') return;
+        root.setAttribute('data-cal-bound', '1');
+
+        var apiUrl = root.getAttribute('data-api-url') || '/api/home/episode-calendar';
+        var gridEl = root.querySelector('[data-cal-grid]');
+        var labelEl = root.querySelector('[data-cal-month-label]');
+        var dayTitleEl = root.querySelector('[data-cal-day-title]');
+        var dayListEl = root.querySelector('[data-cal-day-list]');
+        var prevBtn = root.querySelector('[data-cal-prev]');
+        var nextBtn = root.querySelector('[data-cal-next]');
+        var initialNode = root.querySelector('[data-cal-initial]');
+
+        if (!gridEl || !labelEl || !dayTitleEl || !dayListEl) return;
+
+        var state = null;
+        var selectedDate = null;
+        var loading = false;
+
+        function pad2(n) {
+            return n < 10 ? '0' + n : String(n);
+        }
+
+        function formatRuDate(iso) {
+            var parts = String(iso || '').split('-');
+            if (parts.length !== 3) return iso || '';
+            return parts[2] + '.' + parts[1] + '.' + parts[0];
+        }
+
+        function escapeHtml(str) {
+            return String(str == null ? '' : str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function parseInitial() {
+            if (!initialNode) return null;
+            try {
+                return JSON.parse(initialNode.textContent || '{}');
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function defaultSelectDate(data) {
+            if (!data) return null;
+            var today = data.today;
+            if (today && data.days && data.days[today]) return today;
+            var keys = data.days ? Object.keys(data.days) : [];
+            if (!keys.length) return null;
+            keys.sort();
+            if (today) {
+                var upcoming = keys.filter(function (k) { return k >= today; });
+                if (upcoming.length) return upcoming[0];
+            }
+            return keys[keys.length - 1];
+        }
+
+        function renderDayPanel(dateIso) {
+            selectedDate = dateIso;
+            if (!dateIso) {
+                dayTitleEl.textContent = 'Выберите день';
+                dayListEl.innerHTML = '<div class="schedule-cal__empty">Нажмите на день, чтобы увидеть серии</div>';
+                return;
+            }
+
+            dayTitleEl.textContent = 'Серии за ' + formatRuDate(dateIso);
+            var items = (state && state.days && state.days[dateIso]) ? state.days[dateIso] : [];
+            if (!items.length) {
+                dayListEl.innerHTML = '<div class="schedule-cal__empty">В этот день серий нет</div>';
+                return;
+            }
+
+            dayListEl.innerHTML = items.map(function (item) {
+                var poster = item.poster_url
+                    ? '<div class="schedule-cal__poster"><img src="' + escapeHtml(item.poster_url) + '" alt="" loading="lazy"></div>'
+                    : '<div class="schedule-cal__poster schedule-cal__poster--empty"><span class="fa fa-film"></span></div>';
+                var statusClass = item.is_released ? ' is-released' : '';
+                var statusText = item.is_released ? 'Вышла' : 'Ожидается';
+                var meta = 'S' + item.season_number + 'E' + item.episode_number
+                    + (item.episode_title ? ' · ' + escapeHtml(item.episode_title) : '');
+
+                return '<a class="schedule-cal__item" href="' + escapeHtml(item.series_url) + '">'
+                    + poster
+                    + '<div class="schedule-cal__item-body">'
+                    + '<div class="schedule-cal__item-title">' + escapeHtml(item.series_title) + '</div>'
+                    + '<div class="schedule-cal__item-meta">' + meta + '</div>'
+                    + '<span class="schedule-cal__item-status' + statusClass + '">' + statusText + '</span>'
+                    + '</div></a>';
+            }).join('');
+        }
+
+        function renderGrid() {
+            if (!state) return;
+            labelEl.textContent = state.month_label || '';
+            var year = Number(state.year);
+            var month = Number(state.month);
+            var first = new Date(year, month - 1, 1);
+            var startOffset = (first.getDay() + 6) % 7; // Monday-first
+            var daysInMonth = new Date(year, month, 0).getDate();
+            var prevDays = new Date(year, month - 1, 0).getDate();
+            var html = '';
+            var totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
+
+            for (var i = 0; i < totalCells; i++) {
+                var dayNum;
+                var iso;
+                var classes = ['schedule-cal__day'];
+                var inMonth = false;
+
+                if (i < startOffset) {
+                    dayNum = prevDays - startOffset + i + 1;
+                    var pm = month === 1 ? 12 : month - 1;
+                    var py = month === 1 ? year - 1 : year;
+                    iso = py + '-' + pad2(pm) + '-' + pad2(dayNum);
+                    classes.push('is-other');
+                } else if (i >= startOffset + daysInMonth) {
+                    dayNum = i - startOffset - daysInMonth + 1;
+                    var nm = month === 12 ? 1 : month + 1;
+                    var ny = month === 12 ? year + 1 : year;
+                    iso = ny + '-' + pad2(nm) + '-' + pad2(dayNum);
+                    classes.push('is-other');
+                } else {
+                    dayNum = i - startOffset + 1;
+                    iso = year + '-' + pad2(month) + '-' + pad2(dayNum);
+                    inMonth = true;
+                }
+
+                var dayEps = (state.days && state.days[iso]) ? state.days[iso] : [];
+                var epsCount = dayEps.length;
+                var hasEps = epsCount > 0;
+                if (state.today === iso) classes.push('is-today');
+                if (hasEps) classes.push('has-eps');
+                if (selectedDate === iso) classes.push('is-selected');
+
+                html += '<button type="button" class="' + classes.join(' ') + '"'
+                    + ' data-cal-date="' + iso + '"'
+                    + (inMonth ? '' : ' disabled tabindex="-1"')
+                    + ' aria-label="' + formatRuDate(iso) + (hasEps ? (', серий: ' + epsCount) : '') + '"'
+                    + '>'
+                    + '<span>' + dayNum + '</span>'
+                    + (hasEps ? '<span class="schedule-cal__count" aria-hidden="true">' + epsCount + '</span>' : '')
+                    + '</button>';
+            }
+
+            gridEl.innerHTML = html;
+        }
+
+        function applyData(data, preferDate) {
+            state = data;
+            if (preferDate && data.days && data.days[preferDate]) {
+                selectedDate = preferDate;
+            } else if (!selectedDate || !(data.days && data.days[selectedDate])) {
+                selectedDate = defaultSelectDate(data);
+            }
+            renderGrid();
+            renderDayPanel(selectedDate);
+        }
+
+        function setLoading(isLoading) {
+            loading = isLoading;
+            if (prevBtn) prevBtn.disabled = isLoading;
+            if (nextBtn) nextBtn.disabled = isLoading;
+            root.classList.toggle('is-loading', isLoading);
+        }
+
+        function loadMonth(year, month, preferDate) {
+            if (loading) return;
+            setLoading(true);
+            var url = apiUrl + '?year=' + encodeURIComponent(year) + '&month=' + encodeURIComponent(month);
+            fetch(url, { headers: { Accept: 'application/json' } })
+                .then(function (res) {
+                    if (!res.ok) throw new Error('calendar load failed');
+                    return res.json();
+                })
+                .then(function (data) {
+                    applyData(data, preferDate || null);
+                })
+                .catch(function () {
+                    dayListEl.innerHTML = '<div class="schedule-cal__empty">Не удалось загрузить календарь</div>';
+                })
+                .finally(function () {
+                    setLoading(false);
+                });
+        }
+
+        function shiftMonth(delta) {
+            if (!state || loading) return;
+            var y = Number(state.year);
+            var m = Number(state.month) + delta;
+            if (m < 1) {
+                m = 12;
+                y -= 1;
+            } else if (m > 12) {
+                m = 1;
+                y += 1;
+            }
+            selectedDate = null;
+            loadMonth(y, m);
+        }
+
+        gridEl.addEventListener('click', function (e) {
+            var btn = e.target.closest('[data-cal-date]');
+            if (!btn || btn.disabled) return;
+            var date = btn.getAttribute('data-cal-date');
+            if (!date) return;
+            selectedDate = date;
+            renderGrid();
+            renderDayPanel(date);
+        });
+
+        if (prevBtn) {
+            prevBtn.addEventListener('click', function () {
+                shiftMonth(-1);
+            });
+        }
+        if (nextBtn) {
+            nextBtn.addEventListener('click', function () {
+                shiftMonth(1);
+            });
+        }
+
+        var initial = parseInitial();
+        if (initial && initial.year && initial.month) {
+            applyData(initial);
+        } else {
+            var now = new Date();
+            loadMonth(now.getFullYear(), now.getMonth() + 1);
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         initCsrfRefresh();
         initAuthModal();
@@ -3824,6 +4059,7 @@
         initHomeSectionTabs();
         initHomeBlockTabs();
         initHomeWatchHistory();
+        initScheduleCalendar();
         initWatchlistDropdown();
         initSeriesEngagement();
         initSeriesWatchHistory();

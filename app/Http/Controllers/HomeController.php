@@ -6,6 +6,7 @@ use App\Models\Collection;
 use App\Models\Series;
 use App\Models\Studio;
 use App\Services\HomeBlockService;
+use App\Services\HomeEpisodeScheduleService;
 use App\Services\HomeSectionService;
 use App\Support\CatalogFilterService;
 use App\Support\PaginationHelper;
@@ -120,11 +121,46 @@ class HomeController extends TplController
 
         $popularMapped = PaginationHelper::mapSeries($popular);
 
+        $newEpisodes = HomeEpisodeScheduleService::recentReleasedSeries(
+            SiteConfig::int('home_new_episodes_days'),
+            SiteConfig::int('home_new_episodes_limit'),
+        );
+        $newEpisodesMapped = PaginationHelper::mapSeries($newEpisodes);
+        $newEpisodesCardsHtml = $newEpisodesMapped
+            ? $this->renderPartial('partials/series_cards.tpl', ['series_list' => $newEpisodesMapped])
+            : '';
+
+        $now = now();
+        $scheduleCalendar = HomeEpisodeScheduleService::calendarMonth(
+            (int) $now->year,
+            (int) $now->month,
+        );
+        $scheduleCalendarJson = json_encode(
+            $scheduleCalendar,
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS
+        );
+
         $vars = [
             'has_watch_history' => SiteConfig::bool('watch_history_enabled'),
             'is_home_first' => true,
             'popular_list' => $popularMapped,
             'popular_cards_html' => $this->renderPartial('partials/series_cards.tpl', ['series_list' => $popularMapped]),
+            'new_episodes_list' => $newEpisodesMapped,
+            'new_episodes_cards_html' => $newEpisodesCardsHtml,
+            'new_episodes_block' => $newEpisodesMapped
+                ? $this->renderPartial('partials/home_new_episodes.tpl', [
+                    'new_episodes_list' => $newEpisodesMapped,
+                    'new_episodes_cards_html' => $newEpisodesCardsHtml,
+                ])
+                : '',
+            'has_schedule_calendar' => true,
+            'schedule_calendar' => $scheduleCalendar,
+            'schedule_calendar_json' => $scheduleCalendarJson,
+            'schedule_calendar_block' => $this->renderPartial('partials/home_schedule_calendar.tpl', [
+                'has_schedule_calendar' => true,
+                'schedule_calendar' => $scheduleCalendar,
+                'schedule_calendar_json' => $scheduleCalendarJson,
+            ]),
             'promo_collections' => $promoCollections,
             'promo_studios' => $promoStudios,
             'custom_home_sections' => $customSections,

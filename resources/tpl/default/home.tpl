@@ -17,7 +17,10 @@
                     </button>
         </div>
     </div>
-    [/popular_list] [has_watch_history]
+    [/popular_list]
+    {new_episodes_block|raw}
+    {schedule_calendar_block|raw}
+    [has_watch_history]
     <div class="carou-sect" id="watchHistorySection" data-watch-history-root hidden>
         <div class="carou-title">{watch_history_ui_title}</div>
         <div class="carou-content" data-carou>

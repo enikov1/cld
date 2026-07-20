@@ -4113,3 +4113,399 @@ body.dt .movie-tip__close:hover {
         min-height: 56px;
     }
 }
+
+/* Календарь выхода серий на главной */
+
+.schedule-cal {
+    margin-bottom: 24px;
+}
+
+.schedule-cal .sect-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.schedule-cal__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+}
+
+.schedule-cal__month {
+    min-width: 0;
+    background: #f3f4f6;
+    border-radius: 10px;
+    padding: 14px;
+}
+
+.schedule-cal__nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.schedule-cal__month-label {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 600;
+    color: #111827;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.schedule-cal__nav-btn {
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    border: 0;
+    border-radius: 8px;
+    background: #fff;
+    color: #374151;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.schedule-cal__nav-btn:hover {
+    background: #e5e7eb;
+}
+
+.schedule-cal__nav-btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.schedule-cal__weekdays,
+.schedule-cal__grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+}
+
+.schedule-cal__weekdays {
+    margin-bottom: 6px;
+}
+
+.schedule-cal__weekdays span {
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+    padding: 4px 0;
+}
+
+.schedule-cal__day {
+    min-width: 0;
+    min-height: 44px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #111827;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: default;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 6px 2px;
+    position: relative;
+}
+
+.schedule-cal__day.is-other {
+    color: #9ca3af;
+    opacity: 0.55;
+}
+
+.schedule-cal__day.is-today {
+    background: rgba(59, 130, 246, 0.12);
+    color: #1d4ed8;
+    font-weight: 700;
+}
+
+.schedule-cal__day.has-eps {
+    cursor: pointer;
+    background: #fff;
+    box-shadow: inset 0 0 0 1px #d1d5db;
+}
+
+.schedule-cal__day:not(.is-other):not(.has-eps) {
+    cursor: pointer;
+}
+
+.schedule-cal__day:not(.is-other):hover,
+.schedule-cal__day.has-eps:hover,
+.schedule-cal__day.is-selected {
+    background: #2563eb;
+    color: #fff;
+    box-shadow: none;
+}
+
+.schedule-cal__day.has-eps:hover .schedule-cal__count,
+.schedule-cal__day.is-selected .schedule-cal__count {
+    background: #fff;
+    color: #2563eb;
+}
+
+.schedule-cal__day.has-eps.is-today:not(.is-selected) {
+    box-shadow: inset 0 0 0 1px #2563eb;
+}
+
+.schedule-cal__count {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: #2563eb;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+}
+
+.schedule-cal__day-panel {
+    min-width: 0;
+    background: #f9fafb;
+    border-radius: 10px;
+    padding: 14px;
+    min-height: 220px;
+}
+
+.schedule-cal__day-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 12px;
+}
+
+.schedule-cal__day-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 360px;
+    overflow-y: auto;
+}
+
+.schedule-cal__empty {
+    color: #6b7280;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.schedule-cal__item {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    text-decoration: none;
+    color: inherit;
+    background: #fff;
+    border-radius: 8px;
+    padding: 8px;
+    transition: background 0.15s ease;
+}
+
+.schedule-cal__item:hover {
+    background: #eef2ff;
+}
+
+.schedule-cal__poster {
+    flex: 0 0 44px;
+    width: 44px;
+    height: 64px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #e5e7eb;
+}
+
+.schedule-cal__poster img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.schedule-cal__poster--empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9ca3af;
+    font-size: 16px;
+}
+
+.schedule-cal__item-body {
+    min-width: 0;
+    flex: 1;
+}
+
+.schedule-cal__item-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.schedule-cal__item-meta {
+    margin-top: 2px;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.schedule-cal__item-status {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.schedule-cal__item-status.is-released {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.dt .schedule-cal .sect-title,
+.dt .schedule-cal__month-label,
+.dt .schedule-cal__day-title,
+.dt .schedule-cal__item-title {
+    color: #e5e7eb;
+}
+
+.dt .schedule-cal__month {
+    background: #1f2937;
+}
+
+.dt .schedule-cal__nav-btn {
+    background: #111827;
+    color: #e5e7eb;
+}
+
+.dt .schedule-cal__nav-btn:hover {
+    background: #374151;
+}
+
+.dt .schedule-cal__weekdays span,
+.dt .schedule-cal__empty,
+.dt .schedule-cal__item-meta {
+    color: #9ca3af;
+}
+
+.dt .schedule-cal__day {
+    color: #e5e7eb;
+}
+
+.dt .schedule-cal__day.has-eps {
+    background: #111827;
+    box-shadow: inset 0 0 0 1px #374151;
+}
+
+.dt .schedule-cal__day:not(.is-other):hover,
+.dt .schedule-cal__day.has-eps:hover,
+.dt .schedule-cal__day.is-selected {
+    background: #2563eb;
+    color: #fff;
+}
+
+.dt .schedule-cal__day-panel {
+    background: #111827;
+}
+
+.dt .schedule-cal__item {
+    background: #1f2937;
+}
+
+.dt .schedule-cal__item:hover {
+    background: #273549;
+}
+
+.dt .schedule-cal__poster {
+    background: #374151;
+}
+
+.dt .schedule-cal__item-status {
+    background: #374151;
+    color: #d1d5db;
+}
+
+.dt .schedule-cal__item-status.is-released {
+    background: #14532d;
+    color: #bbf7d0;
+}
+
+@media (max-width: 991px) {
+    .schedule-cal__layout {
+        grid-template-columns: 1fr;
+    }
+
+    .schedule-cal__day-panel {
+        min-height: 0;
+    }
+
+    .schedule-cal__day-list {
+        max-height: 280px;
+    }
+}
+
+@media (max-width: 767px) {
+    .schedule-cal__month,
+    .schedule-cal__day-panel {
+        padding: 10px;
+        border-radius: 8px;
+    }
+
+    .schedule-cal__month-label {
+        font-size: 15px;
+    }
+
+    .schedule-cal__weekdays span {
+        font-size: 11px;
+    }
+
+    .schedule-cal__day {
+        min-height: 42px;
+        font-size: 13px;
+        padding: 4px 1px;
+    }
+
+    .schedule-cal__count {
+        min-width: 14px;
+        height: 14px;
+        padding: 0 3px;
+        font-size: 9px;
+        line-height: 14px;
+        top: 1px;
+        right: 1px;
+    }
+
+    .schedule-cal__nav-btn {
+        width: 44px;
+        height: 44px;
+    }
+
+    .schedule-cal__day-list {
+        max-height: 240px;
+    }
+
+    .schedule-cal__poster {
+        flex-basis: 40px;
+        width: 40px;
+        height: 58px;
+    }
+}

@@ -270,6 +270,8 @@ class SiteConfig
                 ],
             ],
             'home_popular_limit' => ['type' => 'int', 'default' => '16', 'group' => 'catalog', 'label' => 'Популярных на главной', 'min' => 4, 'max' => 40],
+            'home_new_episodes_limit' => ['type' => 'int', 'default' => '16', 'group' => 'catalog', 'label' => 'Новых серий на главной', 'min' => 4, 'max' => 40],
+            'home_new_episodes_days' => ['type' => 'int', 'default' => '14', 'group' => 'catalog', 'label' => 'Дней для блока «Новые серии»', 'min' => 1, 'max' => 30],
             'nav_mega_genres_limit' => ['type' => 'int', 'default' => '14', 'group' => 'catalog', 'label' => 'Жанров в mega-menu', 'min' => 4, 'max' => 30],
             'nav_mega_countries_limit' => ['type' => 'int', 'default' => '10', 'group' => 'catalog', 'label' => 'Стран в mega-menu', 'min' => 4, 'max' => 30],
             'search_placeholder_desktop' => ['type' => 'string', 'default' => 'Поиск...', 'group' => 'catalog', 'label' => 'Placeholder поиска (desktop)'],

@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\HomeSectionController;
+use App\Http\Controllers\HomeScheduleController;
 use App\Http\Controllers\ComingSoonController;
 use App\Http\Controllers\CollectionsController;
 use App\Http\Controllers\StudiosController;
@@ -56,6 +57,9 @@ Route::get('/api/home/sections/{type}/{id}/series', [HomeSectionController::clas
 Route::get('/api/home/blocks/{id}/series', [HomeSectionController::class, 'blockSeries'])
     ->where('id', '[0-9]+')
     ->name('api.home.blocks.series');
+
+Route::get('/api/home/episode-calendar', [HomeScheduleController::class, 'calendar'])
+    ->name('api.home.episode-calendar');
 
 Route::get('/collections/', [CollectionsController::class, 'index'])->name('collections.index');
 Route::get('/collections/{slug}/', [CollectionsController::class, 'show'])->name('collections.show');

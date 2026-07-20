@@ -120,6 +120,11 @@ class TplSampleValues
             'seo.canonical' => url('/'),
             'seo.prev' => '',
             'seo.next' => '',
+            'has_schedule_calendar' => '1',
+            'schedule_calendar.month_label' => 'Июль 2026',
+            'new_episodes_list' => [],
+            'new_episodes_block' => '',
+            'schedule_calendar_block' => '',
         ];
     }
 
