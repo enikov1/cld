@@ -34,10 +34,10 @@
     <div class="b-collections__newest">
         <div class="b-collections__newest_inner">
             [loop promo_collections]
-            <a href="{item.url|raw}" class="b-collections__newest_card[item.cover_url] has-cover[/item.cover_url]">
-                            [item.cover_url]
-                                <img src="{item.cover_url|raw}" alt="{item.title}" loading="lazy">
-                            [/item.cover_url]
+            <a href="{item.url|raw}" class="b-collections__newest_card[item.banner_url] has-cover[/item.banner_url]">
+                            [item.banner_url]
+                                <img src="{item.banner_url|raw}" alt="{item.title}" loading="lazy">
+                            [/item.banner_url]
                             <span><strong>{item.title}</strong></span>
                         </a> [/loop]
         </div>

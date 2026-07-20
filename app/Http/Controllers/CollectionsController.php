@@ -16,7 +16,7 @@ class CollectionsController extends TplController
         $collections = Collection::query()
             ->where('is_active', true)
             ->where('is_hidden', false)
-            ->orderByDesc('id')
+            ->catalogOrder()
             ->limit(SiteConfig::int('collections_index_limit'))
             ->get();
 

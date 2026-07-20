@@ -378,7 +378,8 @@ body.dt {
     position: relative;
     display: flex;
     align-items: center;
-    min-height: 145px;
+    aspect-ratio: 16 / 4;
+    min-height: 0;
     padding: 24px 34px;
     overflow: hidden;
     border-radius: 16px;
@@ -414,6 +415,32 @@ body.dt {
 
 .dt .b-collections__newest {
     background: #171717;
+}
+
+.img-resp-4x3 {
+    padding-top: 75%;
+}
+
+.collections-index-grid .th-item {
+    width: 25%;
+}
+
+@media screen and (max-width: 1200px) {
+    .collections-index-grid .th-item {
+        width: 33.3333%;
+    }
+}
+
+@media screen and (max-width: 760px) {
+    .collections-index-grid .th-item {
+        width: 50%;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .collections-index-grid .th-item {
+        width: 100%;
+    }
 }
 
 

@@ -40,12 +40,14 @@ class HomeController extends TplController
             ->catalogOrder()
             ->where('is_active', true)
             ->where('is_hidden', false)
+            ->where('show_on_home', true)
             ->limit(2)
             ->get()
             ->map(fn (Collection $c) => [
                 'slug' => $c->slug,
                 'title' => $c->title,
                 'cover_url' => $c->cover_url ?? '',
+                'banner_url' => $c->home_banner_url ?: ($c->cover_url ?? ''),
                 'url' => route('collections.show', ['slug' => $c->slug]),
             ])
             ->all();

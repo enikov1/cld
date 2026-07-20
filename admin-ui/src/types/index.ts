@@ -107,8 +107,10 @@ export type CollectionItem = {
   meta_description?: string | null
   seo_html?: string | null
   cover_url?: string | null
+  home_banner_url?: string | null
   sort_order: number
   is_pinned: boolean
+  show_on_home?: boolean
   is_active: boolean
   is_hidden: boolean
   noindex: boolean

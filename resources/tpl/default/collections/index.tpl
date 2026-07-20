@@ -14,17 +14,17 @@
             [/collections_total]
         </div>
 
-        <div class="sect-cont sect-items clearfix">
+        <div class="sect-cont sect-items collections-index-grid clearfix">
             [loop collections_list]
                 <div class="th-item">
                     <a class="th-in with-mask" href="/collections/{item.slug}/">
                         [item.cover_url]
-                            <div class="th-img img-resp-vert">
+                            <div class="th-img img-resp-4x3">
                                 <img src="{item.cover_url|raw}" alt="{item.title}" loading="lazy">
                             </div>
                         [/item.cover_url]
                         [not-item.cover_url]
-                            <div class="th-img img-resp-vert th-img--placeholder"></div>
+                            <div class="th-img img-resp-4x3 th-img--placeholder"></div>
                         [/not-item.cover_url]
                         <div class="th-desc">
                             <div class="th-title">{item.title}</div>

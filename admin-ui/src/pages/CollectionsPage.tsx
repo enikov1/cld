@@ -116,6 +116,7 @@ export default function CollectionsPage() {
     form.setFieldsValue({
       is_active: true,
       is_pinned: false,
+      show_on_home: false,
       is_hidden: false,
       noindex: false,
       auto_add_enabled: false,
@@ -238,6 +239,12 @@ export default function CollectionsPage() {
       render: (_, row) => (row.meta_title?.trim() || row.seo_html?.trim() ? <Tag color="blue">Есть</Tag> : <Tag>Нет</Tag>),
     },
     {
+      title: 'Главная',
+      key: 'home',
+      width: 80,
+      render: (_, row) => (row.show_on_home ? <Tag color="blue">Да</Tag> : null),
+    },
+    {
       title: 'Авто',
       key: 'auto',
       width: 70,
@@ -312,6 +319,39 @@ export default function CollectionsPage() {
 
   function resolveCoverUploadTitle(): string {
     return String(form.getFieldValue('title') ?? '').trim()
+  }
+
+  async function uploadCollectionImage(file: File, variant: 'cover' | 'banner') {
+    const slug = resolveCoverUploadSlug()
+    const title = resolveCoverUploadTitle()
+    if (!slug && !title) {
+      message.warning('Сначала укажите slug или название подборки')
+      return false
+    }
+    const fd = new FormData()
+    fd.append('cover', file)
+    fd.append('variant', variant)
+    if (title) {
+      fd.append('title', title)
+    }
+    try {
+      const res = await apiUpload<{ cover_url?: string | null; home_banner_url?: string | null; slug?: string }>(
+        `/api/admin/collections/${encodeURIComponent(slug || '_draft')}/cover`,
+        fd,
+      )
+      if (variant === 'banner') {
+        form.setFieldValue('home_banner_url', res.home_banner_url ?? '')
+      } else {
+        form.setFieldValue('cover_url', res.cover_url ?? '')
+      }
+      if (!slug && res.slug) {
+        form.setFieldValue('slug', res.slug)
+      }
+      message.success(variant === 'banner' ? 'Баннер загружен' : 'Обложка загружена')
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
+    return false
   }
 
   return (
@@ -440,42 +480,28 @@ export default function CollectionsPage() {
           <Typography.Paragraph type="secondary" style={{ marginTop: -8, marginBottom: 16 }}>
             HTML-текст для SEO внизу страницы подборки.
           </Typography.Paragraph>
-          <Form.Item label="Обложка (URL)" name="cover_url">
+          <Form.Item label="Обложка для каталога (4:3)" name="cover_url" extra="Используется на странице /collections/">
             <Input />
           </Form.Item>
           <Upload
-            beforeUpload={async (file) => {
-              const slug = resolveCoverUploadSlug()
-              const title = resolveCoverUploadTitle()
-              if (!slug && !title) {
-                message.warning('Сначала укажите slug или название подборки')
-                return false
-              }
-              const fd = new FormData()
-              fd.append('cover', file)
-              if (title) {
-                fd.append('title', title)
-              }
-              try {
-                const res = await apiUpload<{ cover_url: string; slug?: string }>(
-                  `/api/admin/collections/${encodeURIComponent(slug || '_draft')}/cover`,
-                  fd,
-                )
-                form.setFieldValue('cover_url', res.cover_url)
-                if (!slug && res.slug) {
-                  form.setFieldValue('slug', res.slug)
-                }
-                message.success('Обложка загружена')
-              } catch (e) {
-                message.error(String((e as Error).message))
-              }
-              return false
-            }}
+            beforeUpload={(file) => uploadCollectionImage(file, 'cover')}
             showUploadList={false}
             accept="image/*"
           >
             <Button style={{ marginBottom: 12 }} disabled={!coverSlug && !watchedTitle}>
-              Загрузить обложку
+              Загрузить обложку 4:3
+            </Button>
+          </Upload>
+          <Form.Item label="Баннер для главной (16:4)" name="home_banner_url" extra="Широкий баннер для блока на главной странице">
+            <Input />
+          </Form.Item>
+          <Upload
+            beforeUpload={(file) => uploadCollectionImage(file, 'banner')}
+            showUploadList={false}
+            accept="image/*"
+          >
+            <Button style={{ marginBottom: 12 }} disabled={!coverSlug && !watchedTitle}>
+              Загрузить баннер 16:4
             </Button>
           </Upload>
           <Row gutter={16}>
@@ -486,8 +512,15 @@ export default function CollectionsPage() {
               <Form.Item label="Закрепить" name="is_pinned" valuePropName="checked"><Switch /></Form.Item>
             </Col>
             <Col span={6}>
+              <Form.Item label="На главной" name="show_on_home" valuePropName="checked" extra="Промо-блок">
+                <Switch />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
               <Form.Item label="Активна" name="is_active" valuePropName="checked"><Switch /></Form.Item>
             </Col>
+          </Row>
+          <Row gutter={16}>
             <Col span={6}>
               <Form.Item label="Скрыть" name="is_hidden" valuePropName="checked"><Switch /></Form.Item>
             </Col>

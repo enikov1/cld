@@ -18,6 +18,7 @@ final class PosterContext
         public readonly ?string $collectionSlug = null,
         public readonly ?string $studioSlug = null,
         public readonly ?string $personSlug = null,
+        public readonly ?string $variant = null,
     ) {
     }
 
@@ -51,19 +52,21 @@ final class PosterContext
         );
     }
 
-    public static function forCollection(Collection $collection): self
+    public static function forCollection(Collection $collection, ?string $variant = null): self
     {
         return new self(
             type: 'collection',
             collectionSlug: $collection->slug,
+            variant: $variant,
         );
     }
 
-    public static function forCollectionSlug(string $slug): self
+    public static function forCollectionSlug(string $slug, ?string $variant = null): self
     {
         return new self(
             type: 'collection',
             collectionSlug: $slug,
+            variant: $variant,
         );
     }
 

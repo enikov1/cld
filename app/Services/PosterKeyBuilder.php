@@ -44,7 +44,7 @@ class PosterKeyBuilder
         return match ($pattern) {
             'slug' => $slug,
             default => 'collection-' . $slug,
-        };
+        } . ($context->variant === 'banner' ? '-banner' : '');
     }
 
     private function buildStudioKey(PosterContext $context): string

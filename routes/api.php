@@ -273,8 +273,10 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
             'meta_description' => ['nullable', 'string'],
             'seo_html' => ['nullable', 'string', 'max:65535'],
             'cover_url' => ['nullable', 'string'],
+            'home_banner_url' => ['nullable', 'string'],
             'sort_order' => ['nullable', 'integer'],
             'is_pinned' => ['nullable', 'boolean'],
+            'show_on_home' => ['nullable', 'boolean'],
             'source_updated_at' => ['nullable', 'date'],
             'is_active' => ['nullable', 'boolean'],
             'is_hidden' => ['nullable', 'boolean'],
@@ -323,8 +325,10 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
             'meta_description' => $data['meta_description'] ?? null,
             'seo_html' => isset($data['seo_html']) ? str_replace("\r\n", "\n", (string)$data['seo_html']) : null,
             'cover_url' => $data['cover_url'] ?? null,
+            'home_banner_url' => $data['home_banner_url'] ?? null,
             'sort_order' => $data['sort_order'] ?? 0,
             'is_pinned' => $data['is_pinned'] ?? false,
+            'show_on_home' => $data['show_on_home'] ?? false,
             'is_active' => $data['is_active'] ?? true,
             'is_hidden' => $data['is_hidden'] ?? false,
             'noindex' => $data['noindex'] ?? false,
@@ -393,8 +397,11 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
         $request->validate([
             'cover' => ['required', 'file', 'image', 'max:' . $maxKb],
             'title' => ['nullable', 'string', 'max:255'],
+            'variant' => ['nullable', 'string', 'in:cover,banner'],
         ]);
 
+        $variant = $request->input('variant', 'cover');
+        $isBanner = $variant === 'banner';
         $slugInput = in_array($slug, ['_draft', 'new'], true) ? '' : $slug;
         $normalizedSlug = SlugHelper::make(
             $slugInput,
@@ -402,21 +409,27 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
         );
 
         $collection = Collection::query()->where('slug', $normalizedSlug)->first();
+        $contextVariant = $isBanner ? 'banner' : null;
         $url = app(PosterStorage::class)->storeFromUpload(
             $request->file('cover'),
             $collection
-                ? PosterContext::forCollection($collection)
-                : PosterContext::forCollectionSlug($normalizedSlug),
+                ? PosterContext::forCollection($collection, $contextVariant)
+                : PosterContext::forCollectionSlug($normalizedSlug, $contextVariant),
         );
 
         if ($collection) {
-            $collection->cover_url = $url;
+            if ($isBanner) {
+                $collection->home_banner_url = $url;
+            } else {
+                $collection->cover_url = $url;
+            }
             $collection->save();
         }
 
         return response()->json([
             'ok' => true,
-            'cover_url' => $url,
+            'cover_url' => $isBanner ? null : $url,
+            'home_banner_url' => $isBanner ? $url : null,
             'slug' => $normalizedSlug,
             'item' => $collection,
         ]);
