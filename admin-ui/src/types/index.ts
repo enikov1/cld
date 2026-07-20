@@ -183,7 +183,11 @@ export type UserItem = {
   email: string
   role: 'user' | 'admin'
   is_blocked: boolean
+  last_login_at: string | null
+  last_ip: string | null
+  registration_ip: string | null
   created_at: string
+  updated_at?: string
 }
 
 export type AdminStats = {
@@ -257,6 +261,24 @@ export type SearchStatItem = {
   created_at: string
 }
 
+export type SearchLogItem = {
+  id: number
+  query: string
+  source: 'suggest' | 'full'
+  found: boolean
+  results_count: number
+  ip: string | null
+  created_at: string
+}
+
+export type SearchTopQuery = {
+  query: string
+  count: number
+  found_count: number
+  not_found_count: number
+  share: number
+}
+
 export type SearchStatsSummary = {
   unique_queries: number
   total_hits: number
@@ -264,12 +286,24 @@ export type SearchStatsSummary = {
   full_hits: number
   hits_today: number
   hits_week: number
+  total_events: number
+  found_events: number
+  not_found_events: number
+  log_unique_queries: number
+  suggest_events: number
+  full_events: number
+  events_today: number
+  events_week: number
 }
 
 export type SearchStatsResponse = {
   ready: boolean
+  logs_ready: boolean
+  view: 'log' | 'aggregated'
   summary: SearchStatsSummary
-  items: SearchStatItem[]
+  top_queries: SearchTopQuery[]
+  items: SearchLogItem[]
+  aggregated: SearchStatItem[]
 }
 
 export type AdminPageKey =

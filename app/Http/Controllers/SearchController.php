@@ -18,8 +18,15 @@ class SearchController extends TplController
         $query = trim((string)$request->query('q', ''));
         $result = QuickSearchService::suggest($query);
 
-        if ($query !== '' && $result['groups'] !== []) {
-            SearchQueryStatService::tryRecord($request, $query, 'suggest');
+        if ($query !== '') {
+            $resultsCount = self::countSuggestResults($result['groups']);
+            SearchQueryStatService::tryRecord(
+                $request,
+                $query,
+                'suggest',
+                $resultsCount > 0,
+                $resultsCount
+            );
         }
 
         return response()->json($result);
@@ -64,8 +71,12 @@ class SearchController extends TplController
         $seriesList = PaginationHelper::mapSeries($series);
         $hasResults = $seriesList !== [] || $taxonomyGroups !== [];
 
-        if ($q !== '' && $page === 1 && $hasResults) {
-            SearchQueryStatService::tryRecord($request, $q, 'full');
+        if ($q !== '' && $page === 1) {
+            $resultsCount = count($seriesList);
+            foreach ($taxonomyGroups as $group) {
+                $resultsCount += count($group['items'] ?? []);
+            }
+            SearchQueryStatService::tryRecord($request, $q, 'full', $hasResults, $resultsCount);
         }
 
         $vars = [
@@ -99,5 +110,18 @@ class SearchController extends TplController
         ];
 
         return $this->renderTplPage('search.tpl', $vars, $meta);
+    }
+
+    /**
+     * @param list<array{type: string, label: string, items: list<array<string, string>>}> $groups
+     */
+    private static function countSuggestResults(array $groups): int
+    {
+        $count = 0;
+        foreach ($groups as $group) {
+            $count += count($group['items'] ?? []);
+        }
+
+        return $count;
     }
 }

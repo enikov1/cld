@@ -60,6 +60,11 @@ class AuthController extends Controller
 
         UserLibraryService::mergeGuestToUser($user, $guestKey);
 
+        $user->forceFill([
+            'last_login_at' => now(),
+            'last_ip' => $this->clientIp($request),
+        ])->save();
+
         $request->session()->regenerate();
 
         if ($this->wantsFormJson($request)) {
@@ -81,12 +86,16 @@ class AuthController extends Controller
             'password' => ['required', 'confirmed', SiteConfig::passwordRule()],
         ]);
 
+        $ip = $this->clientIp($request);
         $user = User::query()->create([
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
+            'role' => 'user',
+            'registration_ip' => $ip,
+            'last_ip' => $ip,
+            'last_login_at' => now(),
         ]);
-        $user->forceFill(['role' => 'user'])->save();
 
         $guestKey = UserLibraryService::guestKey($request);
 
@@ -135,5 +144,15 @@ class AuthController extends Controller
                 'initial' => $initial !== '' ? mb_strtoupper($initial) : '',
             ],
         ];
+    }
+
+    private function clientIp(Request $request): ?string
+    {
+        $ip = trim((string)$request->ip());
+        if ($ip === '') {
+            return null;
+        }
+
+        return mb_substr($ip, 0, 45);
     }
 }

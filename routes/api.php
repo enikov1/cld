@@ -209,9 +209,13 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
     Route::post('/players/cdnvideohub/sync-all', [AdminPlayersController::class, 'syncCdnVideoHubAll']);
 
     Route::get('/users', [AdminUserController::class, 'index']);
+    Route::post('/users', [AdminUserController::class, 'store']);
     Route::post('/users/{id}', [AdminUserController::class, 'update']);
+    Route::delete('/users/{id}', [AdminUserController::class, 'destroy']);
 
     Route::get('/search-stats', [AdminSearchController::class, 'index']);
+    Route::post('/search-stats/clear', [AdminSearchController::class, 'clear']);
+    Route::delete('/search-stats/logs/{id}', [AdminSearchController::class, 'destroyLog']);
     Route::delete('/search-stats/{id}', [AdminSearchController::class, 'destroy']);
 
     Route::get('/taxonomies/options', [AdminTaxonomyController::class, 'options']);

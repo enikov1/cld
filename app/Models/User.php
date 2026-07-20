@@ -23,6 +23,11 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
+        'is_blocked',
+        'last_login_at',
+        'last_ip',
+        'registration_ip',
         'notify_via_email',
         'notify_via_site',
     ];
@@ -63,6 +68,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_blocked' => 'boolean',
+            'last_login_at' => 'datetime',
             'notify_via_email' => 'boolean',
             'notify_via_site' => 'boolean',
         ];

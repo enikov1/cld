@@ -3,6 +3,8 @@
 namespace App\Support;
 
 use App\Models\SearchQuery;
+use App\Models\SearchQueryLog;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 
@@ -10,7 +12,7 @@ class SearchQueryStatService
 {
     private const MAX_QUERY_LENGTH = 120;
 
-    public static function tryRecord(Request $request, string $query, string $source): void
+    public static function tryRecord(Request $request, string $query, string $source, bool $found, int $resultsCount = 0): void
     {
         if (!self::isReady()) {
             return;
@@ -26,18 +28,47 @@ class SearchQueryStatService
             return;
         }
 
-        if (!QuickSearchService::hasResults($display)) {
-            return;
-        }
-
         $normalized = mb_strtolower($display);
-        $sessionKey = 'search_stat_recorded:' . $normalized;
+        $source = $source === 'suggest' ? 'suggest' : 'full';
+        $sessionKey = 'search_stat_recorded:' . $source . ':' . $normalized;
         if ($request->session()->has($sessionKey)) {
             return;
         }
 
-        self::recordSuccessful($display, $source);
+        self::logEvent($request, $display, $normalized, $source, $found, $resultsCount);
+
+        if ($found) {
+            self::recordSuccessful($display, $source);
+        }
+
         $request->session()->put($sessionKey, true);
+    }
+
+    public static function logEvent(
+        Request $request,
+        string $display,
+        string $normalized,
+        string $source,
+        bool $found,
+        int $resultsCount = 0
+    ): void {
+        if (!self::logsReady()) {
+            return;
+        }
+
+        try {
+            SearchQueryLog::query()->create([
+                'query' => $display,
+                'query_normalized' => $normalized,
+                'source' => $source === 'suggest' ? 'suggest' : 'full',
+                'found' => $found,
+                'results_count' => max(0, $resultsCount),
+                'ip' => self::clientIp($request),
+                'created_at' => now(),
+            ]);
+        } catch (\Throwable) {
+            // Ignore logging failures — search must keep working.
+        }
     }
 
     public static function recordSuccessful(string $query, string $source = 'full'): void
@@ -98,6 +129,91 @@ class SearchQueryStatService
     }
 
     /**
+     * @param array{
+     *     q?: string,
+     *     date_from?: string|null,
+     *     date_to?: string|null,
+     *     found?: string|null,
+     *     source?: string|null,
+     *     ip?: string|null
+     * } $filters
+     */
+    public static function filteredLogQuery(array $filters): Builder
+    {
+        $query = SearchQueryLog::query();
+
+        self::applyLogFilters($query, $filters);
+
+        return $query;
+    }
+
+    /**
+     * @param array{
+     *     q?: string,
+     *     date_from?: string|null,
+     *     date_to?: string|null,
+     *     found?: string|null,
+     *     source?: string|null,
+     *     ip?: string|null
+     * } $filters
+     * @return array{
+     *     total_events: int,
+     *     found_events: int,
+     *     not_found_events: int,
+     *     unique_queries: int,
+     *     suggest_events: int,
+     *     full_events: int,
+     *     events_today: int,
+     *     events_week: int
+     * }
+     */
+    public static function summary(array $filters = []): array
+    {
+        $aggregated = self::aggregatedSummary();
+        $logs = self::logsSummary($filters);
+
+        return array_merge($aggregated, $logs);
+    }
+
+    /**
+     * @param array<string, mixed> $filters
+     * @return list<array{query: string, count: int, found_count: int, not_found_count: int, share: float}>
+     */
+    public static function topQueries(array $filters, int $limit = 5): array
+    {
+        if (!self::logsReady()) {
+            return [];
+        }
+
+        $limit = max(1, min(20, $limit));
+        $base = self::filteredLogQuery($filters);
+        $total = (int)(clone $base)->count();
+        if ($total === 0) {
+            return [];
+        }
+
+        $rows = (clone $base)
+            ->selectRaw('query, COUNT(*) as total_count, SUM(CASE WHEN found = 1 THEN 1 ELSE 0 END) as found_count')
+            ->groupBy('query')
+            ->orderByDesc('total_count')
+            ->limit($limit)
+            ->get();
+
+        return $rows->map(static function ($row) use ($total) {
+            $count = (int)$row->total_count;
+            $foundCount = (int)$row->found_count;
+
+            return [
+                'query' => (string)$row->query,
+                'count' => $count,
+                'found_count' => $foundCount,
+                'not_found_count' => $count - $foundCount,
+                'share' => round(($count / $total) * 100, 1),
+            ];
+        })->all();
+    }
+
+    /**
      * @return list<array{query: string, url: string, hits: int}>
      */
     public static function popular(?int $limit = null, ?string $excludeQuery = null): array
@@ -130,6 +246,48 @@ class SearchQueryStatService
     }
 
     /**
+     * @param array<string, mixed> $filters
+     */
+    private static function applyLogFilters(Builder $query, array $filters): void
+    {
+        $search = trim((string)($filters['q'] ?? ''));
+        if ($search !== '') {
+            $like = '%' . $search . '%';
+            $query->where(function (Builder $builder) use ($like) {
+                $builder->where('query', 'like', $like)
+                    ->orWhere('query_normalized', 'like', mb_strtolower($like));
+            });
+        }
+
+        $dateFrom = trim((string)($filters['date_from'] ?? ''));
+        if ($dateFrom !== '') {
+            $query->where('created_at', '>=', $dateFrom . ' 00:00:00');
+        }
+
+        $dateTo = trim((string)($filters['date_to'] ?? ''));
+        if ($dateTo !== '') {
+            $query->where('created_at', '<=', $dateTo . ' 23:59:59');
+        }
+
+        $found = $filters['found'] ?? null;
+        if ($found === '1' || $found === 'yes' || $found === true) {
+            $query->where('found', true);
+        } elseif ($found === '0' || $found === 'no' || $found === false) {
+            $query->where('found', false);
+        }
+
+        $source = trim((string)($filters['source'] ?? ''));
+        if ($source === 'suggest' || $source === 'full') {
+            $query->where('source', $source);
+        }
+
+        $ip = trim((string)($filters['ip'] ?? ''));
+        if ($ip !== '') {
+            $query->where('ip', 'like', '%' . $ip . '%');
+        }
+    }
+
+    /**
      * @return array{
      *     unique_queries: int,
      *     total_hits: int,
@@ -139,7 +297,7 @@ class SearchQueryStatService
      *     hits_week: int
      * }
      */
-    public static function summary(): array
+    private static function aggregatedSummary(): array
     {
         if (!self::isReady()) {
             return [
@@ -164,6 +322,58 @@ class SearchQueryStatService
         ];
     }
 
+    /**
+     * @param array<string, mixed> $filters
+     * @return array{
+     *     total_events: int,
+     *     found_events: int,
+     *     not_found_events: int,
+     *     log_unique_queries: int,
+     *     suggest_events: int,
+     *     full_events: int,
+     *     events_today: int,
+     *     events_week: int
+     * }
+     */
+    private static function logsSummary(array $filters): array
+    {
+        if (!self::logsReady()) {
+            return [
+                'total_events' => 0,
+                'found_events' => 0,
+                'not_found_events' => 0,
+                'log_unique_queries' => 0,
+                'suggest_events' => 0,
+                'full_events' => 0,
+                'events_today' => 0,
+                'events_week' => 0,
+            ];
+        }
+
+        $base = self::filteredLogQuery($filters);
+        $todayBase = self::filteredLogQuery(array_merge($filters, [
+            'date_from' => now()->toDateString(),
+            'date_to' => now()->toDateString(),
+        ]));
+        $weekFilters = $filters;
+        if (!isset($weekFilters['date_from']) || $weekFilters['date_from'] === '') {
+            $weekFilters['date_from'] = now()->subDays(7)->toDateString();
+        }
+
+        $weekBase = self::filteredLogQuery($weekFilters);
+
+        return [
+            'total_events' => (int)(clone $base)->count(),
+            'found_events' => (int)(clone $base)->where('found', true)->count(),
+            'not_found_events' => (int)(clone $base)->where('found', false)->count(),
+            'log_unique_queries' => (int)(clone $base)->distinct('query_normalized')->count('query_normalized'),
+            'suggest_events' => (int)(clone $base)->where('source', 'suggest')->count(),
+            'full_events' => (int)(clone $base)->where('source', 'full')->count(),
+            'events_today' => (int)(clone $todayBase)->count(),
+            'events_week' => (int)(clone $weekBase)->count(),
+        ];
+    }
+
     private static function normalizeDisplay(string $query): string
     {
         $query = trim(preg_replace('/\s+/u', ' ', $query) ?? '');
@@ -178,8 +388,23 @@ class SearchQueryStatService
         return $query;
     }
 
+    private static function clientIp(Request $request): ?string
+    {
+        $ip = trim((string)$request->ip());
+        if ($ip === '') {
+            return null;
+        }
+
+        return mb_substr($ip, 0, 45);
+    }
+
     private static function isReady(): bool
     {
         return Schema::hasTable('search_queries');
+    }
+
+    private static function logsReady(): bool
+    {
+        return Schema::hasTable('search_query_logs');
     }
 }
