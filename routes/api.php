@@ -263,6 +263,28 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
         ]);
     });
 
+    Route::get('/collections/ai-prompt', function () {
+        $result = app(\App\Services\CollectionAiPromptService::class)->build();
+
+        return response()->json(['ok' => true, ...$result]);
+    });
+
+    Route::post('/collections/ai-import', function (Request $request) {
+        $data = $request->validate([
+            'payload' => ['required', 'string', 'max:500000'],
+            'dry_run' => ['nullable', 'boolean'],
+        ]);
+
+        $result = app(\App\Services\CollectionAiImportService::class)->import(
+            (string) $data['payload'],
+            (bool) ($data['dry_run'] ?? true),
+        );
+
+        $status = $result['ok'] || ($result['items'] !== [] || $result['skipped'] !== []) ? 200 : 422;
+
+        return response()->json($result, $status);
+    });
+
     Route::post('/collections/upsert', function (Request $request) {
         $data = $request->validate([
             'id' => ['nullable', 'integer', 'exists:collections,id'],
@@ -509,6 +531,15 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
             ->where('collection_id', $collection->id)
             ->where('series_id', $series->id)
             ->delete();
+
+        return response()->json(['ok' => true]);
+    });
+
+    Route::delete('/collections/{collection_slug}', function (string $collection_slug) {
+        $collection = Collection::query()->where('slug', $collection_slug)->firstOrFail();
+        $collection->delete();
+
+        \App\Support\TplCache::bumpGlobalVersion();
 
         return response()->json(['ok' => true]);
     });

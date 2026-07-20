@@ -364,11 +364,34 @@ html[data-admin-theme='dark'] .admin-cron-log {
 
 .admin-toolbar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 16px;
   flex-wrap: wrap;
+}
+
+.collections-page__list {
+  overflow: hidden;
+}
+
+.collections-page__list .ant-table-wrapper {
+  overflow-x: auto;
+}
+
+.collections-page__toolbar {
+  align-items: flex-start;
+}
+
+.collections-page__toolbar-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.collections-page__toolbar-actions {
+  justify-content: flex-end;
 }
 
 .admin-empty-hint {

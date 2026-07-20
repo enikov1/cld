@@ -1,4 +1,5 @@
-import { Button, Col, Empty, Form, Input, InputNumber, Modal, Popconfirm, Row, Select, Switch, Table, Tag, Typography, Upload, message } from 'antd'
+import { CopyOutlined, DeleteOutlined, EditOutlined, ExportOutlined } from '@ant-design/icons'
+import { Button, Col, Empty, Form, Input, InputNumber, Modal, Popconfirm, Row, Select, Space, Switch, Table, Tag, Tooltip, Typography, Upload, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../api/client'
@@ -6,6 +7,22 @@ import { apiUpload } from '../api/upload'
 import TemplateCodeEditor from '../components/TemplateCodeEditor'
 import { useAdminTheme } from '../theme/useAdminTheme'
 import type { CollectionItem, CollectionSeriesItem, SeriesItem, StudioItem } from '../types'
+import {
+  LARGE_PROMPT_THRESHOLD,
+  downloadTextFile,
+  formatCharCount,
+  type AiImportPreview,
+  type AiPromptResponse,
+} from '../utils/collectionAiPrompt'
+import { siteOrigin } from '../utils/mediaUrl'
+
+function collectionPublicPath(slug: string): string {
+  return `/collections/${slug}/`
+}
+
+function collectionPublicUrl(slug: string): string {
+  return `${siteOrigin()}${collectionPublicPath(slug)}`
+}
 
 function mergeSeriesOptions(
   base: { value: number; label: string }[],
@@ -38,6 +55,14 @@ export default function CollectionsPage() {
   const [editing, setEditing] = useState<CollectionItem | null>(null)
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [autoSyncing, setAutoSyncing] = useState(false)
+  const [promptModalOpen, setPromptModalOpen] = useState(false)
+  const [promptLoading, setPromptLoading] = useState(false)
+  const [promptData, setPromptData] = useState<AiPromptResponse | null>(null)
+  const [importModalOpen, setImportModalOpen] = useState(false)
+  const [importPayload, setImportPayload] = useState('')
+  const [importLoading, setImportLoading] = useState(false)
+  const [importPreview, setImportPreview] = useState<AiImportPreview | null>(null)
+  const [importCreating, setImportCreating] = useState(false)
   const [form] = Form.useForm()
   const [addForm] = Form.useForm()
   const watchedSeriesIds = (Form.useWatch('series_ids', form) as number[] | undefined) ?? []
@@ -228,60 +253,228 @@ export default function CollectionsPage() {
     }
   }
 
-  const collectionColumns: ColumnsType<CollectionItem> = [
-    { title: 'Slug (URL)', dataIndex: 'slug', key: 'slug', width: 160, render: (slug) => `/collections/${slug}/` },
+  async function removeCollection(row: CollectionItem) {
+    try {
+      await api(`/api/admin/collections/${encodeURIComponent(row.slug)}`, { method: 'DELETE' })
+      message.success('Подборка удалена')
+      if (activeSlug === row.slug) {
+        setActiveSlug('')
+        setItems([])
+      }
+      await loadCollections()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
+  }
+
+  async function openPromptModal() {
+    setPromptModalOpen(true)
+    setPromptLoading(true)
+    setPromptData(null)
+    try {
+      const data = await api<AiPromptResponse>('/api/admin/collections/ai-prompt')
+      setPromptData(data)
+    } catch (e) {
+      message.error(String((e as Error).message))
+      setPromptModalOpen(false)
+    } finally {
+      setPromptLoading(false)
+    }
+  }
+
+  async function copyPrompt() {
+    if (!promptData?.prompt) return
+    try {
+      await navigator.clipboard.writeText(promptData.prompt)
+      message.success('Промпт скопирован в буфер обмена')
+    } catch {
+      message.error('Не удалось скопировать — попробуйте скачать файл')
+    }
+  }
+
+  function downloadPrompt() {
+    if (!promptData?.prompt) return
+    downloadTextFile('collections-ai-prompt.txt', promptData.prompt)
+    message.success('Файл скачан')
+  }
+
+  function openImportModal() {
+    setImportModalOpen(true)
+    setImportPayload('')
+    setImportPreview(null)
+  }
+
+  async function runImportPreview() {
+    const payload = importPayload.trim()
+    if (!payload) {
+      message.warning('Вставьте JSON-ответ от ИИ')
+      return
+    }
+    setImportLoading(true)
+    try {
+      const res = await api<AiImportPreview>('/api/admin/collections/ai-import', {
+        method: 'POST',
+        body: JSON.stringify({ payload, dry_run: true }),
+      })
+      setImportPreview(res)
+      if (res.errors.length) {
+        message.warning(res.errors.join(' '))
+      } else if (res.items.length === 0) {
+        message.warning('Нет подборок для создания')
+      } else {
+        message.success(`Готово к созданию: ${res.items.length}`)
+      }
+    } catch (e) {
+      message.error(String((e as Error).message))
+    } finally {
+      setImportLoading(false)
+    }
+  }
+
+  async function runImportCreate() {
+    const payload = importPayload.trim()
+    if (!payload) {
+      message.warning('Сначала вставьте JSON и проверьте')
+      return
+    }
+    setImportCreating(true)
+    try {
+      const res = await api<AiImportPreview>('/api/admin/collections/ai-import', {
+        method: 'POST',
+        body: JSON.stringify({ payload, dry_run: false }),
+      })
+      setImportPreview(res)
+      if (res.created > 0) {
+        message.success(`Создано подборок: ${res.created}`)
+        await loadCollections()
+        setImportModalOpen(false)
+      } else {
+        message.warning('Подборки не созданы — проверьте предпросмотр')
+      }
+    } catch (e) {
+      message.error(String((e as Error).message))
+    } finally {
+      setImportCreating(false)
+    }
+  }
+
+  const importPreviewColumns: ColumnsType<AiImportPreview['items'][number]> = [
     { title: 'Название', dataIndex: 'title', key: 'title' },
-    { title: 'Порядок', dataIndex: 'sort_order', width: 80 },
+    { title: 'Slug', dataIndex: 'slug', key: 'slug', width: 140 },
+    { title: 'Сериалов', dataIndex: 'series_count', key: 'series_count', width: 90 },
     {
-      title: 'SEO',
-      key: 'seo',
-      width: 80,
-      render: (_, row) => (row.meta_title?.trim() || row.seo_html?.trim() ? <Tag color="blue">Есть</Tag> : <Tag>Нет</Tag>),
-    },
-    {
-      title: 'Главная',
-      key: 'home',
-      width: 80,
-      render: (_, row) => (row.show_on_home ? <Tag color="blue">Да</Tag> : null),
-    },
-    {
-      title: 'Авто',
-      key: 'auto',
-      width: 70,
-      render: (_, row) => (row.auto_add_enabled ? <Tag color="purple">Да</Tag> : null),
-    },
-    {
-      title: '',
-      key: 'pin',
-      width: 90,
-      render: (_, r) => (r.is_pinned ? <Tag color="orange">Закреплена</Tag> : null),
+      title: 'Keywords',
+      key: 'keywords',
+      width: 160,
+      render: (_, row) => (row.auto_keywords?.length ? row.auto_keywords.join(', ') : '—'),
     },
     {
       title: 'Статус',
       key: 'status',
-      width: 150,
+      width: 100,
       render: (_, row) => (
-        <>
-          {row.is_active ? <Tag color="green">Активна</Tag> : <Tag>Выключена</Tag>}
+        <Tag color={row.status === 'created' ? 'green' : row.status === 'ready' ? 'blue' : 'default'}>
+          {row.status === 'created' ? 'Создана' : row.status === 'ready' ? 'Готово' : row.status}
+        </Tag>
+      ),
+    },
+  ]
+
+  async function copyCollectionLink(slug: string) {
+    try {
+      await navigator.clipboard.writeText(collectionPublicUrl(slug))
+      message.success('Ссылка скопирована')
+    } catch {
+      message.error('Не удалось скопировать')
+    }
+  }
+
+  const collectionColumns: ColumnsType<CollectionItem> = [
+    {
+      title: 'Название',
+      dataIndex: 'title',
+      key: 'title',
+      ellipsis: true,
+      render: (title, row) => (
+        <div>
+          <div>{title}</div>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            {collectionPublicPath(row.slug)}
+          </Typography.Text>
+        </div>
+      ),
+    },
+    { title: '#', dataIndex: 'sort_order', key: 'sort_order', width: 48 },
+    {
+      title: 'Метки',
+      key: 'badges',
+      width: 120,
+      render: (_, row) => (
+        <Space size={[4, 4]} wrap>
+          {row.meta_title?.trim() || row.seo_html?.trim() ? <Tag color="blue">SEO</Tag> : null}
+          {row.show_on_home ? <Tag color="cyan">Главная</Tag> : null}
+          {row.auto_add_enabled ? <Tag color="purple">Авто</Tag> : null}
+          {row.is_pinned ? <Tag color="orange">Pin</Tag> : null}
+        </Space>
+      ),
+    },
+    {
+      title: 'Статус',
+      key: 'status',
+      width: 100,
+      render: (_, row) => (
+        <Space size={[4, 4]} wrap>
+          {row.is_active ? <Tag color="green">Активна</Tag> : <Tag>Off</Tag>}
           {row.is_hidden ? <Tag color="orange">Скрыта</Tag> : null}
-          {row.noindex ? <Tag>noindex</Tag> : null}
-        </>
+        </Space>
       ),
     },
     {
       title: '',
-      key: 'edit',
-      width: 90,
+      key: 'actions',
+      width: 144,
+      fixed: 'right',
       render: (_, row) => (
-        <Button
-          size="small"
-          onClick={(e) => {
-            e.stopPropagation()
-            void openEdit(row)
-          }}
-        >
-          Изменить
-        </Button>
+        <Space size={4} onClick={(e) => e.stopPropagation()}>
+          <Tooltip title="Открыть на сайте">
+            <Button
+              size="small"
+              icon={<ExportOutlined />}
+              href={collectionPublicUrl(row.slug)}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Открыть на сайте"
+            />
+          </Tooltip>
+          <Tooltip title="Скопировать ссылку">
+            <Button
+              size="small"
+              icon={<CopyOutlined />}
+              onClick={() => void copyCollectionLink(row.slug)}
+              aria-label="Скопировать ссылку"
+            />
+          </Tooltip>
+          <Tooltip title="Изменить">
+            <Button
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => void openEdit(row)}
+              aria-label="Изменить"
+            />
+          </Tooltip>
+          <Popconfirm
+            title="Удалить подборку?"
+            description={`«${row.title}» и все сериалы в ней будут отвязаны.`}
+            onConfirm={() => void removeCollection(row)}
+            okText="Удалить"
+            cancelText="Отмена"
+            okButtonProps={{ danger: true }}
+          >
+            <Tooltip title="Удалить">
+              <Button size="small" danger icon={<DeleteOutlined />} aria-label="Удалить" />
+            </Tooltip>
+          </Popconfirm>
+        </Space>
       ),
     },
   ]
@@ -355,12 +548,19 @@ export default function CollectionsPage() {
   }
 
   return (
-    <Row gutter={[16, 16]}>
-      <Col xs={24} xl={10}>
-        <div className="admin-page-card">
-          <div className="admin-toolbar">
-            <span>Подборки — URL: /collections/{'{slug}'}/</span>
-            <Button type="primary" onClick={openCreate}>Создать</Button>
+    <Row gutter={[16, 16]} className="collections-page">
+      <Col xs={24} xl={11}>
+        <div className="admin-page-card collections-page__list">
+          <div className="admin-toolbar collections-page__toolbar">
+            <div className="collections-page__toolbar-title">
+              <strong>Подборки</strong>
+              <Typography.Text type="secondary">/collections/{'{slug}'}/</Typography.Text>
+            </div>
+            <Space wrap className="collections-page__toolbar-actions">
+              <Button onClick={() => void openPromptModal()}>Промпт для ИИ</Button>
+              <Button onClick={openImportModal}>Импорт из ИИ</Button>
+              <Button type="primary" onClick={openCreate}>Создать</Button>
+            </Space>
           </div>
           <Table
             rowKey="id"
@@ -368,6 +568,7 @@ export default function CollectionsPage() {
             dataSource={collections}
             pagination={false}
             size="small"
+            scroll={{ x: 680 }}
             onRow={(row) => ({
               onClick: () => setActiveSlug(row.slug),
               style: { cursor: 'pointer', background: row.slug === activeSlug ? '#e6f4ff' : undefined },
@@ -376,7 +577,7 @@ export default function CollectionsPage() {
         </div>
       </Col>
 
-      <Col xs={24} xl={14}>
+      <Col xs={24} xl={13}>
         <div className="admin-page-card">
           {!activeSlug ? (
             <Empty description="Выберите подборку слева" />
@@ -385,13 +586,41 @@ export default function CollectionsPage() {
               <div className="admin-toolbar">
                 <div>
                   <strong>{activeCollection?.title}</strong>
-                  <div className="admin-empty-hint">/collections/{activeSlug}/</div>
+                  <div className="admin-empty-hint">{collectionPublicPath(activeSlug)}</div>
                 </div>
-                <Button type="primary" onClick={() => setAddModalOpen(true)} disabled={!series.length}>
-                  Добавить сериалы
-                </Button>
+                <Space wrap>
+                  <Tooltip title="Открыть на сайте">
+                    <Button
+                      icon={<ExportOutlined />}
+                      href={collectionPublicUrl(activeSlug)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      На сайте
+                    </Button>
+                  </Tooltip>
+                  <Button icon={<CopyOutlined />} onClick={() => void copyCollectionLink(activeSlug)}>
+                    Ссылка
+                  </Button>
+                  <Button onClick={() => activeCollection && void openEdit(activeCollection)}>Изменить</Button>
+                  {activeCollection ? (
+                    <Popconfirm
+                      title="Удалить подборку?"
+                      description={`«${activeCollection.title}» будет удалена без возможности восстановления.`}
+                      onConfirm={() => void removeCollection(activeCollection)}
+                      okText="Удалить"
+                      cancelText="Отмена"
+                      okButtonProps={{ danger: true }}
+                    >
+                      <Button danger icon={<DeleteOutlined />}>Удалить</Button>
+                    </Popconfirm>
+                  ) : null}
+                  <Button type="primary" onClick={() => setAddModalOpen(true)} disabled={!series.length}>
+                    Добавить сериалы
+                  </Button>
+                </Space>
               </div>
-              <Table rowKey="id" loading={loading} columns={itemColumns} dataSource={items} pagination={false} size="small" />
+              <Table rowKey="id" loading={loading} columns={itemColumns} dataSource={items} pagination={false} size="small" scroll={{ x: 720 }} />
             </>
           )}
         </div>
@@ -545,6 +774,95 @@ export default function CollectionsPage() {
             <Select mode="multiple" options={seriesOptions} optionFilterProp="label" placeholder="Выберите один или несколько" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title="Промпт для ИИ"
+        open={promptModalOpen}
+        onCancel={() => setPromptModalOpen(false)}
+        width={920}
+        footer={(_, { CancelBtn }) => (
+          <Space>
+            <Button onClick={() => void copyPrompt()} disabled={!promptData?.prompt}>Скопировать</Button>
+            <Button onClick={downloadPrompt} disabled={!promptData?.prompt}>Скачать .txt</Button>
+            <CancelBtn />
+          </Space>
+        )}
+        destroyOnHidden
+        styles={{ body: { maxHeight: '75vh', overflowY: 'auto' } }}
+      >
+        {promptLoading ? (
+          <Typography.Paragraph type="secondary">Сборка промпта из базы…</Typography.Paragraph>
+        ) : promptData ? (
+          <>
+            <Typography.Paragraph type="secondary">
+              Сериалов: {promptData.series_count}, существующих подборок: {promptData.collections_count},
+              {' '}размер: {formatCharCount(promptData.char_count)} символов
+            </Typography.Paragraph>
+            {promptData.char_count > LARGE_PROMPT_THRESHOLD ? (
+              <Typography.Paragraph type="warning">
+                Промпт очень большой — рекомендуется скачать файл, а не копировать в буфер.
+              </Typography.Paragraph>
+            ) : null}
+            <Input.TextArea value={promptData.prompt} readOnly rows={18} style={{ fontFamily: 'monospace', fontSize: 12 }} />
+          </>
+        ) : null}
+      </Modal>
+
+      <Modal
+        title="Импорт подборок из ИИ"
+        open={importModalOpen}
+        onCancel={() => setImportModalOpen(false)}
+        width={960}
+        footer={(_, { CancelBtn }) => (
+          <Space>
+            <Button onClick={() => void runImportPreview()} loading={importLoading}>Проверить</Button>
+            <Button
+              type="primary"
+              onClick={() => void runImportCreate()}
+              loading={importCreating}
+              disabled={!importPreview?.items.length}
+            >
+              Создать подборки
+            </Button>
+            <CancelBtn />
+          </Space>
+        )}
+        destroyOnHidden
+        styles={{ body: { maxHeight: '75vh', overflowY: 'auto' } }}
+      >
+        <Typography.Paragraph type="secondary">
+          Вставьте JSON-ответ от ИИ (можно с markdown-блоком ```json). Сначала нажмите «Проверить», затем «Создать подборки».
+        </Typography.Paragraph>
+        <Input.TextArea
+          value={importPayload}
+          onChange={(e) => {
+            setImportPayload(e.target.value)
+            setImportPreview(null)
+          }}
+          rows={10}
+          placeholder='{"collections":[{"title":"...","slug":"...","series_ids":[1,2]}]}'
+          style={{ fontFamily: 'monospace', fontSize: 12, marginBottom: 16 }}
+        />
+        {importPreview?.errors.length ? (
+          <Typography.Paragraph type="danger" style={{ marginBottom: 12 }}>
+            {importPreview.errors.join(' ')}
+          </Typography.Paragraph>
+        ) : null}
+        {importPreview?.skipped.length ? (
+          <Typography.Paragraph type="secondary" style={{ marginBottom: 12 }}>
+            Пропущено: {importPreview.skipped.map((s) => `${s.title || `#${s.index + 1}`} (${s.reason})`).join('; ')}
+          </Typography.Paragraph>
+        ) : null}
+        {importPreview?.items.length ? (
+          <Table
+            rowKey={(row) => `${row.slug}-${row.index}`}
+            size="small"
+            pagination={false}
+            columns={importPreviewColumns}
+            dataSource={importPreview.items}
+          />
+        ) : null}
       </Modal>
     </Row>
   )
