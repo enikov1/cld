@@ -33,6 +33,7 @@ use App\Support\AdminPath;
 use App\Support\CommentModeration;
 use App\Support\RobotsTxt;
 use App\Support\SiteConfig;
+use App\Support\SlugHelper;
 use App\Support\ThemeManager;
 use App\Support\TplCache;
 use App\Services\ImageOptimizer;

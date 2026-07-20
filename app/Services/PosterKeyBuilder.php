@@ -41,10 +41,12 @@ class PosterKeyBuilder
         $slug = $context->collectionSlug ?: 'item';
         $pattern = SiteConfig::str('images_collection_filename');
 
-        return match ($pattern) {
+        $base = match ($pattern) {
             'slug' => $slug,
             default => 'collection-' . $slug,
-        } . ($context->variant === 'banner' ? '-banner' : '');
+        };
+
+        return $context->variant === 'banner' ? $base . '-banner' : $base;
     }
 
     private function buildStudioKey(PosterContext $context): string
