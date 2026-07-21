@@ -2,6 +2,9 @@
 
 namespace App\Support;
 
+use App\Models\PlayerSource;
+use App\Models\Series;
+
 class PlayerUrlHelper
 {
     /** @var list<string> */
@@ -64,9 +67,51 @@ class PlayerUrlHelper
     }
 
     /**
-     * Reject inline scripts and scripts from untrusted hosts.
-     * CDN VideoHub embeds ship a trusted external <script src="https://player.cdnvideohub.com/...">.
+     * Place a player at the Nth tab (1 = leftmost) and renumber all active players.
      */
+    public static function applyPlayerTabPosition(Series $series, int $playerSourceId, int $position): void
+    {
+        $position = max(1, $position);
+
+        $players = PlayerSource::query()
+            ->where('series_id', $series->id)
+            ->where('is_active', true)
+            ->orderByDesc('priority')
+            ->orderBy('id')
+            ->get();
+
+        $target = null;
+        $others = [];
+
+        foreach ($players as $player) {
+            if ((int) $player->id === $playerSourceId) {
+                $target = $player;
+                continue;
+            }
+
+            $others[] = $player;
+        }
+
+        if ($target === null) {
+            return;
+        }
+
+        $insertAt = min($position - 1, count($others));
+        $ordered = array_merge(
+            array_slice($others, 0, $insertAt),
+            [$target],
+            array_slice($others, $insertAt),
+        );
+
+        $total = count($ordered);
+        foreach ($ordered as $index => $player) {
+            $newPriority = ($total - $index) * 10;
+            if ((int) $player->priority !== $newPriority) {
+                $player->update(['priority' => $newPriority]);
+            }
+        }
+    }
+
     private static function hasDisallowedScript(string $content): bool
     {
         if (!preg_match_all('/<script\b([^>]*)>(.*?)<\/script>/is', $content, $matches, PREG_SET_ORDER)) {

@@ -598,15 +598,21 @@ class AdminSeriesController extends Controller
             'download_poster' => ['nullable', 'boolean'],
             'sync_players' => ['nullable', 'boolean'],
             'sync_metadata' => ['nullable', 'boolean'],
+            'imdb_id' => ['nullable', 'string', 'max:32'],
+            'tmdb_id' => ['nullable', 'string', 'max:32'],
         ]);
 
-        $result = app(AllohaImportService::class)->importByKpId($kp_id, [
+        $series = AdminSeriesResolver::byKey($kp_id, true);
+
+        $result = app(AllohaImportService::class)->importByKpId((string) ($series->kp_id ?? $kp_id), [
             'download_poster' => (bool)($data['download_poster'] ?? true),
             'sync_metadata' => (bool)($data['sync_metadata'] ?? true),
             'sync_genres_countries' => true,
             'sync_people' => true,
             'fill_empty_only' => false,
             'is_active' => false,
+            'imdb_id' => $data['imdb_id'] ?? $series->imdb_id,
+            'tmdb_id' => $data['tmdb_id'] ?? $series->tmdb_id,
         ]);
 
         if ($result['ok'] && $result['series']) {

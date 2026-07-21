@@ -1,5 +1,5 @@
-import { Alert, Button, Card, Checkbox, Divider, Form, InputNumber, Select, Space, Switch, Tabs, Typography, message } from 'antd'
-import { useCallback, useEffect, useState } from 'react'
+import { Alert, Button, Card, Checkbox, Divider, Form, Input, InputNumber, Popconfirm, Progress, Select, Space, Switch, Tabs, Typography, message } from 'antd'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 
 type IntervalOption = { value: number; label: string }
@@ -21,6 +21,20 @@ type AutoSyncSettings = {
   fill_empty_only: boolean
 }
 
+type PlayerSyncProgress = {
+  status: 'idle' | 'running' | 'done' | 'failed'
+  total: number
+  processed: number
+  synced: number
+  skipped: number
+  failed: number
+  message: string
+  tab_name?: string
+  position?: number
+  kp_id?: string | null
+  sleep?: number
+}
+
 export default function AllohaSyncPage() {
   const [allohaConfigured, setAllohaConfigured] = useState<boolean | null>(null)
   const [loading, setLoading] = useState(false)
@@ -31,6 +45,12 @@ export default function AllohaSyncPage() {
   const [form] = Form.useForm()
   const [bulkForm] = Form.useForm()
   const [autoForm] = Form.useForm()
+  const [playerForm] = Form.useForm()
+  const [playerSyncing, setPlayerSyncing] = useState(false)
+  const [playerProgress, setPlayerProgress] = useState<PlayerSyncProgress | null>(null)
+  const [playerPercent, setPlayerPercent] = useState(0)
+  const playerSyncAbortRef = useRef(false)
+  const playerResumeCheckedRef = useRef(false)
 
   const loadSettings = useCallback(async () => {
     const [settingsData, autoData] = await Promise.all([
@@ -51,6 +71,17 @@ export default function AllohaSyncPage() {
   useEffect(() => {
     loadSettings().catch((e) => message.error(String((e as Error).message)))
   }, [loadSettings])
+
+  const loadPlayerProgress = useCallback(async () => {
+    const res = await api<{
+      progress: PlayerSyncProgress
+      percent: number
+      done: boolean
+    }>('/api/admin/players/alloha/sync-progress')
+    setPlayerProgress(res.progress)
+    setPlayerPercent(res.percent ?? 0)
+    return res
+  }, [])
 
   async function runSync(values: Record<string, unknown>) {
     setLoading(true)
@@ -129,6 +160,83 @@ export default function AllohaSyncPage() {
       setLoading(false)
     }
   }
+
+  async function runPlayerSync(values: { tab_name?: string; position?: number; kp_id?: number; sleep?: number }) {
+    setPlayerSyncing(true)
+    setOutput('')
+    setPlayerPercent(0)
+    playerSyncAbortRef.current = false
+
+    let restart = true
+    let lastMessage = ''
+
+    try {
+      while (!playerSyncAbortRef.current) {
+        const res = await api<{
+          ok: boolean
+          done?: boolean
+          percent?: number
+          message?: string
+          progress?: PlayerSyncProgress
+          synced?: number
+          skipped?: number
+          failed?: number
+          error?: string
+        }>('/api/admin/players/alloha/sync-all', {
+          method: 'POST',
+          body: JSON.stringify({
+            tab_name: values.tab_name?.trim() || 'Смотреть онлайн',
+            position: values.position ?? 1,
+            kp_id: values.kp_id ? String(values.kp_id) : undefined,
+            sleep: values.sleep ?? 0,
+            restart,
+            continue: !restart,
+          }),
+        })
+
+        restart = false
+        lastMessage = res.message || res.progress?.message || lastMessage
+
+        if (res.progress) {
+          setPlayerProgress(res.progress)
+        }
+        setPlayerPercent(res.percent ?? 0)
+        setOutput(lastMessage)
+
+        if (res.done) {
+          message.success(
+            lastMessage ||
+              `Готово: проставлено ${res.synced ?? 0}, пропущено ${res.skipped ?? 0}, ошибок: ${res.failed ?? 0}`,
+          )
+          break
+        }
+      }
+    } catch (e) {
+      message.error(String((e as Error).message))
+    } finally {
+      setPlayerSyncing(false)
+      await loadPlayerProgress().catch(() => {})
+    }
+  }
+
+  useEffect(() => {
+    if (playerResumeCheckedRef.current) return
+    playerResumeCheckedRef.current = true
+
+    loadPlayerProgress()
+      .then((res) => {
+        if (res.progress.status !== 'running') return
+
+        void runPlayerSync({
+          tab_name: res.progress.tab_name,
+          position: res.progress.position,
+          kp_id: res.progress.kp_id ? Number(res.progress.kp_id) : undefined,
+          sleep: res.progress.sleep,
+        })
+      })
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- resume once on mount
+  }, [])
 
   return (
     <div>
@@ -258,6 +366,88 @@ export default function AllohaSyncPage() {
                   <Button type="primary" htmlType="submit" loading={loading}>
                     Запустить синхронизацию
                   </Button>
+                </Form>
+              ),
+            },
+            {
+              key: 'players',
+              label: 'Проставить плеер',
+              children: (
+                <Form
+                  form={playerForm}
+                  layout="vertical"
+                  onFinish={runPlayerSync}
+                  style={{ maxWidth: 520 }}
+                  initialValues={{ tab_name: 'Смотреть онлайн', position: 1, sleep: 0.5 }}
+                >
+                  <Typography.Paragraph type="secondary">
+                    Добавляет или обновляет вкладку плеера Alloha у сериалов с KP ID. Iframe запрашивается через{' '}
+                    <code>/v2/movies/exists</code> (KP → IMDb → TMDB) и детальные эндпоинты Alloha API. Позиция считается среди всех
+                    вкладок сериала. Пропущенные — нет в каталоге Alloha или нет активных файлов.
+                  </Typography.Paragraph>
+
+                  {(playerSyncing || playerProgress?.status === 'running' || playerProgress?.status === 'done') && (
+                    <div style={{ marginBottom: 16 }}>
+                      <Progress
+                        percent={playerPercent}
+                        status={
+                          playerProgress?.status === 'failed'
+                            ? 'exception'
+                            : playerProgress?.status === 'done'
+                              ? 'success'
+                              : 'active'
+                        }
+                      />
+                      <Typography.Text type="secondary">
+                        {playerProgress?.message ||
+                          `Обработано ${playerProgress?.processed ?? 0} из ${playerProgress?.total ?? 0}`}
+                      </Typography.Text>
+                      {playerProgress && playerProgress.total > 0 ? (
+                        <Typography.Text type="secondary" style={{ display: 'block' }}>
+                          Проставлено: {playerProgress.synced}, пропущено: {playerProgress.skipped}, ошибок:{' '}
+                          {playerProgress.failed}
+                        </Typography.Text>
+                      ) : null}
+                    </div>
+                  )}
+
+                  <Form.Item
+                    label="Название вкладки"
+                    name="tab_name"
+                    rules={[{ required: true, message: 'Укажите название вкладки' }]}
+                  >
+                    <Input placeholder="Смотреть онлайн" maxLength={120} />
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Позиция вкладки"
+                    name="position"
+                    extra="1 — первая (слева), 2 — вторая, 3 — третья и т.д."
+                    rules={[{ required: true, message: 'Укажите позицию' }]}
+                  >
+                    <InputNumber min={1} max={20} style={{ width: '100%' }} />
+                  </Form.Item>
+
+                  <Form.Item label="KP ID (опционально)" name="kp_id" extra="Если пусто — обработаются все сериалы с KP ID">
+                    <InputNumber style={{ width: '100%' }} min={1} placeholder="357" />
+                  </Form.Item>
+
+                  <Form.Item label="Пауза между запросами (сек)" name="sleep" extra="Только при обращении к API Alloha">
+                    <InputNumber min={0} max={30} step={0.5} style={{ width: '100%' }} />
+                  </Form.Item>
+
+                  <Popconfirm
+                    title="Проставить плеер Alloha?"
+                    description="Будет создана или обновлена вкладка плеера. Существующие вкладки Alloha у сериала будут перезаписаны."
+                    okText="Проставить"
+                    cancelText="Отмена"
+                    onConfirm={() => playerForm.submit()}
+                    disabled={!allohaConfigured || playerSyncing}
+                  >
+                    <Button type="primary" loading={playerSyncing} disabled={!allohaConfigured || playerSyncing}>
+                      Проставить плеер
+                    </Button>
+                  </Popconfirm>
                 </Form>
               ),
             },

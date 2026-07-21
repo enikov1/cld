@@ -31,7 +31,9 @@ class AllohaImportService
      *     is_active?: bool|null,
      *     is_hidden?: bool|null,
      *     sync_people?: bool,
-     *     sync_tmdb?: bool
+     *     sync_tmdb?: bool,
+     *     imdb_id?: string|null,
+     *     tmdb_id?: string|null
      * } $options
      * @return array{ok: bool, error?: string, series?: Series}
      */
@@ -41,9 +43,13 @@ class AllohaImportService
             return ['ok' => false, 'error' => 'API-токен Alloha не настроен. Укажите его в Настройках.'];
         }
 
-        $response = $this->client->getMovieByKp($kpId);
+        $existing = Series::query()->withTrashed()->where('kp_id', $kpId)->first();
+        $imdbId = AllohaClient::normalizeImdbId($options['imdb_id'] ?? $existing?->imdb_id);
+        $tmdbId = trim((string) ($options['tmdb_id'] ?? $existing?->tmdb_id ?? ''));
+
+        $response = $this->client->getMovieWithFallback($kpId, $imdbId, $tmdbId);
         if ($response === []) {
-            return ['ok' => false, 'error' => 'Контент не найден в Alloha'];
+            return ['ok' => false, 'error' => 'Контент не найден в Alloha (KP, IMDb, TMDB)'];
         }
 
         $mapped = AllohaMapper::toSeriesAttributes($response);
@@ -69,7 +75,6 @@ class AllohaImportService
             $mapped['poster_source_url'],
         );
 
-        $existing = Series::query()->withTrashed()->where('kp_id', $kpId)->first();
         $isNew = !$existing;
 
         $ratingsOnly = (bool)($options['ratings_only'] ?? false);

@@ -71,21 +71,110 @@ class AllohaClient
      */
     public function getMovieByKp(int|string $kpId): array
     {
-        return $this->getJson('/v2/movies/kp/' . $kpId);
+        return $this->getJson('/v2/movies/kp/' . rawurlencode((string) $kpId));
+    }
+
+    public function getMovieByImdb(string $imdbId): array
+    {
+        return $this->getJson('/v2/movies/imdb/' . rawurlencode($imdbId));
+    }
+
+    public function getMovieByTmdb(int|string $tmdbId): array
+    {
+        return $this->getJson('/v2/movies/tmdb/' . rawurlencode((string) $tmdbId));
     }
 
     /**
+     * Lookup movie details: KP → IMDb → TMDB.
+     *
+     * @return array<string, mixed>
+     */
+    public function getMovieWithFallback(?string $kpId = null, ?string $imdbId = null, ?string $tmdbId = null): array
+    {
+        $kpId = trim((string) ($kpId ?? ''));
+        if ($kpId !== '' && preg_match('/^\d+$/', $kpId)) {
+            $response = $this->getMovieByKp($kpId);
+            if ($response !== []) {
+                return $response;
+            }
+        }
+
+        $imdbId = self::normalizeImdbId($imdbId);
+        if ($imdbId !== '') {
+            $response = $this->getMovieByImdb($imdbId);
+            if ($response !== []) {
+                return $response;
+            }
+        }
+
+        $tmdbId = trim((string) ($tmdbId ?? ''));
+        if ($tmdbId !== '' && preg_match('/^\d+$/', $tmdbId)) {
+            $response = $this->getMovieByTmdb($tmdbId);
+            if ($response !== []) {
+                return $response;
+            }
+        }
+
+        return [];
+    }
+
+    public static function normalizeImdbId(mixed $value): string
+    {
+        $imdbId = trim((string) ($value ?? ''));
+        if ($imdbId === '') {
+            return '';
+        }
+
+        if (preg_match('/^tt\d+$/i', $imdbId)) {
+            return 'tt' . substr($imdbId, 2);
+        }
+
+        if (preg_match('/^\d+$/', $imdbId)) {
+            return 'tt' . $imdbId;
+        }
+
+        return '';
+    }
+
+    /**
+     * @param array{kp?: int|string|null, token?: string|null, imdb?: string|null, tmdb?: int|string|null, world_art?: int|string|null}|int|string $identifiers
      * @return array{exists: bool, iframe?: string|null}
      */
-    public function movieExists(int|string $kpId): array
+    public function movieExists(array|int|string $identifiers): array
     {
-        $json = $this->getJson('/v2/movies/exists', ['kp' => $kpId]);
+        $query = [];
+
+        if (!is_array($identifiers)) {
+            $identifiers = ['kp' => $identifiers];
+        }
+
+        if (isset($identifiers['kp']) && $identifiers['kp'] !== '' && $identifiers['kp'] !== null) {
+            $query['kp'] = $identifiers['kp'];
+        }
+        if (!empty($identifiers['token'])) {
+            $query['token'] = trim((string) $identifiers['token']);
+        }
+        if (!empty($identifiers['imdb'])) {
+            $query['imdb'] = trim((string) $identifiers['imdb']);
+        }
+        if (isset($identifiers['tmdb']) && $identifiers['tmdb'] !== '' && $identifiers['tmdb'] !== null) {
+            $query['tmdb'] = $identifiers['tmdb'];
+        }
+        if (isset($identifiers['world_art']) && $identifiers['world_art'] !== '' && $identifiers['world_art'] !== null) {
+            $query['world_art'] = $identifiers['world_art'];
+        }
+
+        if ($query === []) {
+            return ['exists' => false];
+        }
+
+        $json = $this->getJson('/v2/movies/exists', $query);
         if ($json === []) {
             return ['exists' => false];
         }
 
         return [
-            'exists' => (bool)($json['exists'] ?? $json['data']['exists'] ?? false),
+            'exists' => (bool) ($json['exists'] ?? $json['data']['exists'] ?? false),
             'iframe' => $json['iframe'] ?? $json['data']['iframe'] ?? null,
         ];
     }
