@@ -100,6 +100,44 @@ class AllohaBulkPlayerSyncTest extends TestCase
         $this->assertSame('Плеер 2', $players[1]['label']);
     }
 
+    public function test_sync_one_at_last_appends_alloha_player(): void
+    {
+        $series = Series::query()->create([
+            'kp_id' => '500002',
+            'slug' => 'alloha-last-test',
+            'title' => 'Last Position Test',
+            'is_active' => true,
+        ]);
+
+        PlayerSource::query()->create([
+            'series_id' => $series->id,
+            'provider' => 'Смотреть онлайн',
+            'iframe_url' => '<video-player data-title-id="500002"></video-player>',
+            'source_key' => CdnVideoHubPlayerSync::SOURCE_KEY,
+            'is_active' => true,
+            'priority' => 100,
+        ]);
+
+        $client = Mockery::mock(AllohaClient::class);
+        $client->shouldReceive('movieExists')
+            ->once()
+            ->with(['kp' => '500002'])
+            ->andReturn([
+                'exists' => true,
+                'iframe' => 'https://api.alloha.tv/player/500002',
+            ]);
+        $this->app->instance(AllohaClient::class, $client);
+
+        $result = app(AllohaBulkPlayerSync::class)->syncOneAtLast($series, 'Alloha');
+
+        $this->assertTrue($result['ok']);
+
+        $players = PlayerUrlHelper::activePlayersForSeries($series->fresh());
+        $this->assertCount(2, $players);
+        $this->assertSame('Смотреть онлайн', $players[0]['label']);
+        $this->assertSame('Alloha', $players[1]['label']);
+    }
+
     public function test_upsert_overwrites_existing_alloha_tab(): void
     {
         $series = Series::query()->create([

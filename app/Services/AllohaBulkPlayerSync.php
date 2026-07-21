@@ -195,6 +195,56 @@ class AllohaBulkPlayerSync
         return $out;
     }
 
+    /**
+     * @return array{ok: bool, error?: string}
+     */
+    public function syncOneAtLast(Series $series, string $tabName = 'Смотреть онлайн'): array
+    {
+        if (!AllohaConfig::isConfigured()) {
+            return ['ok' => false, 'error' => 'API-токен Alloha не настроен. Укажите его в Настройках.'];
+        }
+
+        $tabName = trim($tabName) !== '' ? trim($tabName) : 'Смотреть онлайн';
+
+        try {
+            $resolved = $this->resolveIframe($series);
+            if ($resolved['iframe'] === '') {
+                return ['ok' => false, 'error' => 'Контент не найден в Alloha (KP, IMDb, TMDB)'];
+            }
+
+            if ($resolved['token'] !== null && $resolved['token'] !== trim((string) ($series->alloha_token ?? ''))) {
+                $series->update(['alloha_token' => $resolved['token']]);
+            }
+
+            $existingAlloha = PlayerSource::query()
+                ->where('series_id', $series->id)
+                ->where('source_key', self::SOURCE_KEY)
+                ->first();
+
+            $activeCount = PlayerSource::query()
+                ->where('series_id', $series->id)
+                ->where('is_active', true)
+                ->count();
+
+            $position = ($existingAlloha?->is_active)
+                ? max(1, $activeCount)
+                : max(1, $activeCount + 1);
+
+            $this->upsertMainTab($series, [
+                'provider' => $tabName,
+                'iframe_url' => $resolved['iframe'],
+                'is_active' => true,
+                'alloha_translation_id' => null,
+            ], $position);
+
+            $series->update(['player_url' => PlayerUrlHelper::firstIframeUrlForSeries($series->refresh())]);
+
+            return ['ok' => true];
+        } catch (\Throwable $e) {
+            return ['ok' => false, 'error' => 'Не удалось добавить плеер Alloha: ' . $e->getMessage()];
+        }
+    }
+
     private function baseQuery(?string $kpId): Builder
     {
         $query = Series::query()

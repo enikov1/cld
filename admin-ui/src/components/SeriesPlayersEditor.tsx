@@ -110,6 +110,7 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
   const [rows, setRows] = useState<PlayerRow[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [addingAlloha, setAddingAlloha] = useState(false)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -201,6 +202,35 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
     ])
   }
 
+  async function addAllohaPlayer() {
+    if (!kpId) return
+
+    setAddingAlloha(true)
+    try {
+      const res = await api<{ players: Array<Omit<PlayerRow, 'key'>> }>(
+        `/api/admin/series/${kpId}/players/add-alloha`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ tab_name: 'Смотреть онлайн' }),
+        },
+      )
+      setRows(
+        (res.players ?? []).map((item, index) => ({
+          ...item,
+          key: String(item.id ?? `new-${index}`),
+          provider: item.provider ?? '',
+          iframe_url: item.iframe_url ?? '',
+          is_active: item.is_active ?? true,
+        })),
+      )
+      message.success('Плеер Alloha добавлен в конец списка')
+    } catch (e) {
+      message.error(String((e as Error).message))
+    } finally {
+      setAddingAlloha(false)
+    }
+  }
+
   function updateRow(key: string, patch: Partial<PlayerRow>) {
     setRows(rows.map((row) => (row.key === key ? { ...row, ...patch } : row)))
   }
@@ -283,6 +313,9 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
         </p>
         <Space wrap>
           <Button onClick={addPlayer}>Добавить плеер</Button>
+          <Button loading={addingAlloha} onClick={addAllohaPlayer}>
+            Добавить плеер Alloha
+          </Button>
           <Button loading={saving} onClick={() => savePlayers()}>
             Сохранить только плееры
           </Button>

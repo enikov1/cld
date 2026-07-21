@@ -206,6 +206,7 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
     Route::post('/series/{kp_id}/schedule', [AdminScheduleController::class, 'save']);
     Route::post('/series/{kp_id}/schedule/import-tmdb', [AdminScheduleController::class, 'importFromTmdb']);
     Route::get('/series/{kp_id}/players', [AdminPlayersController::class, 'show']);
+    Route::post('/series/{kp_id}/players/add-alloha', [AdminPlayersController::class, 'addAllohaPlayer']);
     Route::post('/series/{kp_id}/players', [AdminPlayersController::class, 'save']);
     Route::post('/players/alloha/sync-all', [AdminPlayersController::class, 'syncAllohaAll']);
     Route::get('/players/alloha/sync-progress', [AdminPlayersController::class, 'allohaSyncProgress']);

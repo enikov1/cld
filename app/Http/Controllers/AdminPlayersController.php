@@ -100,20 +100,28 @@ class AdminPlayersController extends Controller
     {
         $series = AdminSeriesResolver::byKey($kpId);
 
-        $items = $series->playerSources()
-            ->orderByDesc('priority')
-            ->orderBy('id')
-            ->get()
-            ->map(fn (PlayerSource $source) => [
-                'id' => $source->id,
-                'provider' => $source->provider,
-                'iframe_url' => $source->iframe_url,
-                'is_active' => $source->is_active,
-                'priority' => $source->priority,
-            ])
-            ->all();
+        return response()->json(['players' => $this->serializePlayers($series)]);
+    }
 
-        return response()->json(['players' => $items]);
+    public function addAllohaPlayer(Request $request, string $kpId, AllohaBulkPlayerSync $sync)
+    {
+        $series = AdminSeriesResolver::byKey($kpId, true);
+
+        $data = $request->validate([
+            'tab_name' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $result = $sync->syncOneAtLast($series, (string) ($data['tab_name'] ?? 'Смотреть онлайн'));
+        if (!$result['ok']) {
+            return response()->json(['ok' => false, 'error' => $result['error']], 422);
+        }
+
+        TplCache::forgetSeries($series->id);
+
+        return response()->json([
+            'ok' => true,
+            'players' => $this->serializePlayers($series->refresh()),
+        ]);
     }
 
     public function save(Request $request, string $kpId)
@@ -188,18 +196,26 @@ class AdminPlayersController extends Controller
 
         return response()->json([
             'ok' => true,
-            'players' => $series->playerSources()
-                ->orderByDesc('priority')
-                ->orderBy('id')
-                ->get()
-                ->map(fn (PlayerSource $source) => [
-                    'id' => $source->id,
-                    'provider' => $source->provider,
-                    'iframe_url' => $source->iframe_url,
-                    'is_active' => $source->is_active,
-                    'priority' => $source->priority,
-                ])
-                ->all(),
+            'players' => $this->serializePlayers($series),
         ]);
+    }
+
+    /**
+     * @return list<array{id: int, provider: string|null, iframe_url: string|null, is_active: bool, priority: int|null}>
+     */
+    private function serializePlayers(Series $series): array
+    {
+        return $series->playerSources()
+            ->orderByDesc('priority')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (PlayerSource $source) => [
+                'id' => $source->id,
+                'provider' => $source->provider,
+                'iframe_url' => $source->iframe_url,
+                'is_active' => $source->is_active,
+                'priority' => $source->priority,
+            ])
+            ->all();
     }
 }
