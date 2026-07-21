@@ -8,6 +8,7 @@ use App\Services\CdnVideoHubPlayerSync;
 use App\Services\KinoPoiskClient;
 use App\Services\KinoPoiskMapper;
 use App\Services\KinoPoiskStaffMapper;
+use App\Services\AllohaClient;
 use App\Services\AllohaImportService;
 use App\Services\PosterContext;
 use App\Services\PosterStorage;
@@ -592,7 +593,21 @@ class AdminSeriesController extends Controller
         ]);
     }
 
-    public function importFromAlloha(Request $request, string $kp_id)
+    public function importFromAlloha(Request $request)
+    {
+        $data = $request->validate([
+            'kp_id' => ['nullable', 'string', 'max:32'],
+            'download_poster' => ['nullable', 'boolean'],
+            'sync_players' => ['nullable', 'boolean'],
+            'sync_metadata' => ['nullable', 'boolean'],
+            'imdb_id' => ['nullable', 'string', 'max:32'],
+            'tmdb_id' => ['nullable', 'string', 'max:32'],
+        ]);
+
+        return $this->runAllohaImport($data);
+    }
+
+    public function importFromAllohaByKey(Request $request, string $kp_id)
     {
         $data = $request->validate([
             'download_poster' => ['nullable', 'boolean'],
@@ -601,24 +616,40 @@ class AdminSeriesController extends Controller
             'imdb_id' => ['nullable', 'string', 'max:32'],
             'tmdb_id' => ['nullable', 'string', 'max:32'],
         ]);
+        $data['kp_id'] = $kp_id;
 
-        $series = AdminSeriesResolver::byKey($kp_id, true);
+        return $this->runAllohaImport($data);
+    }
 
-        $result = app(AllohaImportService::class)->importByKpId((string) ($series->kp_id ?? $kp_id), [
+    /**
+     * @param array<string,mixed> $data
+     */
+    private function runAllohaImport(array $data)
+    {
+        $kpId = trim((string)($data['kp_id'] ?? ''));
+        $imdbId = AllohaClient::normalizeImdbId($data['imdb_id'] ?? null);
+        $tmdbId = trim((string)($data['tmdb_id'] ?? ''));
+
+        if ($kpId === '' && $imdbId === '' && $tmdbId === '') {
+            return response()->json(['ok' => false, 'error' => 'Укажите KP ID, IMDb ID или TMDB ID'], 422);
+        }
+
+        $result = app(AllohaImportService::class)->importByKpId($kpId, [
             'download_poster' => (bool)($data['download_poster'] ?? true),
             'sync_metadata' => (bool)($data['sync_metadata'] ?? true),
             'sync_genres_countries' => true,
             'sync_people' => true,
             'fill_empty_only' => false,
             'is_active' => false,
-            'imdb_id' => $data['imdb_id'] ?? $series->imdb_id,
-            'tmdb_id' => $data['tmdb_id'] ?? $series->tmdb_id,
+            'imdb_id' => $imdbId !== '' ? $imdbId : null,
+            'tmdb_id' => $tmdbId !== '' ? $tmdbId : null,
         ]);
 
         if ($result['ok'] && $result['series']) {
+            $staffKpId = trim((string)$result['series']->kp_id);
             $kpClient = app(KinoPoiskClient::class);
-            if ($kpClient->isConfigured()) {
-                $staff = $kpClient->getStaff($kp_id);
+            if ($staffKpId !== '' && $kpClient->isConfigured()) {
+                $staff = $kpClient->getStaff($staffKpId);
                 $people = KinoPoiskStaffMapper::toPeopleLists($staff);
                 if ($people['_actor_people'] !== [] || $people['_director_people'] !== []) {
                     app(TaxonomyService::class)->syncSeriesPeople(

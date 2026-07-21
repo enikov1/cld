@@ -194,8 +194,9 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
     Route::get('/series/check-tmdb', [AdminSeriesController::class, 'checkTmdb']);
     Route::post('/series/upsert', [AdminSeriesController::class, 'upsert']);
     Route::post('/series/import-tmdb', [AdminSeriesController::class, 'importFromTmdb']);
+    Route::post('/series/import-alloha', [AdminSeriesController::class, 'importFromAlloha']);
     Route::post('/series/{kp_id}/import-kp', [AdminSeriesController::class, 'importFromKp']);
-    Route::post('/series/{kp_id}/import-alloha', [AdminSeriesController::class, 'importFromAlloha']);
+    Route::post('/series/{kp_id}/import-alloha', [AdminSeriesController::class, 'importFromAllohaByKey']);
     Route::post('/series/{kp_id}/poster', [AdminSeriesController::class, 'uploadPoster']);
     Route::post('/series/{kp_id}/pin', [AdminSeriesController::class, 'pin']);
     Route::post('/series/{kp_id}/visibility', [AdminSeriesController::class, 'visibility']);

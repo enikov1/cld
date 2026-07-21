@@ -61,4 +61,35 @@ class AllohaImportServiceTest extends TestCase
         $this->assertTrue($result['ok']);
         $this->assertSame('Imported via IMDb', $result['series']?->title);
     }
+
+    public function test_import_creates_series_when_not_in_database_yet(): void
+    {
+        $client = Mockery::mock(AllohaClient::class);
+        $client->shouldReceive('getMovieWithFallback')
+            ->once()
+            ->with('5165951', 'tt0056592', '66732')
+            ->andReturn([
+                'data' => [
+                    'name' => 'New series from Alloha',
+                    'ids' => ['kp' => 5165951, 'imdb' => 'tt0056592', 'tmdb' => 66732],
+                    'token' => 'import-token',
+                    'category' => ['slug' => 'serial'],
+                ],
+            ]);
+        $this->app->instance(AllohaClient::class, $client);
+
+        $this->assertNull(Series::query()->where('kp_id', '5165951')->first());
+
+        $result = app(AllohaImportService::class)->importByKpId('5165951', [
+            'sync_metadata' => true,
+            'download_poster' => false,
+            'sync_genres_countries' => false,
+            'imdb_id' => 'tt0056592',
+            'tmdb_id' => '66732',
+        ]);
+
+        $this->assertTrue($result['ok']);
+        $this->assertSame('5165951', $result['series']?->kp_id);
+        $this->assertSame('New series from Alloha', $result['series']?->title);
+    }
 }

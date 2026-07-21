@@ -43,11 +43,20 @@ class AllohaImportService
             return ['ok' => false, 'error' => 'API-токен Alloha не настроен. Укажите его в Настройках.'];
         }
 
-        $existing = Series::query()->withTrashed()->where('kp_id', $kpId)->first();
-        $imdbId = AllohaClient::normalizeImdbId($options['imdb_id'] ?? $existing?->imdb_id);
-        $tmdbId = trim((string) ($options['tmdb_id'] ?? $existing?->tmdb_id ?? ''));
+        $kpId = trim($kpId);
+        $imdbId = AllohaClient::normalizeImdbId($options['imdb_id'] ?? null);
+        $tmdbId = trim((string) ($options['tmdb_id'] ?? ''));
 
-        $response = $this->client->getMovieWithFallback($kpId, $imdbId, $tmdbId);
+        $existing = $this->resolveExistingSeries($kpId, $imdbId, $tmdbId);
+        if ($imdbId === '' && $existing?->imdb_id) {
+            $imdbId = AllohaClient::normalizeImdbId($existing->imdb_id);
+        }
+        if ($tmdbId === '' && $existing?->tmdb_id) {
+            $tmdbId = trim((string) $existing->tmdb_id);
+        }
+
+        $lookupKpId = ($kpId !== '' && preg_match('/^\d+$/', $kpId)) ? $kpId : null;
+        $response = $this->client->getMovieWithFallback($lookupKpId, $imdbId, $tmdbId);
         if ($response === []) {
             return ['ok' => false, 'error' => 'Контент не найден в Alloha (KP, IMDb, TMDB)'];
         }
@@ -74,6 +83,11 @@ class AllohaImportService
             $mapped['_default_iframe'],
             $mapped['poster_source_url'],
         );
+
+        $persistKpId = trim((string) ($mapped['kp_id'] ?? $existing?->kp_id ?? $lookupKpId ?? ''));
+        if ($persistKpId === '') {
+            return ['ok' => false, 'error' => 'Не удалось определить KP ID для сохранения сериала'];
+        }
 
         $isNew = !$existing;
 
@@ -117,9 +131,9 @@ class AllohaImportService
         $slug = $existing?->slug;
         if (!$slug && !empty($mapped['title'])) {
             $slug = SlugHelper::make(null, $mapped['title']);
-            if (Series::query()->withTrashed()->where('slug', $slug)->where('kp_id', '!=', $kpId)->exists()) {
-                $slug = SlugHelper::makeUnique(null, $mapped['title'] . '-' . $kpId, function (string $candidate) use ($kpId) {
-                    return Series::query()->withTrashed()->where('slug', $candidate)->where('kp_id', '!=', $kpId)->exists();
+            if (Series::query()->withTrashed()->where('slug', $slug)->where('kp_id', '!=', $persistKpId)->exists()) {
+                $slug = SlugHelper::makeUnique(null, $mapped['title'] . '-' . $persistKpId, function (string $candidate) use ($persistKpId) {
+                    return Series::query()->withTrashed()->where('slug', $candidate)->where('kp_id', '!=', $persistKpId)->exists();
                 });
             }
         }
@@ -129,7 +143,7 @@ class AllohaImportService
             if (!$fillEmptyOnly || !$posterUrl) {
                 $stored = $this->posterStorage->storeFromUrl(
                     $posterSourceUrl,
-                    PosterContext::forSeriesData($kpId, array_merge($mapped, ['slug' => $slug ?? ''])),
+                    PosterContext::forSeriesData($persistKpId, array_merge($mapped, ['slug' => $slug ?? ''])),
                 );
                 if ($stored) {
                     $posterUrl = $stored;
@@ -167,7 +181,7 @@ class AllohaImportService
         }
 
         $series = Series::query()->withTrashed()->updateOrCreate(
-            ['kp_id' => $kpId],
+            ['kp_id' => $persistKpId],
             $attrs,
         );
 
@@ -258,6 +272,32 @@ class AllohaImportService
         }
 
         return $filtered;
+    }
+
+    private function resolveExistingSeries(string $kpId, string $imdbId, string $tmdbId): ?Series
+    {
+        if ($kpId !== '' && preg_match('/^\d+$/', $kpId)) {
+            $byKp = Series::query()->withTrashed()->where('kp_id', $kpId)->first();
+            if ($byKp) {
+                return $byKp;
+            }
+        }
+
+        if ($imdbId !== '') {
+            $byImdb = Series::query()->withTrashed()->where('imdb_id', $imdbId)->first();
+            if ($byImdb) {
+                return $byImdb;
+            }
+        }
+
+        if ($tmdbId !== '' && preg_match('/^\d+$/', $tmdbId)) {
+            $byTmdb = Series::query()->withTrashed()->where('tmdb_id', $tmdbId)->first();
+            if ($byTmdb) {
+                return $byTmdb;
+            }
+        }
+
+        return null;
     }
 
     /**

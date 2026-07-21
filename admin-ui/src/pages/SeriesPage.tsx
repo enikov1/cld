@@ -680,18 +680,19 @@ export default function SeriesPage() {
 
   async function importAlloha() {
     const values = form.getFieldsValue(true) as Record<string, unknown>
-    const routeKey = seriesRouteKey(editing, values)
-    if (!routeKey) {
-      message.warning('Укажите KP ID или TMDB ID')
+    const kpId = String(values.kp_id ?? editing?.kp_id ?? '').trim()
+    const imdbId = String(values.imdb_id ?? editing?.imdb_id ?? '').trim()
+    const tmdbId = String(values.tmdb_id ?? editing?.tmdb_id ?? '').trim()
+    if (!kpId && !imdbId && !tmdbId) {
+      message.warning('Укажите KP ID, IMDb ID или TMDB ID')
       return
     }
-    const imdbId = String(values.imdb_id ?? '').trim()
-    const tmdbId = String(values.tmdb_id ?? '').trim()
     setImportingAlloha(true)
     try {
-      const res = await api<{ item: SeriesItem }>(`/api/admin/series/${routeKey}/import-alloha`, {
+      const res = await api<{ item: SeriesItem }>('/api/admin/series/import-alloha', {
         method: 'POST',
         body: JSON.stringify({
+          kp_id: kpId || undefined,
           download_poster: true,
           sync_metadata: true,
           imdb_id: imdbId || undefined,
