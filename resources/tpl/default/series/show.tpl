@@ -8,6 +8,10 @@
     <section class="serial-view">
         <div class="serial-view__inner">
             <div class="serial-view__content">
+                [ad_vpaid_code]
+                <div class="vpad">{ad_vpaid_code|raw}</div>
+                
+                [/ad_vpaid_code]
                 <header class="serial-titleline">
                     <h1>{series.title} {series.year} {season-type-4} смотреть онлайн</h1>
                     [auth.is_admin]
