@@ -17,10 +17,7 @@
                     </button>
         </div>
     </div>
-    [/popular_list]
-    {new_episodes_block|raw}
-    {schedule_calendar_block|raw}
-    [has_watch_history]
+    [/popular_list] {new_episodes_block|raw} {schedule_calendar_block|raw} [has_watch_history]
     <div class="carou-sect" id="watchHistorySection" data-watch-history-root hidden>
         <div class="carou-title">{watch_history_ui_title}</div>
         <div class="carou-content" data-carou>
@@ -46,8 +43,7 @@
                         <img src="{item.banner_url|raw}" alt="{item.title}" loading="lazy">
                     [/item.banner_url]
                     <span><strong>{item.title}</strong></span>
-                </a>
-                [/loop]
+                </a> [/loop]
             </div>
             <button class="carou-nav carou-nav--next dontusebuttonclass" type="button" aria-label="Вперёд">
                 <span class="fa fa-angle-right"></span>
@@ -91,14 +87,12 @@
                         </a> [/loop]
         </div>
     </div>
-    [/promo_studios] [loop custom_home_sections]
+    [/promo_studios][loop custom_home_sections]
     <div class="sect" data-home-block-id="{item.block_id}">
         <div class="sect-header fx-row fx-middle fx-start">
             [item.link_url]
-            <a href="{item.link_url|raw}" class="sect-title">{item.title}<span class="fa fa-chevron-right"></span></a>
-            [/item.link_url] [not-item.link_url]
-            <span class="sect-title">{item.title}</span>
-            [/not-item.link_url] [item.show_tabs]
+            <a href="{item.link_url|raw}" class="sect-title">{item.title}<span class="fa fa-chevron-right"></span></a> [/item.link_url] [not-item.link_url]
+            <span class="sect-title">{item.title}</span> [/not-item.link_url] [item.show_tabs]
             <div class="sect-tabs" data-section-tabs>
                 <span class="sect-tab[item.tab_latest_active] is-active[/item.tab_latest_active]" data-sort="latest" role="button" tabindex="0">Последние</span>
                 <span class="sect-tab[item.tab_popular_active] is-active[/item.tab_popular_active]" data-sort="popular" role="button" tabindex="0">Популярные</span>

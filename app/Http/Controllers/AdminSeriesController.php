@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Series;
+use App\Support\ContentTypes;
 use App\Services\ImageOptimizer;
 use App\Services\CdnVideoHubPlayerSync;
 use App\Services\KinoPoiskClient;
@@ -208,7 +209,7 @@ class AdminSeriesController extends Controller
             'imdb_votes_count' => ['nullable', 'integer', 'min:0'],
             'imdb_id' => ['nullable', 'string'],
             'tmdb_id' => ['nullable', 'string', 'required_without:kp_id'],
-            'content_type' => ['nullable', 'in:film,series'],
+            'content_type' => ['nullable', ContentTypes::validationInRule()],
             'broadcast_status' => ['nullable', 'in:ongoing,paused,completed'],
             'season_number' => ['nullable', 'integer', 'min:1', 'max:999'],
             'last_episode_number' => ['nullable', 'integer', 'min:1', 'max:9999'],
@@ -554,6 +555,10 @@ class AdminSeriesController extends Controller
         unset($mapped['poster_source_url']);
 
         $existing = Series::query()->withTrashed()->where('kp_id', (string)$kp_id)->first();
+
+        if ($existing && trim((string) $existing->description) !== '') {
+            unset($mapped['description']);
+        }
 
         $series = Series::query()->withTrashed()->updateOrCreate(
             ['kp_id' => (string)$kp_id],

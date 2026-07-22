@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\CronRun;
 use App\Models\Series;
+use App\Support\ContentTypes;
 use App\Support\TplCache;
 
 class TmdbPopularitySyncService
@@ -352,7 +353,7 @@ class TmdbPopularitySyncService
             return $empty;
         }
 
-        $preferTv = $series->content_type !== 'film';
+        $preferTv = ContentTypes::isSerialLike($series->content_type);
         $details = $preferTv
             ? $this->client->getTvDetails($tmdbId)
             : $this->client->getMovieDetails($tmdbId);

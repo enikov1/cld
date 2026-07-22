@@ -271,6 +271,10 @@ class AllohaImportService
             }
         }
 
+        if ($existing && trim((string) $existing->description) !== '' && array_key_exists('description', $filtered)) {
+            unset($filtered['description']);
+        }
+
         return $filtered;
     }
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Collection;
 use App\Models\Series;
 use App\Models\Studio;
+use App\Services\HomeContentTypeSectionService;
 use App\Services\HomeBlockService;
 use App\Services\HomeEpisodeScheduleService;
 use App\Services\HomeSectionService;
@@ -140,7 +141,12 @@ class HomeController extends TplController
             JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS
         );
 
-        $vars = [
+        $contentTypeSections = HomeContentTypeSectionService::build(
+            $renderCards,
+            fn (array $section) => $this->renderPartial('partials/home_content_type_section.tpl', $section),
+        );
+
+        $vars = array_merge([
             'has_watch_history' => SiteConfig::bool('watch_history_enabled'),
             'is_home_first' => true,
             'popular_list' => $popularMapped,
@@ -166,9 +172,17 @@ class HomeController extends TplController
             'custom_home_sections' => $customSections,
             'home_sections' => $sections,
             'category_sections' => $sections,
+            'content_type_sections' => $contentTypeSections['sections'],
+            'content_type_section_1' => $contentTypeSections['by_index'][1] ?? [],
+            'content_type_section_2' => $contentTypeSections['by_index'][2] ?? [],
+            'content_type_section_3' => $contentTypeSections['by_index'][3] ?? [],
+            'content_type_section_4' => $contentTypeSections['by_index'][4] ?? [],
+            'content_type_section_5' => $contentTypeSections['by_index'][5] ?? [],
+            'content_type_section_6' => $contentTypeSections['by_index'][6] ?? [],
+            'content_type_section_7' => $contentTypeSections['by_index'][7] ?? [],
             'home_seo_html' => \App\Models\SiteSetting::get('home_seo_html', $this->defaultSeoHtml()),
             'pagination_block' => '',
-        ];
+        ], $contentTypeSections['flags']);
 
         $this->applySpeedbar(Speedbar::forHome(1), $vars);
 

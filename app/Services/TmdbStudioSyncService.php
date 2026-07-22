@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Series;
 use App\Models\Studio;
 use App\Models\StudioItem;
+use App\Support\ContentTypes;
 use App\Support\SlugHelper;
 use App\Support\TplCache;
 use Illuminate\Support\Facades\Storage;
@@ -34,7 +35,7 @@ class TmdbStudioSyncService
             return $empty;
         }
 
-        $preferTv = $series->content_type !== 'film';
+        $preferTv = ContentTypes::isSerialLike($series->content_type);
         $details = $preferTv
             ? $this->client->getTvDetails($tmdbId)
             : $this->client->getMovieDetails($tmdbId);

@@ -67,7 +67,7 @@ export type SeriesItem = {
   views_3d?: number | null
   views_7d?: number | null
   popular_badge_active?: boolean
-  content_type?: 'film' | 'series' | null
+  content_type?: 'film' | 'series' | 'cartoon' | 'cartoon_series' | 'anime' | 'dorama' | 'tv_show' | null
   broadcast_status?: 'ongoing' | 'paused' | 'completed' | null
   season_number?: number | null
   last_episode_number?: number | null
@@ -332,6 +332,11 @@ export const BROADCAST_STATUSES = [
 ] as const
 
 export const CONTENT_TYPES = [
-  { value: 'series', label: 'Сериал' },
   { value: 'film', label: 'Фильм' },
+  { value: 'series', label: 'Сериал' },
+  { value: 'cartoon', label: 'Мультфильм' },
+  { value: 'cartoon_series', label: 'Мультсериал' },
+  { value: 'anime', label: 'Аниме' },
+  { value: 'dorama', label: 'Дорама' },
+  { value: 'tv_show', label: 'ТВ-шоу' },
 ] as const

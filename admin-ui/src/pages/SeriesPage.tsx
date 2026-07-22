@@ -20,6 +20,7 @@ import {
   message,
 } from 'antd'
 import {
+  CheckOutlined,
   CopyOutlined,
   DeleteOutlined,
   EditOutlined,
@@ -225,6 +226,10 @@ function seriesRouteKey(editing: SeriesItem | null, values: Record<string, unkno
   return null
 }
 
+function countCharsWithoutSpaces(text: string): number {
+  return text.replace(/\s/g, '').length
+}
+
 function seriesToFormValues(item: SeriesItem): Record<string, unknown> {
   return {
     kp_id: item.kp_id,
@@ -296,6 +301,8 @@ export default function SeriesPage() {
   const [importingAlloha, setImportingAlloha] = useState(false)
   const [importingTmdb, setImportingTmdb] = useState(false)
   const [playersRefreshKey, setPlayersRefreshKey] = useState(0)
+  const [playersCount, setPlayersCount] = useState(0)
+  const [hasSchedule, setHasSchedule] = useState(false)
   const [posterCacheBust, setPosterCacheBust] = useState<number | undefined>(undefined)
   const [saving, setSaving] = useState(false)
   const playersEditorRef = useRef<SeriesPlayersEditorHandle>(null)
@@ -303,6 +310,11 @@ export default function SeriesPage() {
   const [form] = Form.useForm()
   const [filterForm] = Form.useForm<SeriesListFilters>()
   const posterUrl = Form.useWatch('poster_url', form)
+  const watchedDescription = Form.useWatch('description', form)
+  const descriptionCharCount = useMemo(
+    () => countCharsWithoutSpaces(String(watchedDescription ?? '')),
+    [watchedDescription],
+  )
   const watchedKpId = Form.useWatch('kp_id', form)
   const watchedImdbId = Form.useWatch('imdb_id', form)
   const watchedTmdbId = Form.useWatch('tmdb_id', form)
@@ -310,6 +322,39 @@ export default function SeriesPage() {
     () => seriesRouteKey(editing, { kp_id: watchedKpId, tmdb_id: watchedTmdbId }),
     [editing, watchedKpId, watchedTmdbId],
   )
+
+  const refreshPlayersCount = useCallback(async (routeKey: string | null | undefined) => {
+    if (!routeKey) {
+      setPlayersCount(0)
+      return
+    }
+    try {
+      const data = await api<{ players: unknown[] }>(`/api/admin/series/${routeKey}/players`)
+      setPlayersCount(data.players?.length ?? 0)
+    } catch {
+      setPlayersCount(0)
+    }
+  }, [])
+
+  const refreshSchedulePresence = useCallback(async (routeKey: string | null | undefined) => {
+    if (!routeKey) {
+      setHasSchedule(false)
+      return
+    }
+    try {
+      const data = await api<{ seasons: Array<{ episodes?: unknown[] }> }>(`/api/admin/series/${routeKey}/schedule`)
+      setHasSchedule((data.seasons ?? []).some((season) => (season.episodes?.length ?? 0) > 0))
+    } catch {
+      setHasSchedule(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!drawerOpen) return
+    void refreshPlayersCount(editorRouteKey)
+    void refreshSchedulePresence(editorRouteKey)
+  }, [drawerOpen, editorRouteKey, playersRefreshKey, refreshPlayersCount, refreshSchedulePresence])
+
   const hasKpIdValue = Boolean(String(watchedKpId ?? '').trim())
   const hasImdbIdValue = Boolean(String(watchedImdbId ?? '').trim())
   const hasTmdbIdValue = Boolean(String(watchedTmdbId ?? '').trim())
@@ -467,6 +512,8 @@ export default function SeriesPage() {
 
   function openCreate() {
     setEditing(null)
+    setPlayersCount(0)
+    setHasSchedule(false)
     form.resetFields()
     form.setFieldsValue({
       is_active: true,
@@ -492,9 +539,14 @@ export default function SeriesPage() {
   }
 
   async function applyImportedItem(item: SeriesItem) {
+    const currentDescription = String(form.getFieldValue('description') ?? '').trim()
     await Promise.all([loadTaxonomy(), loadStudios()])
     setEditing(item)
-    form.setFieldsValue(seriesToFormValues(item))
+    const values = seriesToFormValues(item)
+    if (currentDescription) {
+      values.description = currentDescription
+    }
+    form.setFieldsValue(values)
   }
 
   function buildSeriesPayload(values: Record<string, unknown>): Record<string, unknown> {
@@ -1217,6 +1269,8 @@ export default function SeriesPage() {
         onClose={() => {
           setDrawerOpen(false)
           setEditing(null)
+          setPlayersCount(0)
+          setHasSchedule(false)
           form.resetFields()
         }}
         width={820}
@@ -1461,12 +1515,15 @@ export default function SeriesPage() {
                       label="Описание"
                       name="description"
                       extra={
-                        <Button type="link" size="small" icon={<CopyOutlined />} onClick={copyDescriptionAiPrompt} style={{ padding: 0 }}>
-                          Скопировать промпт для ИИ
-                        </Button>
+                        <Space direction="vertical" size={0}>
+                          <span className="admin-empty-hint">{descriptionCharCount} символов без пробелов</span>
+                          <Button type="link" size="small" icon={<CopyOutlined />} onClick={copyDescriptionAiPrompt} style={{ padding: 0 }}>
+                            Скопировать промпт для ИИ
+                          </Button>
+                        </Space>
                       }
                     >
-                      <Input.TextArea rows={4} />
+                      <Input.TextArea autoSize={{ minRows: 2 }} />
                     </Form.Item>
                     <Form.Item label="Meta title" name="meta_title" extra="Если пусто — название + суффикс из настроек">
                       <Input />
@@ -1534,19 +1591,27 @@ export default function SeriesPage() {
             },
             {
               key: 'players',
-              label: 'Плееры',
+              label: `Плееры (${playersCount})`,
+              forceRender: true,
               children: (
                 <SeriesPlayersEditor
                   ref={playersEditorRef}
                   kpId={editorRouteKey}
                   drawerOpen={drawerOpen}
                   refreshKey={playersRefreshKey}
+                  onCountChange={setPlayersCount}
                 />
               ),
             },
             {
               key: 'schedule',
-              label: 'Расписание',
+              label: (
+                <span className="series-drawer-tab-label">
+                  Расписание
+                  {hasSchedule ? <CheckOutlined className="series-drawer-tab-label__check" aria-label="Расписание заполнено" /> : null}
+                </span>
+              ),
+              forceRender: true,
               children: (
                 <SeriesScheduleEditor
                   ref={scheduleEditorRef}
@@ -1554,6 +1619,7 @@ export default function SeriesPage() {
                   tmdbId={watchedTmdbId ?? editing?.tmdb_id}
                   drawerOpen={drawerOpen}
                   refreshKey={playersRefreshKey}
+                  onHasScheduleChange={setHasSchedule}
                   onBroadcastStatusChange={(status) => {
                     form.setFieldsValue({ broadcast_status: status })
                     if (editing) {

@@ -28,10 +28,11 @@ type Props = {
   drawerOpen: boolean
   refreshKey?: number
   onBroadcastStatusChange?: (status: 'ongoing' | 'paused' | 'completed' | null) => void
+  onHasScheduleChange?: (hasSchedule: boolean) => void
 }
 
 const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(function SeriesScheduleEditor(
-  { kpId, tmdbId, drawerOpen, refreshKey = 0, onBroadcastStatusChange },
+  { kpId, tmdbId, drawerOpen, refreshKey = 0, onBroadcastStatusChange, onHasScheduleChange },
   ref,
 ) {
   const [seasons, setSeasons] = useState<ScheduleSeason[]>([])
@@ -70,6 +71,10 @@ const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(funct
       setResolvedTmdbId(tmdbId?.trim() ? tmdbId.trim() : null)
     }
   }, [tmdbId])
+
+  useEffect(() => {
+    onHasScheduleChange?.(seasons.some((season) => season.episodes.length > 0))
+  }, [seasons, onHasScheduleChange])
 
   const saveSchedule = useCallback(
     async (options?: { silent?: boolean; kpId?: string }) => {

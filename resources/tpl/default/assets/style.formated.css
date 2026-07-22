@@ -240,6 +240,7 @@ textarea:focus::placeholder {
     width: 100%;
     min-height: 100%;
     display: block;
+    object-fit: cover;
 }
 
 .img-resp img,
@@ -5561,7 +5562,7 @@ a.knopka:active {
     border-bottom: 1px solid #e5e5e5;
 }
 
-.serial-watch-title + .series-subscribe-box {
+.serial-watch-title+.series-subscribe-box {
     border-top: 0;
 }
 
@@ -10516,7 +10517,7 @@ body.ls-menu-open {
 .serial-poster-card img:not(.hot) {
     display: block;
     width: 100%;
-    aspect-ratio: 2 / 3;
+    /* aspect-ratio: 2 / 3; */
     object-fit: cover;
 }
 
@@ -14978,7 +14979,7 @@ input#sec_code::placeholder {
     user-select: none;
 }
 
-.th-item > .th-in {
+.th-item>.th-in {
     position: relative;
     z-index: 1;
 }

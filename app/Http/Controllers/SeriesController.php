@@ -16,6 +16,7 @@ use App\Services\UserLibraryService;
 use App\Support\CommentTree;
 use App\Support\CommentView;
 use App\Support\PlayerUrlHelper;
+use App\Support\ContentTypes;
 use App\Support\SeasonEpisodeLabels;
 use App\Support\SiteConfig;
 use App\Support\SeriesUrl;
@@ -120,6 +121,7 @@ class SeriesController extends TplController
             'imdb_rating' => $series->imdb_rating,
             'imdb_id' => $series->imdb_id,
             'content_type' => $series->content_type,
+            'content_type_label' => ContentTypes::label($series->content_type),
             'broadcast_status' => $series->broadcast_status,
             'broadcast_status_label' => $series->broadcastStatusLabel(),
             'status_badge_class' => $statusBadge['class'] ?? '',
@@ -189,9 +191,12 @@ class SeriesController extends TplController
             'user_rating' => $series->userRatingLabel(),
         ];
 
-        $labelTags = SeasonEpisodeLabels::forSeries(
-            $progress['season_number'],
-            $progress['last_episode_number']
+        $labelTags = array_merge(
+            SeasonEpisodeLabels::forSeries(
+                $progress['season_number'],
+                $progress['last_episode_number']
+            ),
+            ContentTypes::forTpl($series->content_type),
         );
 
         $notificationSubscribed = false;

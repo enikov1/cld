@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\HomeSection;
 use App\Services\HomeBlockService;
+use App\Services\HomeContentTypeSectionService;
 use App\Services\HomeSectionService;
+use App\Support\ContentTypes;
+use App\Support\SiteConfig;
 use App\Support\PaginationHelper;
 use App\Support\TaxonomyRegistry;
 use Illuminate\Http\Request;
@@ -22,6 +25,28 @@ class HomeSectionController extends TplController
         );
 
         $items = HomeBlockService::seriesForBlock($block, $sort);
+        $mapped = PaginationHelper::mapSeries($items);
+
+        return response()->json([
+            'html' => $this->renderPartial('partials/series_cards.tpl', [
+                'series_list' => $mapped,
+            ]),
+            'count' => count($mapped),
+            'sort' => $sort,
+        ]);
+    }
+
+    public function contentTypeSeries(Request $request, string $contentType)
+    {
+        if (!ContentTypes::isValid($contentType) || !SiteConfig::bool('home_content_types_enabled')) {
+            abort(404);
+        }
+
+        $sort = HomeSectionService::normalizeSort(
+            $request->query('sort', SiteConfig::str('home_content_types_sort'))
+        );
+
+        $items = HomeContentTypeSectionService::seriesForContentType($contentType, $sort);
         $mapped = PaginationHelper::mapSeries($items);
 
         return response()->json([

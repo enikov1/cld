@@ -101,10 +101,11 @@ type Props = {
   kpId?: string | null
   drawerOpen: boolean
   refreshKey?: number
+  onCountChange?: (count: number) => void
 }
 
 const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(function SeriesPlayersEditor(
-  { kpId, drawerOpen, refreshKey = 0 },
+  { kpId, drawerOpen, refreshKey = 0, onCountChange },
   ref,
 ) {
   const [rows, setRows] = useState<PlayerRow[]>([])
@@ -141,6 +142,10 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
     if (!drawerOpen || !kpId) return
     load()
   }, [kpId, drawerOpen, refreshKey, load])
+
+  useEffect(() => {
+    onCountChange?.(rows.length)
+  }, [rows.length, onCountChange])
 
   const savePlayers = useCallback(
     async (options?: { silent?: boolean; kpId?: string }) => {
@@ -211,7 +216,7 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
         `/api/admin/series/${kpId}/players/add-alloha`,
         {
           method: 'POST',
-          body: JSON.stringify({ tab_name: 'Смотреть онлайн' }),
+          body: JSON.stringify({ tab_name: `Плеер ${rows.length + 1}` }),
         },
       )
       setRows(

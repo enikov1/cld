@@ -208,7 +208,7 @@ class TplRenderer
     private function renderNotBlocks(string $tpl, array $vars): string
     {
         return (string)preg_replace_callback(
-            '/\\[not-([A-Za-z0-9_\\.]+)\\]([\\s\\S]*?)\\[\\/not-\\1\\]/',
+            '/\\[not-([A-Za-z0-9_\\.-]+)\\]([\\s\\S]*?)\\[\\/not-\\1\\]/',
             function (array $m) use ($vars) {
                 $key = $m[1];
                 $inner = $m[2];
@@ -226,7 +226,7 @@ class TplRenderer
     private function renderBlocks(string $tpl, array $vars): string
     {
         return (string)preg_replace_callback(
-            '/\\[([A-Za-z0-9_\\.]+)\\]([\\s\\S]*?)\\[\\/\\1\\]/',
+            '/\\[([A-Za-z0-9_\\.-]+)\\]([\\s\\S]*?)\\[\\/\\1\\]/',
             function (array $m) use ($vars) {
                 $key = $m[1];
                 $inner = $m[2];

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\ContentTypes;
 use App\Support\SiteConfig;
 
 class AllohaMapper
@@ -150,11 +151,20 @@ class AllohaMapper
 
     private static function resolveContentType(string $slug): string
     {
-        if (in_array($slug, ['serial', 'anime-serial', 'tv-show'], true)) {
-            return 'series';
-        }
+        $slug = strtolower(trim($slug));
 
-        return 'film';
+        $mapped = match ($slug) {
+            'film', 'movie' => 'film',
+            'serial' => 'series',
+            'multfilm', 'cartoon', 'animation' => 'cartoon',
+            'multserial', 'cartoon-serial', 'cartoon_serial' => 'cartoon_series',
+            'anime', 'anime-serial', 'anime_serial' => 'anime',
+            'dorama' => 'dorama',
+            'tv-show', 'tvshow', 'tv_show' => 'tv_show',
+            default => $slug,
+        };
+
+        return ContentTypes::isValid($mapped) ? $mapped : 'film';
     }
 
     private static function resolveSeasonNumber(array $data): ?int

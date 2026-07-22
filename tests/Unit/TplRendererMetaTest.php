@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Support\ContentTypes;
 use App\Support\TplRenderer;
 use PHPUnit\Framework\TestCase;
 
@@ -46,5 +47,17 @@ TPL);
         $this->assertSame('<p>Игра престолов</p>', $page['content']);
         $this->assertSame('Игра престолов', $page['meta']['title']);
         $this->assertSame('https://example.test/igra-prestolov', $page['meta']['canonical']);
+    }
+
+    public function test_render_content_type_blocks_with_hyphenated_keys(): void
+    {
+        $renderer = new TplRenderer(__DIR__ . '/../../resources/tpl/default');
+
+        $html = $renderer->interpolate(
+            '[type-1]фильм[/type-1][type-2]сериал[/type-2][type-4]мультсериал[/type-4]',
+            ContentTypes::forTpl('cartoon_series'),
+        );
+
+        $this->assertSame('мультсериал', $html);
     }
 }

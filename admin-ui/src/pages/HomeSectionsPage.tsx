@@ -78,7 +78,17 @@ const BOOL_OPTIONS = [
   { value: false, label: 'Нет' },
 ]
 
-function filterSummary(filters?: HomeSectionFilters | null): string {
+type ContentTypeOption = { value: string; label: string }
+
+const DEFAULT_CONTENT_TYPE_OPTIONS: ContentTypeOption[] = CONTENT_TYPES.map((x) => ({
+  value: x.value,
+  label: x.label,
+}))
+
+function filterSummary(
+  filters?: HomeSectionFilters | null,
+  contentTypes: ContentTypeOption[] = DEFAULT_CONTENT_TYPE_OPTIONS,
+): string {
   if (!filters || Object.keys(filters).length === 0) {
     return 'Без фильтров'
   }
@@ -86,7 +96,7 @@ function filterSummary(filters?: HomeSectionFilters | null): string {
   const parts: string[] = []
   if (filters.year_mode === 'current_year') parts.push('год: текущий')
   if (filters.content_type) {
-    parts.push(CONTENT_TYPES.find((x) => x.value === filters.content_type)?.label ?? filters.content_type)
+    parts.push(contentTypes.find((x) => x.value === filters.content_type)?.label ?? filters.content_type)
   }
   if (filters.broadcast_status) {
     parts.push(BROADCAST_STATUSES.find((x) => x.value === filters.broadcast_status)?.label ?? filters.broadcast_status)
@@ -139,6 +149,7 @@ export default function HomeSectionsPage() {
   const [editing, setEditing] = useState<HomeSectionItem | null>(null)
   const [previewCount, setPreviewCount] = useState<number | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
+  const [contentTypeOptions, setContentTypeOptions] = useState<ContentTypeOption[]>(DEFAULT_CONTENT_TYPE_OPTIONS)
   const [form] = Form.useForm()
 
   const genreOptions = useMemo<SelectOption[]>(
@@ -162,13 +173,16 @@ export default function HomeSectionsPage() {
     setLoading(true)
     try {
       const [sectionsData, taxonomyData, studiosData] = await Promise.all([
-        api<{ items: HomeSectionItem[] }>('/api/admin/home-sections'),
+        api<{ items: HomeSectionItem[]; content_types?: ContentTypeOption[] }>('/api/admin/home-sections'),
         api<{ genres: TaxonomyOption[]; countries: TaxonomyOption[]; people: TaxonomyOption[] }>(
           '/api/admin/taxonomies/options',
         ),
         api<{ items: StudioItem[] }>('/api/admin/studios'),
       ])
       setItems(sectionsData.items)
+      if (sectionsData.content_types?.length) {
+        setContentTypeOptions(sectionsData.content_types)
+      }
       setTaxonomy({
         genres: taxonomyData.genres ?? [],
         countries: taxonomyData.countries ?? [],
@@ -294,7 +308,7 @@ export default function HomeSectionsPage() {
       key: 'filters',
       render: (_, row) => (
         <Space direction="vertical" size={0}>
-          <span className="admin-empty-hint">{filterSummary(row.filters)}</span>
+          <span className="admin-empty-hint">{filterSummary(row.filters, contentTypeOptions)}</span>
           <span>{row.series_count ?? 0} сериалов</span>
         </Space>
       ),
@@ -431,7 +445,7 @@ export default function HomeSectionsPage() {
                     <Row gutter={16}>
                       <Col xs={24} md={8}>
                         <Form.Item label="Тип контента" name={['filters', 'content_type']}>
-                          <Select allowClear placeholder="Все" options={CONTENT_TYPES.map((x) => ({ value: x.value, label: x.label }))} />
+                          <Select allowClear placeholder="Все" options={contentTypeOptions.map((x) => ({ value: x.value, label: x.label }))} />
                         </Form.Item>
                       </Col>
                       <Col xs={24} md={8}>

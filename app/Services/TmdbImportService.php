@@ -83,6 +83,9 @@ class TmdbImportService
         }
 
         $attrs = $mapped;
+        if ($existing && trim((string) $existing->description) !== '') {
+            unset($attrs['description']);
+        }
         if ($slug) {
             $attrs['slug'] = $slug;
         }

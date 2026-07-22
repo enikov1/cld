@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\HomeSection;
 use App\Services\HomeBlockService;
 use App\Services\HomeSectionService;
+use App\Support\ContentTypes;
 use App\Support\TplCache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +21,23 @@ class AdminHomeSectionController extends Controller
             ->get()
             ->map(fn (HomeSection $s) => $this->mapItem($s));
 
-        return response()->json(['items' => $items]);
+        return response()->json([
+            'items' => $items,
+            'content_types' => $this->contentTypeOptions(),
+        ]);
+    }
+
+    /**
+     * @return list<array{value: string, label: string}>
+     */
+    private function contentTypeOptions(): array
+    {
+        $options = [];
+        foreach (ContentTypes::all() as $value => $label) {
+            $options[] = ['value' => $value, 'label' => $label];
+        }
+
+        return $options;
     }
 
     public function upsert(Request $request)
@@ -30,7 +47,7 @@ class AdminHomeSectionController extends Controller
             'title' => ['required', 'string', 'max:200'],
             'link_url' => ['nullable', 'string', 'max:500'],
             'filters' => ['nullable', 'array'],
-            'filters.content_type' => ['nullable', 'string', Rule::in(['film', 'series'])],
+            'filters.content_type' => ['nullable', 'string', ContentTypes::validationInRule()],
             'filters.broadcast_status' => ['nullable', 'string', Rule::in(['ongoing', 'paused', 'completed'])],
             'filters.year_mode' => ['nullable', 'string', Rule::in(['', 'current_year'])],
             'filters.studio_id' => ['nullable', 'integer', 'min:1'],

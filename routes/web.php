@@ -58,6 +58,10 @@ Route::get('/api/home/blocks/{id}/series', [HomeSectionController::class, 'block
     ->where('id', '[0-9]+')
     ->name('api.home.blocks.series');
 
+Route::get('/api/home/content-types/{contentType}/series', [HomeSectionController::class, 'contentTypeSeries'])
+    ->where('contentType', '[a-z_]+')
+    ->name('api.home.content-types.series');
+
 Route::get('/api/home/episode-calendar', [HomeScheduleController::class, 'calendar'])
     ->name('api.home.episode-calendar');
 
