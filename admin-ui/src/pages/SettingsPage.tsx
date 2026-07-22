@@ -21,6 +21,7 @@ import {
   ApiOutlined,
   AppstoreOutlined,
   CommentOutlined,
+  DollarOutlined,
   GlobalOutlined,
   HomeOutlined,
   LikeOutlined,
@@ -50,6 +51,7 @@ type SettingsSection =
   | 'engagement'
   | 'catalog'
   | 'optimization'
+  | 'advertising'
   | 'maintenance'
   | 'general'
   | 'admin'
@@ -67,6 +69,7 @@ const SECTION_LABELS: Record<SettingsSection, string> = {
   engagement: 'Списки и уведомления',
   catalog: 'Каталог',
   optimization: 'Оптимизация',
+  advertising: 'Реклама',
   maintenance: 'Обслуживание',
   general: 'Общие',
   admin: 'Админ-панель',
@@ -778,6 +781,27 @@ export default function SettingsPage() {
             Сейчас по умолчанию: <Typography.Text code>/storage/posters/kp-357.jpg</Typography.Text>
           </Typography.Paragraph>
           <SiteConfigFields fields={configSchema.optimization?.fields ?? []} />
+        </Card>
+      ),
+    },
+    {
+      key: 'advertising',
+      label: (
+        <span className="settings-tab-label">
+          <DollarOutlined />
+          Реклама
+        </span>
+      ),
+      children: (
+        <Card title={configSchema.advertising?.title ?? 'Реклама'} loading={loading} bordered={false}>
+          <Typography.Paragraph type="secondary">
+            Коды рекламных блоков для вывода в шаблонах сайта. Вставляйте полный HTML/JavaScript — div, script и др.
+          </Typography.Paragraph>
+          <Typography.Paragraph type="secondary">
+            В шаблоне: <Typography.Text code>{'{ad_vpaid_code|raw}'}</Typography.Text> или блок{' '}
+            <Typography.Text code>[ad_vpaid_code]...[/ad_vpaid_code]</Typography.Text> (показывается только если код задан).
+          </Typography.Paragraph>
+          <SiteConfigFields fields={configSchema.advertising?.fields ?? []} />
         </Card>
       ),
     },

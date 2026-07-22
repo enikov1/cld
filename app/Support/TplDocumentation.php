@@ -205,8 +205,9 @@ class TplDocumentation
                     self::docVar('seo_google_verification', 'Код верификации Google Search Console'),
                     self::docVar('seo_yandex_verification', 'Код верификации Яндекс Вебмастер'),
                     self::docVar('seo_counters_code', 'HTML/JS счётчиков и метрик'),
+                    self::docVar('ad_vpaid_code', 'VPAID-реклама из настроек (VideoRoll и др.)'),
                 ]),
-                ['speedbar_block', 'seo_jsonld', 'meta.robots', 'meta.prev', 'meta.next', 'theme.stylesheets', 'theme.scripts', 'theme.js', 'seo_google_verification', 'seo_yandex_verification', 'seo_counters_code'],
+                ['speedbar_block', 'seo_jsonld', 'meta.robots', 'meta.prev', 'meta.next', 'theme.stylesheets', 'theme.scripts', 'theme.js', 'seo_google_verification', 'seo_yandex_verification', 'seo_counters_code', 'ad_vpaid_code'],
                 [
                     self::loop('theme.stylesheets', 'Подключённые CSS темы'),
                 ],
@@ -292,8 +293,9 @@ class TplDocumentation
                     self::docVar('has_related', 'Есть блок рекомендаций'),
                     self::docVar('related_cards_html', 'HTML карточек «Рекомендуем посмотреть»'),
                     self::docVar('seo.canonical', 'Canonical URL'),
+                    self::docVar('ad_vpaid_code', 'VPAID-реклама из настроек (VideoRoll и др.)'),
                 ]),
-                ['series.description', 'series.year', 'series.year_url', 'series.studios', 'series.collections', 'has_player', 'has_reactions', 'has_schedule', 'episodes_modal', 'reactions_widget', 'has_related', 'related_cards_html'],
+                ['series.description', 'series.year', 'series.year_url', 'series.studios', 'series.collections', 'has_player', 'has_reactions', 'has_schedule', 'episodes_modal', 'reactions_widget', 'has_related', 'related_cards_html', 'ad_vpaid_code'],
                 [
                     self::loop('series.genres', 'Жанры сериала (name, slug, url, is_last)'),
                     self::loop('series.countries', 'Страны (name, slug, url, is_last)'),
@@ -485,6 +487,7 @@ class TplDocumentation
             self::docVar('admin_url', 'Базовый URL админ-панели'),
             self::docVar('auth_panel', 'login | register | forgot | reset'),
             self::docVar('mega_category_slug', 'Устарело: slug категории для mega-menu (legacy)'),
+            self::docVar('ad_vpaid_code', 'VPAID-реклама из настроек (VideoRoll и др.)'),
         ];
     }
 
@@ -493,7 +496,7 @@ class TplDocumentation
      */
     private static function globalFlags(): array
     {
-        return ['auth.logged_in', 'auth.is_admin'];
+        return ['auth.logged_in', 'auth.is_admin', 'ad_vpaid_code'];
     }
 
     /**

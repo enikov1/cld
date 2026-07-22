@@ -315,6 +315,15 @@ class SiteConfig
                 'description' => 'HTML/JavaScript-код виджета соцсетей (Яндекс.Поделиться, uSocial и др.). Выводится слева под плеером на странице сериала.',
             ],
 
+            // Advertising
+            'ad_vpaid_code' => [
+                'type' => 'html',
+                'default' => '',
+                'group' => 'advertising',
+                'label' => 'VPAID код',
+                'description' => 'HTML/JavaScript VPAID-рекламы (VideoRoll и др.). Выводите в шаблонах через {ad_vpaid_code|raw} или блок [ad_vpaid_code]...[/ad_vpaid_code].',
+            ],
+
             // Image optimization
             'images_optimize_enabled' => [
                 'type' => 'bool',
@@ -538,6 +547,7 @@ class SiteConfig
             'engagement' => ['title' => 'Списки и уведомления', 'fields' => []],
             'catalog' => ['title' => 'Каталог и навигация', 'fields' => []],
             'optimization' => ['title' => 'Оптимизация изображений', 'fields' => []],
+            'advertising' => ['title' => 'Реклама', 'fields' => []],
             'players' => ['title' => 'CDN VideoHub', 'fields' => []],
             'integrations' => ['title' => 'Импорт метаданных', 'fields' => []],
             'general' => ['title' => 'Общие сообщения', 'fields' => []],
