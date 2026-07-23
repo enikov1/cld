@@ -87,17 +87,23 @@ class CdnVideoHubPlayerSync
             'provider' => $tabName,
             'iframe_url' => $embedHtml,
             'is_active' => true,
-            'priority' => $priority,
             'source_key' => self::SOURCE_KEY,
         ];
 
-        PlayerSource::query()->updateOrCreate(
-            [
+        $existing = PlayerSource::query()
+            ->where('series_id', $series->id)
+            ->where('source_key', self::SOURCE_KEY)
+            ->first();
+
+        if ($existing) {
+            // Keep manual tab order — configured priority applies only on first create.
+            $existing->update($payload);
+        } else {
+            PlayerSource::query()->create(array_merge($payload, [
                 'series_id' => $series->id,
-                'source_key' => self::SOURCE_KEY,
-            ],
-            $payload
-        );
+                'priority' => $priority,
+            ]));
+        }
 
         $series->refresh();
         $firstUrl = PlayerUrlHelper::firstIframeUrlForSeries($series);

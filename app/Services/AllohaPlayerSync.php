@@ -27,8 +27,8 @@ class AllohaPlayerSync
             return;
         }
 
-        $priority = 100;
         $seenTranslationIds = [];
+        $nextNewPriority = null;
 
         foreach ($translations as $translation) {
             if (!is_array($translation)) {
@@ -52,20 +52,35 @@ class AllohaPlayerSync
                 'provider' => $provider,
                 'iframe_url' => $iframe,
                 'is_active' => true,
-                'priority' => $priority,
                 'source_key' => self::SOURCE_KEY,
             ];
-            $priority -= 10;
 
             $seenTranslationIds[] = $translationId;
 
-            PlayerSource::query()->updateOrCreate(
-                [
-                    'series_id' => $series->id,
-                    'alloha_translation_id' => $translationId,
-                ],
-                $payload
-            );
+            $existing = PlayerSource::query()
+                ->where('series_id', $series->id)
+                ->where('alloha_translation_id', $translationId)
+                ->first();
+
+            if ($existing) {
+                // Keep manual tab order — never rewrite priority on update.
+                $existing->update($payload);
+                continue;
+            }
+
+            if ($nextNewPriority === null) {
+                $minPriority = PlayerSource::query()
+                    ->where('series_id', $series->id)
+                    ->min('priority');
+                $nextNewPriority = $minPriority !== null ? ((int) $minPriority - 10) : 100;
+            }
+
+            PlayerSource::query()->create(array_merge($payload, [
+                'series_id' => $series->id,
+                'alloha_translation_id' => $translationId,
+                'priority' => $nextNewPriority,
+            ]));
+            $nextNewPriority -= 10;
         }
 
         // Remove Alloha voices that disappeared from the API payload.

@@ -119,4 +119,41 @@ class CdnVideoHubPlayerSyncTest extends TestCase
 
         $this->assertSame(0, PlayerSource::query()->where('series_id', $series->id)->count());
     }
+
+    public function test_sync_preserves_existing_priority(): void
+    {
+        SiteSetting::set('player_cdnvideohub_auto_enabled', '1');
+        SiteSetting::set('player_cdnvideohub_tab_name', 'Coldfilm');
+        SiteSetting::set('player_cdnvideohub_priority', '100');
+        SiteSetting::set('player_cdnvideohub_script_url', 'https://player.cdnvideohub.com/s2/stable/video-player.umd.js');
+
+        $series = Series::query()->create([
+            'kp_id' => '12892918',
+            'slug' => 'test-cdn-priority-preserve',
+            'title' => 'Test Series',
+            'is_active' => true,
+            'is_hidden' => false,
+        ]);
+
+        PlayerSource::query()->create([
+            'series_id' => $series->id,
+            'provider' => 'Old Name',
+            'iframe_url' => '<video-player data-title-id="1"></video-player><script async src="https://player.cdnvideohub.com/s2/stable/video-player.umd.js"></script>',
+            'source_key' => CdnVideoHubPlayerSync::SOURCE_KEY,
+            'is_active' => true,
+            'priority' => 30,
+        ]);
+
+        app(CdnVideoHubPlayerSync::class)->syncIfEnabled($series);
+
+        $source = PlayerSource::query()
+            ->where('series_id', $series->id)
+            ->where('source_key', CdnVideoHubPlayerSync::SOURCE_KEY)
+            ->first();
+
+        $this->assertNotNull($source);
+        $this->assertSame(30, (int) $source->priority);
+        $this->assertSame('Coldfilm', $source->provider);
+        $this->assertStringContainsString('data-title-id="12892918"', $source->iframe_url);
+    }
 }

@@ -77,4 +77,97 @@ class AllohaPlayerSyncTest extends TestCase
 
         $this->assertSame(0, PlayerSource::query()->where('series_id', $series->id)->count());
     }
+
+    public function test_sync_preserves_existing_player_priority(): void
+    {
+        SiteSetting::set('player_alloha_sync_enabled', '1');
+
+        $series = Series::query()->create([
+            'kp_id' => '999003',
+            'slug' => 'alloha-priority-preserve',
+            'title' => 'Test',
+            'is_active' => true,
+            'is_hidden' => false,
+        ]);
+
+        PlayerSource::query()->create([
+            'series_id' => $series->id,
+            'provider' => 'LostFilm',
+            'iframe_url' => 'https://example.com/lostfilm-old',
+            'source_key' => AllohaPlayerSync::SOURCE_KEY,
+            'alloha_translation_id' => 10,
+            'is_active' => true,
+            'priority' => 20,
+        ]);
+
+        PlayerSource::query()->create([
+            'series_id' => $series->id,
+            'provider' => 'Coldfilm',
+            'iframe_url' => 'https://example.com/coldfilm-old',
+            'source_key' => AllohaPlayerSync::SOURCE_KEY,
+            'alloha_translation_id' => 20,
+            'is_active' => true,
+            'priority' => 50,
+        ]);
+
+        // API returns translations in reverse order vs manual tab order.
+        app(AllohaPlayerSync::class)->sync($series, [
+            ['id' => 10, 'name' => 'LostFilm', 'iframe' => 'https://example.com/lostfilm-new'],
+            ['id' => 20, 'name' => 'Coldfilm', 'iframe' => 'https://example.com/coldfilm-new'],
+        ]);
+
+        $players = PlayerSource::query()
+            ->where('series_id', $series->id)
+            ->orderByDesc('priority')
+            ->orderBy('id')
+            ->get();
+
+        $this->assertCount(2, $players);
+        $this->assertSame(20, (int) $players[0]->alloha_translation_id);
+        $this->assertSame(50, (int) $players[0]->priority);
+        $this->assertSame('https://example.com/coldfilm-new', $players[0]->iframe_url);
+        $this->assertSame(10, (int) $players[1]->alloha_translation_id);
+        $this->assertSame(20, (int) $players[1]->priority);
+        $this->assertSame('https://example.com/lostfilm-new', $players[1]->iframe_url);
+    }
+
+    public function test_sync_appends_new_players_after_existing(): void
+    {
+        SiteSetting::set('player_alloha_sync_enabled', '1');
+
+        $series = Series::query()->create([
+            'kp_id' => '999004',
+            'slug' => 'alloha-priority-append',
+            'title' => 'Test',
+            'is_active' => true,
+            'is_hidden' => false,
+        ]);
+
+        PlayerSource::query()->create([
+            'series_id' => $series->id,
+            'provider' => 'Coldfilm',
+            'iframe_url' => 'https://example.com/coldfilm',
+            'source_key' => AllohaPlayerSync::SOURCE_KEY,
+            'alloha_translation_id' => 20,
+            'is_active' => true,
+            'priority' => 50,
+        ]);
+
+        app(AllohaPlayerSync::class)->sync($series, [
+            ['id' => 20, 'name' => 'Coldfilm', 'iframe' => 'https://example.com/coldfilm'],
+            ['id' => 30, 'name' => 'New Voice', 'iframe' => 'https://example.com/new'],
+        ]);
+
+        $players = PlayerSource::query()
+            ->where('series_id', $series->id)
+            ->orderByDesc('priority')
+            ->orderBy('id')
+            ->get();
+
+        $this->assertCount(2, $players);
+        $this->assertSame(20, (int) $players[0]->alloha_translation_id);
+        $this->assertSame(50, (int) $players[0]->priority);
+        $this->assertSame(30, (int) $players[1]->alloha_translation_id);
+        $this->assertSame(40, (int) $players[1]->priority);
+    }
 }
