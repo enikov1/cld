@@ -13,6 +13,10 @@
     RewriteCond %{HTTP:x-xsrf-token} .
     RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
 
+    # Guest library key (stable favourites for anonymous users)
+    RewriteCond %{HTTP:x-guest-key} .
+    RewriteRule .* - [E=HTTP_X_GUEST_KEY:%{HTTP:X-Guest-Key}]
+
     # Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$

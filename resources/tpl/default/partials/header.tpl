@@ -68,12 +68,13 @@
                 <span class="fa fa-search"></span>
             </button>
             [favourites_enabled]
-                <a class="dontusebuttonclass ls-action ls-action--favourites" href="/favourites/" title="{favourites_ui_page_title}">
+                <a class="dontusebuttonclass ls-action ls-action--favourites" href="/favourites/" title="{favourites_ui_page_title}" id="headerFavouritesLink">
                     <span class="fa fa-heart"></span>
+                    <span class="series-bell-count ls-fav-count" id="headerFavCount" hidden></span>
                 </a>
             [/favourites_enabled]
             [auth.is_admin]
-                <a class="dontusebuttonclass ls-action ls-action--admin" href="{admin_url|raw}/" title="Админ-панель">
+                <a class="dontusebuttonclass ls-action ls-action--admin" href="{admin_url|raw}/" title="Админ-панель" id="headerAdminLink">
                     <span class="fa fa-cog"></span>
                 </a>
             [/auth.is_admin]
@@ -83,13 +84,13 @@
                     <span class="fa fa-user"></span>
                 </a>
             [/auth_profile_enabled]
+            [/auth.logged_in]
             [has_notifications]
                 <button class="dontusebuttonclass ls-action js-notify-btn js-series-bell" type="button" title="Уведомления" id="headerNotifyBtn">
                     <span class="fa fa-bell"></span>
                     <span class="series-bell-count" id="headerNotifyCount" hidden></span>
                 </button>
             [/has_notifications]
-            [/auth.logged_in]
             [not-auth.logged_in]
             [auth_login_enabled]
                 <button class="dontusebuttonclass ls-action js-login-open" type="button" title="{auth_ui_header_login}">
@@ -164,13 +165,14 @@
             [/not-item.has_mega]
         [/loop]
         [favourites_enabled]
-            <a class="ls-mobile-link ls-mobile-link--favourites" href="/favourites/">
+            <a class="ls-mobile-link ls-mobile-link--favourites" href="/favourites/" id="mobileFavouritesLink">
                 <span class="fa fa-heart" aria-hidden="true"></span>
                 {favourites_ui_page_title}
+                <span class="ls-mobile-fav-count" id="mobileFavCount" hidden></span>
             </a>
         [/favourites_enabled]
         [auth.is_admin]
-            <a class="ls-mobile-link ls-mobile-link--admin" href="{admin_url|raw}/">
+            <a class="ls-mobile-link ls-mobile-link--admin" href="{admin_url|raw}/" id="mobileAdminLink">
                 <span class="fa fa-cog" aria-hidden="true"></span>
                 Админ-панель
             </a>

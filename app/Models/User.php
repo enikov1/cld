@@ -30,6 +30,7 @@ class User extends Authenticatable
         'registration_ip',
         'notify_via_email',
         'notify_via_site',
+        'notify_via_push',
     ];
 
     public function isAdmin(): bool
@@ -71,6 +72,12 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'notify_via_email' => 'boolean',
             'notify_via_site' => 'boolean',
+            'notify_via_push' => 'boolean',
         ];
+    }
+
+    public function pushSubscriptions()
+    {
+        return $this->hasMany(PushSubscription::class);
     }
 }

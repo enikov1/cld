@@ -116,6 +116,11 @@ abstract class TplController extends Controller
             $payload['home_carousels_css'] = $theme['home_carousels_css'];
         }
 
+        $payload['admin_url'] = AdminPath::base();
+        if (SiteConfig::bool('notifications_enabled')) {
+            $payload['vapid_public_key'] = \App\Services\WebPushService::publicKey() ?? '';
+        }
+
         return $payload;
     }
 
@@ -200,22 +205,105 @@ abstract class TplController extends Controller
 
         if ($seriesCacheId) {
             $html = TplCache::rememberSeriesPage($seriesCacheId, $authKey, $cacheTtl, $render);
+        } elseif ($this->shouldBypassTplHtmlCache($vars)) {
+            // Flash/auth UI is session-specific — do not store in shared HTML cache.
+            $html = $render();
         } else {
             $homeVersion = $bodyTpl === 'home.tpl' ? TplCache::homeVersion() : 0;
-            $cacheKey = 'tpl:' . md5(
-                request()->fullUrl()
-                . '|' . $themeKey
-                . '|' . $bodyTpl
-                . '|' . $authKey
-                . '|hv:' . $homeVersion
-                . '|gv:' . TplCache::globalVersion()
-                . '|tm:' . $tplMtime
-                . '|' . serialize($vars)
-            );
+            // Key must NOT include serialize($vars): csrf/session flash made every
+            // guest hit unique and bloated the database cache with dead HTML rows.
+            $cacheKey = 'tpl:' . md5(implode('|', [
+                request()->fullUrl(),
+                $themeKey,
+                $bodyTpl,
+                $authKey,
+                'hv:' . $homeVersion,
+                'gv:' . TplCache::globalVersion(),
+                'tm:' . $tplMtime,
+            ]));
             $html = Cache::remember($cacheKey, $cacheTtl, $render);
         }
 
+        // Cached HTML may contain another session's CSRF token (shared guest cache).
+        $html = $this->injectCurrentCsrfToken((string) $html);
+        $html = $this->injectFreshAssetVersions($html);
+
         return response($html)->header('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    /**
+     * Session-bound UI that must not be served from (or written into) shared HTML cache.
+     *
+     * @param  array<string, mixed>  $vars
+     */
+    protected function shouldBypassTplHtmlCache(array $vars): bool
+    {
+        if (($vars['auth_panel'] ?? '') !== '') {
+            return true;
+        }
+        if (!empty($vars['auth_notice']) || !empty($vars['comment_notice'])) {
+            return true;
+        }
+        if (!empty($vars['auth_errors_list']) || !empty($vars['form_errors_list'])) {
+            return true;
+        }
+
+        return false;
+    }
+
+    protected function injectCurrentCsrfToken(string $html): string
+    {
+        $token = csrf_token();
+        $replaced = preg_replace(
+            '/(<meta\s+name=["\']csrf-token["\']\s+content=["\'])[^"\']*(["\'])/i',
+            '${1}' . $token . '${2}',
+            $html,
+            1
+        );
+        if (!is_string($replaced)) {
+            $replaced = $html;
+        }
+
+        $replaced = preg_replace(
+            '/(<input\b[^>]*\bname=["\']_token["\'][^>]*\bvalue=["\'])[^"\']*(["\'])/i',
+            '${1}' . $token . '${2}',
+            $replaced
+        );
+
+        // Also handle value before name attribute order.
+        if (is_string($replaced)) {
+            $replaced = preg_replace(
+                '/(<input\b[^>]*\bvalue=["\'])[^"\']*(["\'][^>]*\bname=["\']_token["\'])/i',
+                '${1}' . $token . '${2}',
+                $replaced
+            );
+        }
+
+        return is_string($replaced) ? $replaced : $html;
+    }
+
+    /**
+     * Page HTML is cached, but theme asset ?v= must stay in sync with filemtime.
+     */
+    protected function injectFreshAssetVersions(string $html): string
+    {
+        $replaced = preg_replace_callback(
+            '#((?:https?:)?(?://[^/]+)?/theme-assets/([^/]+)/assets/([^?\s"\']+\.(?:js|css)))\?v=\d+#i',
+            static function (array $matches): string {
+                $urlPath = $matches[1];
+                $theme = $matches[2];
+                $file = $matches[3];
+                $diskPath = ThemeManager::resolveAssetDiskPath($file, $theme);
+                if (!$diskPath || !is_file($diskPath)) {
+                    return $matches[0];
+                }
+
+                return $urlPath . '?v=' . filemtime($diskPath);
+            },
+            $html
+        );
+
+        return is_string($replaced) ? $replaced : $html;
     }
 
     /**

@@ -164,6 +164,10 @@
                                 <input type="checkbox" name="notify_via_site" value="1" [profile.notify_via_site]checked[/profile.notify_via_site]>
                                 <span>В виджет уведомлений в шапке сайта</span>
                             </label>
+                            <label class="profile-field profile-field--checkbox">
+                                <input type="checkbox" name="notify_via_push" value="1" [profile.notify_via_push]checked[/profile.notify_via_push]>
+                                <span>{notifications_ui_push_label}</span>
+                            </label>
                             <button type="submit" class="profile-btn">Сохранить</button>
                         </form>
                     </div>

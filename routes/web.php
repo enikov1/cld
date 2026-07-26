@@ -13,6 +13,7 @@ use App\Http\Controllers\LegacyRedirectController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\RobotsController;
 use App\Http\Controllers\SeriesAnticipationController;
 use App\Http\Controllers\SeriesController;
@@ -166,6 +167,12 @@ Route::middleware(['auth', 'site.feature:notifications_enabled'])->prefix('api/n
     Route::post('/preferences', [NotificationController::class, 'savePreferences']);
     Route::delete('/series/{seriesId}', [NotificationController::class, 'unsubscribeSeries'])
         ->where('seriesId', '[0-9]+');
+});
+
+Route::middleware('site.feature:notifications_enabled')->prefix('api/push')->group(function () {
+    Route::get('/vapid-public-key', [PushSubscriptionController::class, 'vapidPublicKey']);
+    Route::post('/subscribe', [PushSubscriptionController::class, 'store'])->middleware('auth');
+    Route::post('/unsubscribe', [PushSubscriptionController::class, 'destroy'])->middleware('auth');
 });
 
 Route::post('/api/comments/{id}/vote', [SeriesEngagementController::class, 'voteComment'])

@@ -111,12 +111,36 @@ body.dt {
     display: none;
 }
 
+.ls-action--favourites {
+    position: relative;
+}
+
 .ls-action--favourites .fa-heart {
     color: #e11d48;
 }
 
 .dt .ls-action--favourites .fa-heart {
     color: #fb7185;
+}
+
+.ls-mobile-link--favourites {
+    position: relative;
+}
+
+.ls-mobile-fav-count {
+    margin-left: 6px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 20px;
+    background: #ff2a2a;
+    color: #fff;
+    font-size: 11px;
+    line-height: 18px;
+    font-weight: 700;
+    text-align: center;
+    display: inline-block;
+    vertical-align: middle;
 }
 
 
@@ -282,6 +306,18 @@ body.dt {
 
 .carou-content.swiper:active .carou-track {
     cursor: grabbing;
+}
+
+/* Avoid sticky :hover on touch — first tap used to only reveal play overlay. */
+@media (hover: none), (pointer: coarse) {
+    .with-mask:hover .th-mask {
+        opacity: 0;
+    }
+
+    .with-mask:active .th-mask,
+    .with-mask:focus-visible .th-mask {
+        opacity: 1;
+    }
 }
 
 .carou-track .th-item,

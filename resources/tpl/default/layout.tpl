@@ -63,7 +63,7 @@
     <meta name="csrf-token" content="{csrf_token|raw}">
 </head>
 
-<body class="{site.body_class|raw}" data-auth-panel="{auth_panel|raw}">
+<body class="{site.body_class|raw}" data-auth-panel="{auth_panel|raw}"[auth.logged_in] data-logged-in="1"[/auth.logged_in]>
     <div class="wrap">
         <div class="wrap-center wrap-main">
             {header|raw} {notifications_dropdown|raw}

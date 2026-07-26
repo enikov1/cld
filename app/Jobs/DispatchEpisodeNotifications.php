@@ -6,6 +6,8 @@ use App\Models\NotificationDelivery;
 use App\Models\NotificationEvent;
 use App\Models\NotificationSetting;
 use App\Notifications\NewEpisodeNotification;
+use App\Services\WebPushService;
+use App\Support\SeriesUrl;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -47,54 +49,101 @@ class DispatchEpisodeNotifications implements ShouldQueue
 
             $sendEmail = (bool) $user->notify_via_email && (bool) $user->email;
             $sendSite = (bool) $user->notify_via_site;
+            $sendPush = (bool) $user->notify_via_push;
 
-            if (!$sendEmail && !$sendSite) {
+            if (!$sendEmail && !$sendSite && !$sendPush) {
                 continue;
             }
 
-            $delivery = NotificationDelivery::query()->firstOrCreate(
-                [
-                    'notification_event_id' => $event->id,
-                    'user_id' => $user->id,
-                ],
-                ['status' => 'queued']
-            );
+            $delivery = null;
+            $claimed = true;
 
-            // Atomically claim the delivery so concurrent workers do not double-send email.
-            $claimed = NotificationDelivery::query()
-                ->whereKey($delivery->id)
-                ->whereIn('status', ['queued', 'failed'])
-                ->update(['status' => 'sending', 'error' => null]);
+            if ($sendEmail || $sendSite) {
+                $delivery = NotificationDelivery::query()->firstOrCreate(
+                    [
+                        'notification_event_id' => $event->id,
+                        'user_id' => $user->id,
+                    ],
+                    ['status' => 'queued']
+                );
 
-            if ($claimed === 0) {
+                // Atomically claim the delivery so concurrent workers do not double-send email.
+                $claimed = NotificationDelivery::query()
+                    ->whereKey($delivery->id)
+                    ->whereIn('status', ['queued', 'failed'])
+                    ->update(['status' => 'sending', 'error' => null]) > 0;
+            }
+
+            if (!$claimed) {
                 continue;
             }
+
+            $failed = false;
+            $error = null;
 
             if ($sendEmail) {
                 try {
                     $user->notify(new NewEpisodeNotification($event));
-                    $delivery->update([
-                        'status' => 'sent',
-                        'sent_at' => now(),
-                        'error' => null,
-                    ]);
                 } catch (Throwable $e) {
+                    $failed = true;
+                    $error = $e->getMessage();
                     Log::error('Episode notification failed', [
                         'event_id' => $event->id,
                         'user_id' => $user->id,
                         'error' => $e->getMessage(),
                     ]);
+                }
+            }
+
+            if ($sendPush) {
+                self::sendPush($user, $event);
+            }
+
+            if ($delivery) {
+                if ($failed && !$sendSite) {
                     $delivery->update([
                         'status' => 'failed',
-                        'error' => $e->getMessage(),
+                        'error' => $error,
+                    ]);
+                } else {
+                    $delivery->update([
+                        'status' => 'sent',
+                        'sent_at' => now(),
+                        'error' => $failed ? $error : null,
                     ]);
                 }
-            } elseif ($sendSite) {
-                $delivery->update([
-                    'status' => 'sent',
-                    'sent_at' => now(),
-                ]);
             }
+        }
+    }
+
+    private static function sendPush($user, NotificationEvent $event): void
+    {
+        try {
+            $series = $event->series;
+            $episodeLabel = '';
+            if ($event->season_number && $event->episode_number) {
+                $episodeLabel = sprintf(
+                    '%d сезон, %d серия',
+                    $event->season_number,
+                    $event->episode_number
+                );
+            }
+
+            WebPushService::sendToUser($user, [
+                'title' => 'Новая серия — ' . ($series->title ?? 'сериал'),
+                'body' => $episodeLabel !== ''
+                    ? $episodeLabel . ($event->voice ? ' · ' . $event->voice : '')
+                    : 'Вышла новая серия',
+                'url' => url(SeriesUrl::path($series)),
+                'icon' => $series->poster_url ?: null,
+                'tag' => 'series-' . $event->series_id . '-ep-' . $event->id,
+            ]);
+        } catch (Throwable $e) {
+            Log::error('Episode web push failed', [
+                'event_id' => $event->id,
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 

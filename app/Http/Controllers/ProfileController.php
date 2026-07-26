@@ -118,6 +118,7 @@ class ProfileController extends TplController
                 'initial' => $initial,
                 'notify_via_email' => $user->notify_via_email ? '1' : '',
                 'notify_via_site' => $user->notify_via_site ? '1' : '',
+                'notify_via_push' => $user->notify_via_push ? '1' : '',
             ],
             'profile_stats' => [
                 'lists' => count($watchlists),

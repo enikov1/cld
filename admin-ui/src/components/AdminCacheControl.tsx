@@ -1,6 +1,6 @@
 import { ClearOutlined, ReloadOutlined } from '@ant-design/icons'
 import { Button, Popconfirm, Popover, Space, Spin, Typography, message } from 'antd'
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { api } from '../api/client'
 
 type CacheDirInfo = {
@@ -52,17 +52,26 @@ export default function AdminCacheControl() {
   const [loading, setLoading] = useState(false)
   const [clearing, setClearing] = useState(false)
   const [info, setInfo] = useState<CacheInfo | null>(null)
+  const loadInFlight = useRef<Promise<void> | null>(null)
 
   const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const data = await api<{ ok: boolean; cache: CacheInfo }>('/api/admin/cache')
-      setInfo(data.cache)
-    } catch (e) {
-      message.error(String((e as Error).message))
-    } finally {
-      setLoading(false)
+    if (loadInFlight.current) {
+      return loadInFlight.current
     }
+    setLoading(true)
+    const request = (async () => {
+      try {
+        const data = await api<{ ok: boolean; cache: CacheInfo }>('/api/admin/cache')
+        setInfo(data.cache)
+      } catch (e) {
+        message.error(String((e as Error).message))
+      } finally {
+        setLoading(false)
+        loadInFlight.current = null
+      }
+    })()
+    loadInFlight.current = request
+    return request
   }, [])
 
   useEffect(() => {

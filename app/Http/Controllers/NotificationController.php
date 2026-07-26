@@ -115,6 +115,7 @@ class NotificationController extends Controller
         return response()->json([
             'notify_via_email' => (bool)$user->notify_via_email,
             'notify_via_site' => (bool)$user->notify_via_site,
+            'notify_via_push' => (bool)$user->notify_via_push,
             'subscriptions' => $subscriptions,
         ]);
     }
@@ -126,6 +127,7 @@ class NotificationController extends Controller
         $data = $request->validate([
             'notify_via_email' => ['nullable', 'boolean'],
             'notify_via_site' => ['nullable', 'boolean'],
+            'notify_via_push' => ['nullable', 'boolean'],
         ]);
 
         $user->update([
@@ -135,6 +137,9 @@ class NotificationController extends Controller
             'notify_via_site' => array_key_exists('notify_via_site', $data)
                 ? (bool)$data['notify_via_site']
                 : $user->notify_via_site,
+            'notify_via_push' => array_key_exists('notify_via_push', $data)
+                ? (bool)$data['notify_via_push']
+                : $user->notify_via_push,
         ]);
 
         return response()->json([

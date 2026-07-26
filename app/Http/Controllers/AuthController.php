@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Services\UserLibraryService;
+use App\Support\AdminPath;
 use App\Support\RespondsWithJsonForms;
 use App\Support\SiteConfig;
 use App\Support\WatchlistDefaults;
@@ -138,6 +139,8 @@ class AuthController extends Controller
         return [
             'logged_in' => true,
             'close_auth' => true,
+            'is_admin' => $user->isAdmin(),
+            'admin_url' => AdminPath::base(),
             'user' => [
                 'name' => $user->name,
                 'email' => $user->email,

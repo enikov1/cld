@@ -65,6 +65,21 @@ class UserLibraryController extends TplController
             return response()->json(['items' => [], 'html' => '', 'count' => 0]);
         }
 
+        $request->validate([
+            'guest_key' => ['nullable', 'string', 'max:64'],
+            'ids' => ['nullable'],
+            'ids.*' => ['integer'],
+            'sync' => ['nullable', 'boolean'],
+        ]);
+
+        if (!$user) {
+            $guestKey = UserLibraryService::guestKey($request);
+            $clientIds = UserLibraryService::clientSeriesIds($request);
+            if ($clientIds !== [] && $request->boolean('sync', true)) {
+                UserLibraryService::syncGuestFavouriteIds($guestKey, $clientIds);
+            }
+        }
+
         $series = UserLibraryService::favouriteSeries($user, $request);
         $mapped = SeriesCardMapper::mapSeries($series);
 
@@ -72,6 +87,7 @@ class UserLibraryController extends TplController
             'items' => $mapped,
             'html' => $this->renderPartial('partials/series_cards.tpl', ['series_list' => $mapped]),
             'count' => count($mapped),
+            'total_word' => PluralRu::series(count($mapped)),
         ]);
     }
 
@@ -86,12 +102,19 @@ class UserLibraryController extends TplController
             return response()->json(['ok' => false, 'message' => SiteConfig::str('auth_msg_auth_required')], 401);
         }
 
+        $data = $request->validate([
+            'active' => ['nullable', 'boolean'],
+            'guest_key' => ['nullable', 'string', 'max:64'],
+        ]);
+
         $this->resolveActiveSeries($seriesId);
-        $result = UserLibraryService::toggleFavourite($seriesId, $user, $request);
+        $active = array_key_exists('active', $data) ? (bool) $data['active'] : null;
+        $result = UserLibraryService::toggleFavourite($seriesId, $user, $request, $active);
 
         return response()->json([
             'ok' => true,
             'is_favourite' => $result['is_favourite'],
+            'count' => UserLibraryService::favouritesCount($user, $request),
         ]);
     }
 

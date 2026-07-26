@@ -15,9 +15,35 @@ use Illuminate\Support\Collection;
 
 class UserLibraryService
 {
+    public const GUEST_KEY_HEADER = 'X-Guest-Key';
+
     public static function guestKey(Request $request): string
     {
+        $clientKey = self::normalizeGuestKey(
+            $request->input('guest_key')
+            ?? $request->header(self::GUEST_KEY_HEADER)
+            ?? $request->cookie('ls_guest_key')
+        );
+
+        if ($clientKey !== null) {
+            return $clientKey;
+        }
+
         return hash('sha256', $request->session()->getId());
+    }
+
+    public static function normalizeGuestKey(mixed $value): ?string
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $value = strtolower(trim($value));
+        if (!preg_match('/^[a-f0-9]{32,64}$/', $value)) {
+            return null;
+        }
+
+        return $value;
     }
 
     public static function isFavourite(int $seriesId, ?User $user, Request $request): bool
@@ -39,7 +65,7 @@ class UserLibraryService
     /**
      * @return array{is_favourite: bool}
      */
-    public static function toggleFavourite(int $seriesId, ?User $user, Request $request): array
+    public static function toggleFavourite(int $seriesId, ?User $user, Request $request, ?bool $active = null): array
     {
         if ($user) {
             WatchlistDefaults::ensureForUser($user);
@@ -53,17 +79,22 @@ class UserLibraryService
                 ->where('series_id', $seriesId)
                 ->first();
 
-            if ($existing) {
-                $existing->delete();
-                return ['is_favourite' => false];
+            $shouldBeFavourite = $active ?? ($existing === null);
+
+            if ($shouldBeFavourite) {
+                if (!$existing) {
+                    WatchlistItem::query()->create([
+                        'watchlist_id' => $listId,
+                        'series_id' => $seriesId,
+                    ]);
+                }
+
+                return ['is_favourite' => true];
             }
 
-            WatchlistItem::query()->create([
-                'watchlist_id' => $listId,
-                'series_id' => $seriesId,
-            ]);
+            $existing?->delete();
 
-            return ['is_favourite' => true];
+            return ['is_favourite' => false];
         }
 
         if (!SiteConfig::bool('favourites_guest_enabled')) {
@@ -76,17 +107,22 @@ class UserLibraryService
             ->where('guest_key', $key)
             ->first();
 
-        if ($existing) {
-            $existing->delete();
-            return ['is_favourite' => false];
+        $shouldBeFavourite = $active ?? ($existing === null);
+
+        if ($shouldBeFavourite) {
+            if (!$existing) {
+                GuestFavourite::query()->create([
+                    'series_id' => $seriesId,
+                    'guest_key' => $key,
+                ]);
+            }
+
+            return ['is_favourite' => true];
         }
 
-        GuestFavourite::query()->create([
-            'series_id' => $seriesId,
-            'guest_key' => $key,
-        ]);
+        $existing?->delete();
 
-        return ['is_favourite' => true];
+        return ['is_favourite' => false];
     }
 
     public static function recordWatchHistory(int $seriesId, ?User $user, Request $request): void
@@ -115,6 +151,28 @@ class UserLibraryService
             ['user_id' => null, 'viewed_at' => now()]
         );
         self::trimHistoryForGuest($key);
+    }
+
+    public static function favouritesCount(?User $user, Request $request): int
+    {
+        if ($user) {
+            $listId = self::favouriteWatchlistId($user);
+            if (!$listId) {
+                return 0;
+            }
+
+            return (int) WatchlistItem::query()
+                ->where('watchlist_id', $listId)
+                ->count();
+        }
+
+        if (!SiteConfig::bool('favourites_guest_enabled')) {
+            return 0;
+        }
+
+        return (int) GuestFavourite::query()
+            ->where('guest_key', self::guestKey($request))
+            ->count();
     }
 
     /**
@@ -147,7 +205,54 @@ class UserLibraryService
             ->pluck('series_id')
             ->all();
 
+        $clientIds = self::clientSeriesIds($request);
+        if ($ids === [] && $clientIds !== []) {
+            $ids = array_slice($clientIds, 0, $limit);
+        }
+
         return self::seriesByIds($ids);
+    }
+
+    /**
+     * @return list<int>
+     */
+    public static function clientSeriesIds(Request $request): array
+    {
+        $raw = $request->input('ids', []);
+        if (!is_array($raw)) {
+            if (is_string($raw) && $raw !== '') {
+                $raw = preg_split('/\s*,\s*/', $raw) ?: [];
+            } else {
+                $raw = [];
+            }
+        }
+
+        $ids = [];
+        foreach ($raw as $value) {
+            $id = (int) $value;
+            if ($id > 0 && !in_array($id, $ids, true)) {
+                $ids[] = $id;
+            }
+        }
+
+        return $ids;
+    }
+
+    /**
+     * @param list<int> $seriesIds
+     */
+    public static function syncGuestFavouriteIds(string $guestKey, array $seriesIds): void
+    {
+        $limit = SiteConfig::int('favourites_list_limit');
+        $seriesIds = array_values(array_unique(array_filter(array_map('intval', $seriesIds), static fn ($id) => $id > 0)));
+        $seriesIds = array_slice($seriesIds, 0, $limit);
+
+        foreach ($seriesIds as $seriesId) {
+            GuestFavourite::query()->firstOrCreate([
+                'guest_key' => $guestKey,
+                'series_id' => $seriesId,
+            ]);
+        }
     }
 
     /**

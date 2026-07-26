@@ -42,6 +42,51 @@
 
     var LS_FAV_KEY = 'ls_favourites';
     var LS_HISTORY_KEY = 'ls_watch_history';
+    var LS_GUEST_KEY = 'ls_guest_key';
+
+    function getGuestLibKey() {
+        try {
+            var existing = localStorage.getItem(LS_GUEST_KEY);
+            if (existing && /^[a-f0-9]{32,64}$/i.test(existing)) {
+                persistGuestLibKey(existing.toLowerCase());
+                return existing.toLowerCase();
+            }
+            var bytes = new Uint8Array(32);
+            if (window.crypto && window.crypto.getRandomValues) {
+                window.crypto.getRandomValues(bytes);
+            } else {
+                for (var i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+            }
+            var key = Array.prototype.map.call(bytes, function (b) {
+                return ('0' + b.toString(16)).slice(-2);
+            }).join('');
+            persistGuestLibKey(key);
+            return key;
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function persistGuestLibKey(key) {
+        if (!key) return;
+        try {
+            localStorage.setItem(LS_GUEST_KEY, key);
+        } catch (e) {}
+        try {
+            document.cookie = LS_GUEST_KEY + '=' + encodeURIComponent(key)
+                + '; path=/; max-age=' + String(60 * 60 * 24 * 365)
+                + '; samesite=lax';
+        } catch (e) {}
+    }
+
+    function guestLibraryPayload(extra) {
+        var payload = Object.assign({}, extra || {});
+        if (!isSiteLoggedIn()) {
+            var guestKey = getGuestLibKey();
+            if (guestKey) payload.guest_key = guestKey;
+        }
+        return payload;
+    }
 
     function readLocalJson(key, fallback) {
         try {
@@ -80,6 +125,73 @@
         var ids = getLocalFavourites().filter(function (item) { return item !== id; });
         if (active) ids.unshift(id);
         setLocalFavourites(ids.slice(0, cfgInt('favourites_list_limit', 100)));
+        updateHeaderFavouritesCount(ids.length);
+    }
+
+    function updateHeaderFavouritesCount(count) {
+        var n = parseInt(count, 10);
+        if (isNaN(n) || n < 0) n = 0;
+        var label = n > 99 ? '99+' : String(n);
+
+        var headerCount = document.getElementById('headerFavCount');
+        if (headerCount) {
+            if (n > 0) {
+                headerCount.textContent = label;
+                headerCount.hidden = false;
+            } else {
+                headerCount.hidden = true;
+            }
+        }
+
+        var mobileCount = document.getElementById('mobileFavCount');
+        if (mobileCount) {
+            if (n > 0) {
+                mobileCount.textContent = label;
+                mobileCount.hidden = false;
+            } else {
+                mobileCount.hidden = true;
+            }
+        }
+    }
+
+    function refreshHeaderFavouritesCount() {
+        if (!cfgBool('favourites_enabled', true)) return;
+
+        if (!isSiteLoggedIn()) {
+            updateHeaderFavouritesCount(getLocalFavourites().length);
+        }
+
+        var url = '/api/favourites';
+        if (!isSiteLoggedIn()) {
+            var guestKey = getGuestLibKey();
+            var params = [];
+            if (guestKey) params.push('guest_key=' + encodeURIComponent(guestKey));
+            getLocalFavourites().forEach(function (id) {
+                params.push('ids[]=' + encodeURIComponent(String(id)));
+            });
+            if (params.length) url += '?' + params.join('&');
+        }
+
+        fetchJson(url)
+            .then(function (data) {
+                if (data && typeof data.count === 'number') {
+                    updateHeaderFavouritesCount(data.count);
+                    if (!isSiteLoggedIn() && Array.isArray(data.items)) {
+                        setLocalFavourites(data.items.map(function (item) {
+                            return parseInt(item.id, 10);
+                        }).filter(function (id) { return id > 0; }));
+                    }
+                }
+            })
+            .catch(function () {
+                if (!isSiteLoggedIn()) {
+                    updateHeaderFavouritesCount(getLocalFavourites().length);
+                }
+            });
+    }
+
+    function isSiteLoggedIn() {
+        return document.body.getAttribute('data-logged-in') === '1';
     }
 
     function getLocalHistory() {
@@ -116,9 +228,11 @@
     function mergeGuestLibrary() {
         if (!cfgBool('favourites_enabled', true) && !cfgBool('watch_history_enabled', true)) return;
 
-        postJson('/api/user-library/merge-guest', {
+        postJson('/api/user-library/merge-guest', guestLibraryPayload({
             favourites: getLocalFavourites(),
             history: getLocalHistory(),
+        })).then(function () {
+            refreshHeaderFavouritesCount();
         }).catch(function () {
             flashNotice('Не удалось перенести локальную библиотеку.', true);
         });
@@ -133,9 +247,23 @@
         if (!token) return;
         var meta = document.querySelector('meta[name="csrf-token"]');
         if (meta) meta.setAttribute('content', token);
+        document.querySelectorAll('input[name="_token"]').forEach(function (input) {
+            input.value = token;
+        });
+    }
+
+    function readXsrfCookie() {
+        var match = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/);
+        if (!match) return '';
+        try {
+            return decodeURIComponent(match[1]);
+        } catch (e) {
+            return match[1] || '';
+        }
     }
 
     var csrfRefreshPromise = null;
+    var csrfReadyPromise = null;
 
     function refreshCsrfToken() {
         if (csrfRefreshPromise) return csrfRefreshPromise;
@@ -149,10 +277,10 @@
             })
             .then(function (data) {
                 if (data && data.token) setCsrfToken(data.token);
-                return csrfToken();
+                return csrfToken() || readXsrfCookie();
             })
             .catch(function () {
-                return csrfToken();
+                return csrfToken() || readXsrfCookie();
             })
             .finally(function () {
                 csrfRefreshPromise = null;
@@ -160,32 +288,62 @@
         return csrfRefreshPromise;
     }
 
+    function ensureCsrfToken() {
+        // Always sync with the current session. A leftover XSRF-TOKEN cookie can be
+        // stale when laravel-session was rotated/lost, which caused 419 on login.
+        if (!csrfReadyPromise) {
+            csrfReadyPromise = refreshCsrfToken();
+        }
+        return csrfReadyPromise;
+    }
+
     function csrfHeaders(extra) {
-        return Object.assign({
+        var headers = {
             Accept: 'application/json',
-            'X-CSRF-TOKEN': csrfToken(),
             'X-Requested-With': 'XMLHttpRequest',
-        }, extra || {});
+        };
+        // Prefer plain meta token: Laravel checks X-CSRF-TOKEN before X-XSRF-TOKEN.
+        // Stale encrypted XSRF cookies must not be the only token we send.
+        var metaToken = csrfToken();
+        if (metaToken) {
+            headers['X-CSRF-TOKEN'] = metaToken;
+        } else {
+            var xsrf = readXsrfCookie();
+            if (xsrf) headers['X-XSRF-TOKEN'] = xsrf;
+        }
+        if (!isSiteLoggedIn()) {
+            var guestKey = getGuestLibKey();
+            if (guestKey) headers['X-Guest-Key'] = guestKey;
+        }
+        return Object.assign(headers, extra || {});
     }
 
     function fetchWithCsrf(url, options, retried) {
         options = options || {};
-        var headers = csrfHeaders(options.headers);
-        if (options.body && !headers['Content-Type']) {
-            headers['Content-Type'] = 'application/json';
-        }
 
-        return fetch(url, Object.assign({}, options, {
-            credentials: 'same-origin',
-            headers: headers,
-        })).then(function (response) {
-            if (response.status === 419 && !retried) {
-                return refreshCsrfToken().then(function () {
-                    return fetchWithCsrf(url, options, true);
-                });
+        var run = function () {
+            var headers = csrfHeaders(options.headers);
+            if (options.body && !headers['Content-Type']) {
+                headers['Content-Type'] = 'application/json';
             }
-            return response;
-        });
+
+            return fetch(url, Object.assign({}, options, {
+                credentials: 'same-origin',
+                headers: headers,
+            })).then(function (response) {
+                if (response.status === 419 && !retried) {
+                    csrfReadyPromise = null;
+                    return refreshCsrfToken().then(function () {
+                        csrfReadyPromise = Promise.resolve(csrfToken() || readXsrfCookie());
+                        return fetchWithCsrf(url, options, true);
+                    });
+                }
+                return response;
+            });
+        };
+
+        if (retried) return run();
+        return ensureCsrfToken().then(run);
     }
 
     function postJson(url, body) {
@@ -487,12 +645,43 @@
         document.body.removeAttribute('data-auth-panel');
     }
 
-    function updateHeaderAuthState() {
+    function updateHeaderAuthState(data) {
         var actions = document.querySelector('.ls-actions');
         if (!actions) return;
 
+        document.body.setAttribute('data-logged-in', '1');
+
         var loginBtn = actions.querySelector('.js-login-open');
         if (loginBtn) loginBtn.remove();
+
+        var themeBtn = actions.querySelector('.js-theme-toggle');
+        var insertBefore = themeBtn || null;
+
+        if (data && data.is_admin) {
+            var adminUrl = (data.admin_url || cfg('admin_url', '/admin')).replace(/\/?$/, '/') ;
+            if (!document.getElementById('headerAdminLink')) {
+                var adminLink = document.createElement('a');
+                adminLink.className = 'dontusebuttonclass ls-action ls-action--admin';
+                adminLink.id = 'headerAdminLink';
+                adminLink.href = adminUrl;
+                adminLink.title = 'Админ-панель';
+                adminLink.innerHTML = '<span class="fa fa-cog"></span>';
+                var favLink = actions.querySelector('.ls-action--favourites');
+                var afterFav = favLink && favLink.nextSibling;
+                actions.insertBefore(adminLink, afterFav || insertBefore);
+            }
+            if (!document.getElementById('mobileAdminLink')) {
+                var mobileMenu = document.querySelector('.ls-mobile-accordion');
+                if (mobileMenu) {
+                    var mobileAdmin = document.createElement('a');
+                    mobileAdmin.className = 'ls-mobile-link ls-mobile-link--admin';
+                    mobileAdmin.id = 'mobileAdminLink';
+                    mobileAdmin.href = adminUrl;
+                    mobileAdmin.innerHTML = '<span class="fa fa-cog" aria-hidden="true"></span> Админ-панель';
+                    mobileMenu.appendChild(mobileAdmin);
+                }
+            }
+        }
 
         if (!actions.querySelector('a.ls-action[href="/profile/"]') && cfgBool('auth_profile_enabled', true)) {
             var profileLink = document.createElement('a');
@@ -500,8 +689,8 @@
             profileLink.href = '/profile/';
             profileLink.title = cfg('auth_ui_header_profile', 'Профиль');
             profileLink.innerHTML = '<span class="fa fa-user"></span>';
-            var themeBtn = actions.querySelector('.js-theme-toggle');
-            actions.insertBefore(profileLink, themeBtn || null);
+            var notifyBtnExisting = document.getElementById('headerNotifyBtn');
+            actions.insertBefore(profileLink, notifyBtnExisting || insertBefore);
         }
 
         if (cfgBool('notifications_enabled', true) && !document.getElementById('headerNotifyBtn')) {
@@ -511,10 +700,26 @@
             bellBtn.id = 'headerNotifyBtn';
             bellBtn.title = 'Уведомления';
             bellBtn.innerHTML = '<span class="fa fa-bell"></span><span class="series-bell-count" id="headerNotifyCount" hidden></span>';
-            var themeBtn = actions.querySelector('.js-theme-toggle');
-            actions.insertBefore(bellBtn, themeBtn || null);
+            actions.insertBefore(bellBtn, insertBefore);
             initHeaderNotifications();
+        } else if (document.getElementById('headerNotifyBtn')) {
+            initHeaderNotifications();
+            var countEl = document.getElementById('headerNotifyCount');
+            if (countEl) {
+                fetchJson('/api/notifications/').then(function (payload) {
+                    if (!countEl) return;
+                    var unread = (payload && payload.unread) || 0;
+                    if (unread > 0) {
+                        countEl.textContent = unread > 99 ? '99+' : String(unread);
+                        countEl.hidden = false;
+                    } else {
+                        countEl.hidden = true;
+                    }
+                }).catch(function () {});
+            }
         }
+
+        refreshHeaderFavouritesCount();
     }
 
     function upgradeCommentsComposeForm() {
@@ -564,7 +769,7 @@
     function applyAuthSession(data) {
         if (!data || !data.logged_in) return;
         markLoggedInRoots();
-        updateHeaderAuthState();
+        updateHeaderAuthState(data);
         upgradeCommentsComposeForm();
         cleanAuthUrlParams();
         document.dispatchEvent(new CustomEvent('lordserial:auth-login', { detail: data || {} }));
@@ -1388,18 +1593,48 @@
             }
 
             favBtn.addEventListener('click', function () {
-                postJson(seriesApiPath(seriesId) + '/favourite', {})
+                var nextState = !favBtn.classList.contains('is-active');
+
+                // Guests: update UI/localStorage immediately so избранное works
+                // even if session cookies are missing on plain HTTP.
+                if (!isSiteLoggedIn()) {
+                    updateFavouriteButton(favBtn, nextState);
+                    setLocalFavourite(seriesId, nextState);
+                }
+
+                postJson(seriesApiPath(seriesId) + '/favourite', guestLibraryPayload({
+                    active: nextState,
+                }))
                     .then(readJsonResponse)
                     .then(function (res) {
                         if (!res.ok) {
-                            flashNotice('Не удалось обновить избранное.', true);
+                            if (!isSiteLoggedIn()) {
+                                // Local state already applied for guests.
+                                return;
+                            }
+                            var errMsg = (res.data && res.data.message) || '';
+                            if (res.status === 419 || /419|csrf/i.test(errMsg)) {
+                                flashNotice(cfg('ui_msg_session_expired', 'Сессия истекла. Обновите страницу и попробуйте снова.'), true);
+                            } else {
+                                flashNotice('Не удалось обновить избранное.', true);
+                            }
                             return;
                         }
                         var isFav = !!(res.data && res.data.is_favourite);
+                        // For guests keep the requested state; server may lag on flaky sessions.
+                        if (!isSiteLoggedIn()) {
+                            isFav = nextState;
+                        }
                         updateFavouriteButton(favBtn, isFav);
                         setLocalFavourite(seriesId, isFav);
+                        if (!isSiteLoggedIn()) {
+                            updateHeaderFavouritesCount(getLocalFavourites().length);
+                        } else if (res.data && typeof res.data.count === 'number') {
+                            updateHeaderFavouritesCount(res.data.count);
+                        }
                     })
                     .catch(function () {
+                        if (!isSiteLoggedIn()) return;
                         flashNotice('Не удалось обновить избранное. Попробуйте ещё раз.', true);
                     });
             });
@@ -2277,6 +2512,11 @@
         }
 
         function loadNotifications() {
+            if (!isSiteLoggedIn()) {
+                renderItems([]);
+                updateCount(0);
+                return Promise.resolve();
+            }
             return fetchJson('/api/notifications/').then(function (data) {
                 renderItems(data.items || []);
                 updateCount(data.unread || 0);
@@ -2304,6 +2544,11 @@
 
         bellBtn.addEventListener('click', function (e) {
             e.stopPropagation();
+            if (!isSiteLoggedIn()) {
+                closeDropdown();
+                if (window.lordSerialOpenAuth) window.lordSerialOpenAuth('login');
+                return;
+            }
             if (dropdown.classList.contains('is-active')) {
                 closeDropdown();
             } else {
@@ -2352,7 +2597,75 @@
             });
         }
 
-        loadNotifications();
+        if (isSiteLoggedIn()) {
+            loadNotifications();
+        }
+    }
+
+    function urlBase64ToUint8Array(base64String) {
+        var padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+        var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        var rawData = window.atob(base64);
+        var outputArray = new Uint8Array(rawData.length);
+        for (var i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    }
+
+    function ensurePushServiceWorker() {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            return Promise.reject(new Error('push unsupported'));
+        }
+        return navigator.serviceWorker.register('/sw.js').then(function (reg) {
+            return navigator.serviceWorker.ready.then(function () { return reg; });
+        });
+    }
+
+    function enableWebPush() {
+        if (!cfgBool('notifications_enabled', true) || !isSiteLoggedIn()) {
+            return Promise.resolve(false);
+        }
+        if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+            return Promise.resolve(false);
+        }
+
+        var publicKey = cfg('vapid_public_key', '');
+        var keyPromise = publicKey
+            ? Promise.resolve(publicKey)
+            : fetchJson('/api/push/vapid-public-key').then(function (data) {
+                return data && data.publicKey ? data.publicKey : '';
+            });
+
+        return keyPromise.then(function (key) {
+            if (!key) return false;
+            return Notification.requestPermission().then(function (permission) {
+                if (permission !== 'granted') {
+                    flashNotice(cfg('notifications_msg_push_denied', 'Разрешите уведомления в браузере, чтобы получать push.'), true);
+                    return false;
+                }
+                return ensurePushServiceWorker().then(function (reg) {
+                    return reg.pushManager.getSubscription().then(function (existing) {
+                        if (existing) return existing;
+                        return reg.pushManager.subscribe({
+                            userVisibleOnly: true,
+                            applicationServerKey: urlBase64ToUint8Array(key),
+                        });
+                    });
+                }).then(function (subscription) {
+                    var json = subscription.toJSON();
+                    return postJson('/api/push/subscribe', {
+                        endpoint: json.endpoint,
+                        keys: json.keys || {},
+                        contentEncoding: 'aes128gcm',
+                    }).then(readJsonResponse).then(function (res) {
+                        return !!(res.ok && res.data && res.data.ok !== false);
+                    });
+                });
+            });
+        }).catch(function () {
+            return false;
+        });
     }
 
     function initProfileNotifications() {
@@ -2364,9 +2677,23 @@
             var submitBtn = prefsForm.querySelector('[type="submit"]');
             if (submitBtn) submitBtn.disabled = true;
 
-            postJson('/api/notifications/preferences', {
-                notify_via_email: !!prefsForm.querySelector('[name="notify_via_email"]')?.checked,
-                notify_via_site: !!prefsForm.querySelector('[name="notify_via_site"]')?.checked,
+            var pushChecked = !!prefsForm.querySelector('[name="notify_via_push"]')?.checked;
+
+            var savePrefs = function () {
+                return postJson('/api/notifications/preferences', {
+                    notify_via_email: !!prefsForm.querySelector('[name="notify_via_email"]')?.checked,
+                    notify_via_site: !!prefsForm.querySelector('[name="notify_via_site"]')?.checked,
+                    notify_via_push: pushChecked,
+                });
+            };
+
+            var chain = Promise.resolve();
+            if (pushChecked) {
+                chain = enableWebPush();
+            }
+
+            chain.then(function () {
+                return savePrefs();
             })
                 .then(readJsonResponse)
                 .then(function (res) {
@@ -2822,6 +3149,15 @@
                     updateSubscribeUi({ subscribed: true });
                     if (unsubscribeBtn) unsubscribeBtn.hidden = false;
                     showSubscribeFeedback(res.data.message || cfg('notifications_msg_saved', 'Настройки уведомлений сохранены.'), false);
+                    enableWebPush().then(function (ok) {
+                        if (ok) {
+                            showSubscribeFeedback(
+                                (res.data.message || cfg('notifications_msg_saved', 'Настройки уведомлений сохранены.')) +
+                                ' ' + cfg('notifications_msg_push_enabled', 'Push-уведомления включены.'),
+                                false
+                            );
+                        }
+                    });
                 })
                 .catch(function () {
                     subscribeInFlight = false;
@@ -2939,6 +3275,7 @@
                         updateSubscribeUi({ subscribed: true });
                         showSubscribeFeedback(res.data.message || 'Сохранено', false);
                         if (unsubscribeBtn) unsubscribeBtn.hidden = false;
+                        enableWebPush();
                         setTimeout(closeNotify, 900);
                     })
                     .catch(function () {
@@ -3857,14 +4194,21 @@
     }
 
     function initCsrfRefresh() {
+        ensureCsrfToken();
+
         document.addEventListener('visibilitychange', function () {
             if (document.visibilityState === 'visible') {
-                refreshCsrfToken();
+                csrfReadyPromise = null;
+                // Re-read cookie; only hit /api/csrf if cookie is missing.
+                ensureCsrfToken();
             }
         });
 
         window.addEventListener('pageshow', function (e) {
-            if (e.persisted) refreshCsrfToken();
+            if (e.persisted) {
+                csrfReadyPromise = null;
+                ensureCsrfToken();
+            }
         });
     }
 
@@ -4146,6 +4490,8 @@
         initNotifyModal();
         initBookmarkHint();
         initHeaderNotifications();
+        initHeaderFavouritesCount();
+        initFavouritesPage();
         initProfileNotifications();
         initProfileTabs();
         initProfileForms();
@@ -4154,4 +4500,76 @@
         initSeriesPreview();
         initPersonPhotoHints();
     });
+
+    function initHeaderFavouritesCount() {
+        ensureCsrfToken().then(function () {
+            refreshHeaderFavouritesCount();
+        });
+        document.addEventListener('lordserial:auth-login', function () {
+            refreshHeaderFavouritesCount();
+        });
+    }
+
+    function initFavouritesPage() {
+        var root = document.querySelector('[data-favourites-page]');
+        if (!root || !cfgBool('favourites_enabled', true)) return;
+
+        var grid = root.querySelector('[data-favourites-grid]');
+        var empty = root.querySelector('[data-favourites-empty]');
+        var countWrap = root.querySelector('[data-favourites-count]');
+        var countNum = root.querySelector('[data-favourites-count-num]');
+        var countWord = root.querySelector('[data-favourites-count-word]');
+        if (!grid || !empty) return;
+
+        function renderFavourites(data) {
+            var html = (data && data.html) || '';
+            var count = data && typeof data.count === 'number' ? data.count : 0;
+            var word = (data && data.total_word) || '';
+
+            if (count > 0 && html) {
+                grid.innerHTML = html;
+                grid.hidden = false;
+                empty.hidden = true;
+                if (countWrap) countWrap.hidden = false;
+                if (countNum) countNum.textContent = String(count);
+                if (countWord && word) countWord.textContent = word;
+                if (Array.isArray(data.items)) {
+                    setLocalFavourites(data.items.map(function (item) {
+                        return parseInt(item.id, 10);
+                    }).filter(function (id) { return id > 0; }));
+                }
+                updateHeaderFavouritesCount(count);
+                return;
+            }
+
+            grid.innerHTML = '';
+            grid.hidden = true;
+            empty.hidden = false;
+            if (countWrap) countWrap.hidden = true;
+            updateHeaderFavouritesCount(0);
+        }
+
+        // Logged-in users already get SSR content; guests need client key/ids.
+        if (isSiteLoggedIn() && grid.children.length > 0) return;
+
+        var params = [];
+        if (!isSiteLoggedIn()) {
+            var guestKey = getGuestLibKey();
+            if (guestKey) params.push('guest_key=' + encodeURIComponent(guestKey));
+            getLocalFavourites().forEach(function (id) {
+                params.push('ids[]=' + encodeURIComponent(String(id)));
+            });
+            params.push('sync=1');
+        }
+
+        var url = '/api/favourites' + (params.length ? ('?' + params.join('&')) : '');
+        fetchJson(url)
+            .then(function (data) {
+                renderFavourites(data || {});
+            })
+            .catch(function () {
+                if (!isSiteLoggedIn() && getLocalFavourites().length === 0) return;
+                flashNotice('Не удалось загрузить избранное.', true);
+            });
+    }
 })();

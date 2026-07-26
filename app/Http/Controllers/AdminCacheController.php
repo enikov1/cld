@@ -7,7 +7,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\File;
 
 class AdminCacheController extends Controller
 {
@@ -107,27 +106,22 @@ class AdminCacheController extends Controller
         $now = time();
 
         try {
-            $row = DB::table($table)
-                ->selectRaw(
-                    'COUNT(*) as entries,
-                     COALESCE(SUM(LENGTH(`value`)), 0) as bytes,
-                     SUM(CASE WHEN `expiration` > 0 AND `expiration` < ? THEN 1 ELSE 0 END) as expired',
-                    [$now]
-                )
-                ->first();
-
-            $entries = (int)($row->entries ?? 0);
-            $bytes = (int)($row->bytes ?? 0);
-            $expired = (int)($row->expired ?? 0);
+            // Avoid SUM(LENGTH(value)) — full blob scan hangs on large stores.
+            $entries = (int)DB::table($table)->count();
+            $expired = (int)DB::table($table)
+                ->where('expiration', '>', 0)
+                ->where('expiration', '<', $now)
+                ->count();
+            $bytes = $this->databaseTableBytes($table);
 
             return [
                 'driver' => 'database',
                 'table' => $table,
                 'entries' => $entries,
                 'bytes' => $bytes,
-                'bytes_human' => $this->humanBytes($bytes),
+                'bytes_human' => $bytes > 0 ? $this->humanBytes($bytes) : '—',
                 'expired' => $expired,
-                'note' => null,
+                'note' => $bytes > 0 ? 'Размер приблизительный (по таблице)' : null,
             ];
         } catch (\Throwable $e) {
             return [
@@ -140,6 +134,24 @@ class AdminCacheController extends Controller
                 'note' => 'Не удалось прочитать таблицу кэша: ' . $e->getMessage(),
             ];
         }
+    }
+
+    private function databaseTableBytes(string $table): int
+    {
+        $driver = DB::connection()->getDriverName();
+        if (!in_array($driver, ['mysql', 'mariadb'], true)) {
+            return 0;
+        }
+
+        $row = DB::selectOne(
+            'SELECT COALESCE(data_length + index_length, 0) as size_bytes
+             FROM information_schema.tables
+             WHERE table_schema = DATABASE() AND table_name = ?
+             LIMIT 1',
+            [$table]
+        );
+
+        return (int)($row->size_bytes ?? 0);
     }
 
     /**
@@ -161,9 +173,15 @@ class AdminCacheController extends Controller
         $files = 0;
 
         try {
-            foreach (File::allFiles($path) as $file) {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS)
+            );
+            foreach ($iterator as $file) {
+                if (!$file->isFile()) {
+                    continue;
+                }
                 $files++;
-                $bytes += $file->getSize();
+                $bytes += (int)$file->getSize();
             }
         } catch (\Throwable) {
             // ignore unreadable dirs

@@ -45,6 +45,45 @@ function syncNavState(swiper, root) {
 }
 
 /**
+ * Block accidental link navigation after a real swipe, without Swiper's
+ * preventClicks (which eats the first click on even 1px mouse jitter).
+ *
+ * @param {HTMLElement} root
+ */
+function bindCardClickGuard(root) {
+    if (root._lsClickGuardBound) return;
+    root._lsClickGuardBound = true;
+
+    var startX = 0;
+    var startY = 0;
+    var dragged = false;
+    var DRAG_PX = 8;
+
+    root.addEventListener('pointerdown', function (e) {
+        if (e.isPrimary === false) return;
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        startX = e.clientX;
+        startY = e.clientY;
+        dragged = false;
+    }, true);
+
+    root.addEventListener('pointermove', function (e) {
+        if (dragged) return;
+        if (Math.abs(e.clientX - startX) > DRAG_PX || Math.abs(e.clientY - startY) > DRAG_PX) {
+            dragged = true;
+        }
+    }, true);
+
+    root.addEventListener('click', function (e) {
+        if (!dragged) return;
+        var link = e.target.closest('a[href]');
+        if (!link || !root.contains(link)) return;
+        e.preventDefault();
+        e.stopPropagation();
+    }, true);
+}
+
+/**
  * @param {HTMLElement} root
  * @param {number} spaceBetween
  */
@@ -61,6 +100,11 @@ function buildSwiperOptions(root, spaceBetween) {
         speed: 450,
         watchOverflow: true,
         resistanceRatio: 0.65,
+        // Default preventClicks blocks <a> on first click after tiny pointer move.
+        preventClicks: false,
+        preventClicksPropagation: false,
+        threshold: 10,
+        focusableElements: 'input, select, option, textarea, button, video, label, a',
         navigation: {
             prevEl: prev || null,
             nextEl: next || null,
@@ -148,6 +192,7 @@ function bindCarousel(root) {
         if (existing.slides && existing.slides.length === slideCount) {
             existing.update();
             syncNavState(existing, root);
+            bindCardClickGuard(root);
             return;
         }
         existing.destroy(true, false);
@@ -168,6 +213,7 @@ function bindCarousel(root) {
 
     var swiper = new Swiper(root, buildSwiperOptions(root, spaceBetween));
     root.lsSwiper = swiper;
+    bindCardClickGuard(root);
 
     track.querySelectorAll('img').forEach(function (img) {
         if (img.complete) return;
