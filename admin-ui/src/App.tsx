@@ -12,6 +12,7 @@ import DashboardPage from './pages/DashboardPage'
 import NavMenuPage from './pages/NavMenuPage'
 import KinoPoiskSyncPage from './pages/KinoPoiskSyncPage'
 import AllohaSyncPage from './pages/AllohaSyncPage'
+import BackupPage from './pages/BackupPage'
 import HomeSectionsPage from './pages/HomeSectionsPage'
 import LoginPage from './pages/LoginPage'
 import TaxonomyPage from './pages/TaxonomyPage'
@@ -66,6 +67,7 @@ function AppRoutes({ isDark, onToggleTheme }: AppRoutesProps) {
         <Route path="templates" element={<TemplatesPage />} />
         <Route path="sync" element={<KinoPoiskSyncPage />} />
         <Route path="alloha-sync" element={<AllohaSyncPage />} />
+        <Route path="backup" element={<BackupPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

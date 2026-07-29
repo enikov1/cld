@@ -18,6 +18,7 @@ export const ADMIN_ROUTES: Record<AdminPageKey, string> = {
   templates: '/templates',
   sync: '/sync',
   'alloha-sync': '/alloha-sync',
+  backup: '/backup',
 }
 
 export const pageMeta: Record<AdminPageKey, { title: string; subtitle?: string }> = {
@@ -38,6 +39,7 @@ export const pageMeta: Record<AdminPageKey, { title: string; subtitle?: string }
   templates: { title: 'Шаблоны', subtitle: 'Редактор .tpl, справка по тегам и подсказки' },
   sync: { title: 'KinoPoisk', subtitle: 'Импорт сериалов через kp:sync' },
   'alloha-sync': { title: 'Alloha', subtitle: 'Автообновление, latest и синхронизация' },
+  backup: { title: 'Бэкапы', subtitle: 'Автоматическое резервное копирование БД и файлов' },
 }
 
 export function pageKeyFromPath(pathname: string): AdminPageKey {

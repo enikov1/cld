@@ -324,6 +324,7 @@ export type AdminPageKey =
   | 'templates'
   | 'sync'
   | 'alloha-sync'
+  | 'backup'
 
 export const BROADCAST_STATUSES = [
   { value: 'ongoing', label: 'Идёт' },

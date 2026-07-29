@@ -2,6 +2,7 @@ import {
   BookOutlined,
   BankOutlined,
   CloudSyncOutlined,
+  DatabaseOutlined,
   CodeOutlined,
   CommentOutlined,
   DashboardOutlined,
@@ -106,6 +107,7 @@ function buildMenuItems(stats: AdminStats | null): MenuProps['items'] {
     { key: 'templates', icon: <CodeOutlined />, label: 'Шаблоны' },
     { key: 'sync', icon: <CloudSyncOutlined />, label: 'KinoPoisk' },
     { key: 'alloha-sync', icon: <CloudSyncOutlined />, label: 'Alloha' },
+    { key: 'backup', icon: <DatabaseOutlined />, label: 'Бэкапы' },
   ]
 }
 

@@ -80,14 +80,21 @@ export default function SeriesLookupSearch({ form, onSelect }: Props) {
     }
   }, [query])
 
+  function revalidateIds(fields: Array<'kp_id' | 'tmdb_id'>) {
+    // setFieldsValue не запускает rules — без явной проверки галочка «свободен» остаётся ложной
+    void form.validateFields(fields).catch(() => undefined)
+  }
+
   function handleSelect(item: SeriesLookupResult) {
     if (item.source === 'kinopoisk') {
       form.setFieldsValue({ kp_id: item.id })
+      revalidateIds(['kp_id'])
     } else {
       form.setFieldsValue({
         tmdb_id: item.id,
         content_type: item.media_type === 'tv' || item.media_type === 'series' ? 'series' : 'film',
       })
+      revalidateIds(['tmdb_id', 'kp_id'])
     }
     onSelect?.(item)
     setOpen(false)
@@ -111,6 +118,7 @@ export default function SeriesLookupSearch({ form, onSelect }: Props) {
         throw new Error('KP ID не найден в ответе')
       }
       form.setFieldsValue({ kp_id: kpId })
+      revalidateIds(['kp_id'])
       message.success(`KP ID ${kpId} подставлен`)
       setOpen(false)
       setResults([])

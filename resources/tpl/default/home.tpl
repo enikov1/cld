@@ -4,7 +4,7 @@
 <main class="main">
     [is_home_first] [popular_list]
     <div class="carou-sect">
-        <div class="carou-title">Популярное за месяц</div>
+        <div class="carou-title">{home_popular_title}</div>
         <div class="carou-content" data-carou>
             <button class="carou-nav carou-nav--prev dontusebuttonclass" type="button" aria-label="Назад">
                         <span class="fa fa-angle-left"></span>

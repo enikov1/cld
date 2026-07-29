@@ -36,10 +36,14 @@ use App\Support\SiteConfig;
 use App\Support\SlugHelper;
 use App\Support\ThemeManager;
 use App\Support\TplCache;
+use App\Support\Utf8;
 use App\Services\ImageOptimizer;
 use App\Services\PosterContext;
 use App\Services\PosterStorage;
 use App\Services\BrandingStorage;
+use App\Services\BackupSettings;
+use App\Services\BackupService;
+use App\Services\BackupRemoteStorage;
 use App\Services\SitemapService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -152,6 +156,8 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
                 ['value' => CronRunLogger::JOB_ALLOHA_SYNC, 'label' => CronRunLogger::jobLabel(CronRunLogger::JOB_ALLOHA_SYNC)],
                 ['value' => CronRunLogger::JOB_ALLOHA_IMPORT, 'label' => CronRunLogger::jobLabel(CronRunLogger::JOB_ALLOHA_IMPORT)],
                 ['value' => CronRunLogger::JOB_TMDB_STUDIO_LOGOS, 'label' => CronRunLogger::jobLabel(CronRunLogger::JOB_TMDB_STUDIO_LOGOS)],
+                ['value' => CronRunLogger::JOB_BACKUP, 'label' => CronRunLogger::jobLabel(CronRunLogger::JOB_BACKUP)],
+                ['value' => CronRunLogger::JOB_BACKUP_RESTORE, 'label' => CronRunLogger::jobLabel(CronRunLogger::JOB_BACKUP_RESTORE)],
             ],
         ]);
     });
@@ -1369,6 +1375,157 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
             'message' => (string)$run->message,
             'cron_run_id' => $run->id,
         ]);
+    });
+
+    Route::get('/backup/settings', function (BackupService $backup) {
+        $settings = BackupSettings::get();
+        $lastRun = BackupSettings::lastRunAt();
+
+        return response()->json([
+            'settings' => $settings,
+            'interval_options' => BackupSettings::intervalOptions(),
+            'last_run_at' => $lastRun,
+            'last_run_human' => $lastRun ? date('d.m.Y H:i:s', $lastRun) : null,
+            'is_due' => BackupSettings::isDue(),
+            'remote_password_set' => BackupSettings::hasPassword(),
+            's3_secret_set' => BackupSettings::hasS3Secret(),
+            'remote_configured' => BackupSettings::isRemoteConfigured(),
+            'local_backups' => $backup->listLocalBackups(),
+            'backups' => $backup->listAvailableBackups(),
+        ]);
+    });
+
+    Route::post('/backup/settings', function (Request $request) {
+        $data = $request->validate([
+            'enabled' => ['nullable', 'boolean'],
+            'interval_minutes' => ['nullable', 'integer'],
+            'include_database' => ['nullable', 'boolean'],
+            'include_files' => ['nullable', 'boolean'],
+            'remote_enabled' => ['nullable', 'boolean'],
+            'protocol' => ['nullable', 'string', Rule::in(['ftp', 'sftp', 's3'])],
+            'host' => ['nullable', 'string', 'max:255'],
+            'port' => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'username' => ['nullable', 'string', 'max:255'],
+            'password' => ['nullable', 'string', 'max:500'],
+            'remote_path' => ['nullable', 'string', 'max:500'],
+            's3_key' => ['nullable', 'string', 'max:255'],
+            's3_secret' => ['nullable', 'string', 'max:500'],
+            's3_region' => ['nullable', 'string', 'max:100'],
+            's3_bucket' => ['nullable', 'string', 'max:255'],
+            's3_endpoint' => ['nullable', 'string', 'max:500'],
+            's3_path_style' => ['nullable', 'boolean'],
+            'retention_count' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'passive' => ['nullable', 'boolean'],
+        ]);
+
+        $current = BackupSettings::get();
+        $merged = BackupSettings::normalize(array_merge(
+            $current,
+            collect($data)->except(['password', 's3_secret'])->all(),
+        ));
+
+        if (array_key_exists('password', $data) && is_string($data['password']) && $data['password'] !== '') {
+            BackupSettings::setPassword($data['password']);
+        }
+
+        if (array_key_exists('s3_secret', $data) && is_string($data['s3_secret']) && $data['s3_secret'] !== '') {
+            BackupSettings::setS3Secret($data['s3_secret']);
+        }
+
+        BackupSettings::save($merged);
+
+        return response()->json([
+            'ok' => true,
+            'settings' => $merged,
+            'remote_password_set' => BackupSettings::hasPassword(),
+            's3_secret_set' => BackupSettings::hasS3Secret(),
+            'remote_configured' => BackupSettings::isRemoteConfigured(),
+        ]);
+    });
+
+    Route::post('/backup/test-connection', function (BackupRemoteStorage $remote) {
+        try {
+            $remote->testConnection();
+
+            return response()->json(['ok' => true, 'message' => 'Подключение успешно']);
+        } catch (\Throwable $e) {
+            return response()->json(['ok' => false, 'error' => (string)Utf8::sanitize($e->getMessage())], 422);
+        }
+    });
+
+    Route::post('/backup/run', function () {
+        try {
+            $exitCode = Artisan::call('backup:run', [
+                '--force' => true,
+                '--trigger' => 'admin',
+            ]);
+            $output = trim((string)Utf8::sanitize(Artisan::output()));
+            $lastRun = \App\Models\CronRun::query()
+                ->where('job_key', CronRunLogger::JOB_BACKUP)
+                ->orderByDesc('id')
+                ->first();
+
+            if ($exitCode !== 0) {
+                return response()->json([
+                    'ok' => false,
+                    'error' => (string)Utf8::sanitize($lastRun?->error) ?: ($output ?: 'Ошибка бэкапа'),
+                    'cron_run_id' => $lastRun?->id,
+                ], 500);
+            }
+
+            return response()->json([
+                'ok' => true,
+                'message' => (string)Utf8::sanitize($lastRun?->message) ?: ($output ?: 'Бэкап создан'),
+                'cron_run_id' => $lastRun?->id,
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json(['ok' => false, 'error' => (string)Utf8::sanitize($e->getMessage())], 500);
+        }
+    });
+
+    Route::post('/backup/restore', function (Request $request, BackupService $backup) {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'source' => ['required', 'string', Rule::in(['local', 'remote'])],
+            'restore_database' => ['nullable', 'boolean'],
+            'restore_files' => ['nullable', 'boolean'],
+        ]);
+
+        try {
+            $run = CronRunLogger::run(
+                CronRunLogger::JOB_BACKUP_RESTORE,
+                'backup:restore',
+                CronRun::TRIGGER_ADMIN,
+                fn () => $backup->restore(
+                    $data['name'],
+                    $data['source'],
+                    (bool)($data['restore_database'] ?? true),
+                    (bool)($data['restore_files'] ?? true),
+                ),
+                ['name' => $data['name'], 'source' => $data['source']],
+                'Восстановление из бэкапа',
+            );
+
+            if ($run->status === CronRun::STATUS_FAILED) {
+                return response()->json([
+                    'ok' => false,
+                    'error' => (string)Utf8::sanitize($run->error) ?: 'Ошибка восстановления',
+                    'cron_run_id' => $run->id,
+                ], 500);
+            }
+
+            return response()->json([
+                'ok' => true,
+                'message' => (string)Utf8::sanitize($run->message),
+                'cron_run_id' => $run->id,
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json(['ok' => false, 'error' => (string)Utf8::sanitize($e->getMessage())], 500);
+        }
     });
 });
 

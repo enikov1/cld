@@ -33,7 +33,7 @@ class HomeController extends TplController
     {
         $popular = Series::query()
             ->published();
-        HomeSectionService::applySort($popular, HomeSectionService::SORT_POPULAR);
+        HomeSectionService::applyHomePopularSort($popular);
         $popular = $popular
             ->limit(SiteConfig::int('home_popular_limit'))
             ->get();

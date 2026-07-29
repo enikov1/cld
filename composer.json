@@ -9,6 +9,9 @@
         "php": "^8.2",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",
+        "league/flysystem-ftp": "^3.25",
+        "league/flysystem-sftp-v3": "^3.25",
+        "league/flysystem-aws-s3-v3": "^3.25",
         "minishlink/web-push": "^11.0"
     },
     "require-dev": {

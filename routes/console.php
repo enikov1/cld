@@ -13,4 +13,4 @@ Schedule::command('tmdb:auto')->everyMinute()->withoutOverlapping(1800);
 Schedule::command('series:refresh-popularity-badges', ['--trigger' => 'schedule'])->hourly()->withoutOverlapping(30);
 Schedule::command('sitemap:generate', ['--trigger' => 'schedule'])->everyThirtyMinutes()->withoutOverlapping(30);
 Schedule::command('cache:prune-expired')->everyFiveMinutes()->withoutOverlapping(10);
-
+Schedule::command('backup:auto')->everyMinute()->withoutOverlapping(7200);

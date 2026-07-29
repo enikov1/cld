@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\CronRun;
+use App\Support\Utf8;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -16,6 +17,8 @@ class CronRunLogger
     public const JOB_ALLOHA_SYNC = 'alloha:sync';
     public const JOB_ALLOHA_IMPORT = 'alloha:import';
     public const JOB_TMDB_STUDIO_LOGOS = 'tmdb:fill-studio-logos';
+    public const JOB_BACKUP = 'backup:run';
+    public const JOB_BACKUP_RESTORE = 'backup:restore';
 
     /**
      * @param array<string, mixed> $meta
@@ -56,9 +59,9 @@ class CronRunLogger
 
         $logText = null;
         if (is_array($log)) {
-            $logText = implode("\n", array_map(static fn ($line) => (string)$line, $log));
+            $logText = implode("\n", array_map(static fn ($line) => (string)Utf8::sanitize((string)$line), $log));
         } elseif (is_string($log) && $log !== '') {
-            $logText = $log;
+            $logText = (string)Utf8::sanitize($log);
         }
 
         if ($logText !== null) {
@@ -70,8 +73,8 @@ class CronRunLogger
             'finished_at' => $finishedAt,
             'duration_ms' => $durationMs,
             'counts' => $counts,
-            'message' => $message !== null ? Str::limit($message, 500, '') : $run->message,
-            'error' => $error !== null ? Str::limit($error, 5000, '') : null,
+            'message' => $message !== null ? Str::limit((string)Utf8::sanitize($message), 500, '') : $run->message,
+            'error' => $error !== null ? Str::limit((string)Utf8::sanitize($error), 5000, '') : null,
             'log' => $logText,
         ]);
         $run->save();
@@ -130,7 +133,7 @@ class CronRunLogger
                 CronRun::STATUS_FAILED,
                 null,
                 'Ошибка выполнения',
-                $e->getMessage(),
+                (string)Utf8::sanitize($e->getMessage()),
             );
         }
     }
@@ -163,6 +166,8 @@ class CronRunLogger
             self::JOB_ALLOHA_SYNC => 'Alloha sync',
             self::JOB_ALLOHA_IMPORT => 'Alloha import',
             self::JOB_TMDB_STUDIO_LOGOS => 'TMDB: логотипы студий',
+            self::JOB_BACKUP => 'Резервное копирование',
+            self::JOB_BACKUP_RESTORE => 'Восстановление из бэкапа',
             default => $jobKey,
         };
     }

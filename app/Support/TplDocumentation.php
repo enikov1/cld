@@ -233,6 +233,7 @@ class TplDocumentation
                     self::docVar('seo.prev', 'Ссылка prev'),
                     self::docVar('seo.next', 'Ссылка next'),
                     self::docVar('popular_cards_html', 'HTML карточек карусели «Популярное»'),
+                    self::docVar('home_popular_title', 'Заголовок карусели «Популярное» (настройка каталога)'),
                     self::docVar('new_episodes_list', 'Сериалы с вышедшими сериями за N дней (из графика)'),
                     self::docVar('new_episodes_cards_html', 'HTML карточек карусели «Новые серии»'),
                     self::docVar('new_episodes_block', 'HTML блока «Новые серии»'),
@@ -249,7 +250,7 @@ class TplDocumentation
                     self::docVar('content_type_section_6', 'Секция type-6: дорама'),
                     self::docVar('content_type_section_7', 'Секция type-7: тв-шоу'),
                 ] + self::seriesCardItemVariables()),
-                ['is_home_first', 'popular_list', 'popular_cards_html', 'new_episodes_list', 'new_episodes_cards_html', 'new_episodes_block', 'has_schedule_calendar', 'schedule_calendar', 'schedule_calendar_json', 'schedule_calendar_block', 'home_sections', 'category_sections', 'custom_home_sections', 'content_type_sections', 'promo_collections', 'promo_studios', 'series_list', 'pagination_block', 'home_seo_html', 'catalog_filters_block', 'filter_fields', 'category_seo_html', 'page.lead', 'type-1', 'type-2', 'type-3', 'type-4', 'type-5', 'type-6', 'type-7', 'item.badge_new_episode', 'item.badge_popular', 'item.season_badge', 'item.episode_badge', 'item.top_reaction_emoji'],
+                ['is_home_first', 'popular_list', 'popular_cards_html', 'home_popular_title', 'new_episodes_list', 'new_episodes_cards_html', 'new_episodes_block', 'has_schedule_calendar', 'schedule_calendar', 'schedule_calendar_json', 'schedule_calendar_block', 'home_sections', 'category_sections', 'custom_home_sections', 'content_type_sections', 'promo_collections', 'promo_studios', 'series_list', 'pagination_block', 'home_seo_html', 'catalog_filters_block', 'filter_fields', 'category_seo_html', 'page.lead', 'type-1', 'type-2', 'type-3', 'type-4', 'type-5', 'type-6', 'type-7', 'item.badge_new_episode', 'item.badge_popular', 'item.season_badge', 'item.episode_badge', 'item.top_reaction_emoji'],
                 [
                     self::loop('popular_list', 'Карусель «Популярное»'),
                     self::loop('new_episodes_list', 'Карусель «Новые серии»'),
