@@ -117,6 +117,39 @@ class BackupService
     }
 
     /**
+     * Copy an arbitrary ZIP into storage/app/backups with a valid backup_*.zip name.
+     */
+    public function importArchiveFile(string $path): string
+    {
+        $path = trim($path);
+        if ($path === '' || !is_file($path)) {
+            throw new RuntimeException('Файл бэкапа не найден: ' . $path);
+        }
+
+        $basename = basename($path);
+        $this->ensureBackupDirectory();
+
+        if (preg_match('/^backup_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.zip$/', $basename)) {
+            $target = storage_path('app/backups/' . $basename);
+            if (realpath($path) !== realpath($target)) {
+                if (!copy($path, $target)) {
+                    throw new RuntimeException('Не удалось скопировать архив в storage/app/backups.');
+                }
+            }
+
+            return $basename;
+        }
+
+        $name = 'backup_' . date('Y-m-d_H-i-s') . '.zip';
+        $target = storage_path('app/backups/' . $name);
+        if (!copy($path, $target)) {
+            throw new RuntimeException('Не удалось скопировать архив в storage/app/backups.');
+        }
+
+        return $name;
+    }
+
+    /**
      * @return list<array{name: string, size: int, created_at: string}>
      */
     public function listLocalBackups(): array

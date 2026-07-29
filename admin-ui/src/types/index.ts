@@ -163,7 +163,14 @@ export type CommentItem = {
   is_pinned?: boolean
   author_name?: string
   user?: { id: number; name: string; email: string }
-  series?: { id: number; title: string; slug: string }
+  series?: {
+    id: number
+    title: string
+    slug: string
+    kp_id?: string | null
+    year?: number | null
+    start_year?: number | null
+  }
 }
 
 export type SettingItem = {

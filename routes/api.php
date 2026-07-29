@@ -30,6 +30,7 @@ use App\Services\TmdbStudioSyncService;
 use App\Services\TmdbSyncProgress;
 use App\Support\AdminAccess;
 use App\Support\AdminPath;
+use App\Support\CommentBody;
 use App\Support\CommentModeration;
 use App\Support\RobotsTxt;
 use App\Support\SiteConfig;
@@ -714,7 +715,7 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
         $status = $request->query('status', 'approved');
 
         $query = \App\Models\Comment::query()
-            ->with(['user:id,name,email', 'series:id,title,slug'])
+            ->with(['user:id,name,email', 'series:id,title,slug,kp_id,year,start_year'])
             ->orderByDesc('id');
 
         if ($status !== 'all') {
@@ -765,6 +766,25 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
         if ($comment->series_id) {
             TplCache::forgetSeries((int)$comment->series_id);
         }
+
+        return response()->json(['ok' => true, 'item' => $comment]);
+    });
+
+    Route::post('/comments/{id}', function (Request $request, int $id) {
+        $max = SiteConfig::int('comments_body_max_length');
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:' . $max],
+        ]);
+
+        $comment = \App\Models\Comment::query()->with('series:id')->findOrFail($id);
+        $comment->body = CommentBody::assertValid($data['body']);
+        $comment->save();
+
+        if ($comment->series_id) {
+            TplCache::forgetSeries((int)$comment->series_id);
+        }
+
+        $comment->load(['user:id,name,email', 'series:id,title,slug,kp_id,year,start_year']);
 
         return response()->json(['ok' => true, 'item' => $comment]);
     });

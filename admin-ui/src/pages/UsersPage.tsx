@@ -20,6 +20,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { type Dayjs } from 'dayjs'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { UserItem } from '../types'
 
@@ -99,12 +100,32 @@ function buildParams(filters: Filters): URLSearchParams {
   return params
 }
 
+function filtersFromSearchParams(params: URLSearchParams): Filters | null {
+  const email = params.get('email')?.trim() ?? ''
+  const name = params.get('name')?.trim() ?? ''
+  if (!email && !name) return null
+  return {
+    ...defaultFilters,
+    email,
+    name,
+    exactEmail: Boolean(email),
+    exactName: Boolean(name) && !email,
+  }
+}
+
 export default function UsersPage() {
+  const [searchParams] = useSearchParams()
+  const initialFilters = useMemo(
+    () => filtersFromSearchParams(searchParams) ?? defaultFilters,
+    // Apply deep-link filters only on first mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  )
   const [items, setItems] = useState<UserItem[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [draft, setDraft] = useState<Filters>(defaultFilters)
-  const [applied, setApplied] = useState<Filters>(defaultFilters)
+  const [draft, setDraft] = useState<Filters>(initialFilters)
+  const [applied, setApplied] = useState<Filters>(initialFilters)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<UserItem | null>(null)
   const [form] = Form.useForm<UserFormValues>()
