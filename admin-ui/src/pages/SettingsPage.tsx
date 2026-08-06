@@ -34,8 +34,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { api } from '../api/client'
-import { apiUpload } from '../api/upload'
+import { api, apiUpload } from '../api/client'
 import SiteConfigFields from '../components/SiteConfigFields'
 import type { SettingItem, ThemeItem } from '../types'
 import type { SiteConfigSchema } from '../types/siteConfig'

@@ -17,6 +17,11 @@
     RewriteCond %{HTTP:x-guest-key} .
     RewriteRule .* - [E=HTTP_X_GUEST_KEY:%{HTTP:X-Guest-Key}]
 
+    # Admin UI assets: map legacy /_admin-assets/* → public/_admin_ui/assets/*
+    # (static files; avoids flaky first-load when many ES modules hit PHP)
+    RewriteCond %{DOCUMENT_ROOT}/_admin_ui/assets/$1 -f
+    RewriteRule ^_admin-assets/(.+)$ _admin_ui/assets/$1 [L]
+
     # Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$

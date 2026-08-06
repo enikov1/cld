@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\SiteSetting;
+use App\Support\EncryptedSiteSecret;
 
 class TmdbConfig
 {
@@ -10,12 +10,12 @@ class TmdbConfig
 
     public static function apiKey(): string
     {
-        $fromSettings = trim((string)SiteSetting::get(self::SETTING_KEY, ''));
+        $fromSettings = trim(EncryptedSiteSecret::get(self::SETTING_KEY));
         if ($fromSettings !== '') {
             return $fromSettings;
         }
 
-        return trim((string)config('tmdb.api_key', ''));
+        return trim((string) config('tmdb.api_key', ''));
     }
 
     public static function isConfigured(): bool

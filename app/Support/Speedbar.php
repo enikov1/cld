@@ -245,7 +245,7 @@ class Speedbar
 
         $bar = self::create()
             ->add('home')
-            ->add($segment, ['slug' => $item->slug], $item->name, isCurrent: $page <= 1);
+            ->add($segment, ['slug' => $item->slug], TaxonomyRegistry::displayName($item), isCurrent: $page <= 1);
 
         return $bar->pageSuffix($page);
     }

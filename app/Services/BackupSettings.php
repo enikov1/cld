@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\SiteSetting;
+use App\Support\EncryptedSiteSecret;
 
 class BackupSettings
 {
@@ -102,16 +103,12 @@ class BackupSettings
 
     public static function password(): string
     {
-        return (string)SiteSetting::get(self::PASSWORD_KEY, '');
+        return EncryptedSiteSecret::get(self::PASSWORD_KEY);
     }
 
     public static function setPassword(?string $password): void
     {
-        if ($password === null || $password === '') {
-            return;
-        }
-
-        SiteSetting::set(self::PASSWORD_KEY, $password);
+        EncryptedSiteSecret::set(self::PASSWORD_KEY, $password);
     }
 
     public static function hasPassword(): bool
@@ -121,16 +118,12 @@ class BackupSettings
 
     public static function s3Secret(): string
     {
-        return (string)SiteSetting::get(self::S3_SECRET_KEY, '');
+        return EncryptedSiteSecret::get(self::S3_SECRET_KEY);
     }
 
     public static function setS3Secret(?string $secret): void
     {
-        if ($secret === null || $secret === '') {
-            return;
-        }
-
-        SiteSetting::set(self::S3_SECRET_KEY, $secret);
+        EncryptedSiteSecret::set(self::S3_SECRET_KEY, $secret);
     }
 
     public static function hasS3Secret(): bool

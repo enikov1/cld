@@ -123,7 +123,7 @@ class QuickSearchService
                 'label' => 'Актёры',
                 'items' => $actors->map(static fn (Person $item) => [
                     'type' => 'actors',
-                    'title' => $item->name,
+                    'title' => Utf8::ucfirst($item->name),
                     'subtitle' => 'Актёр',
                     'url' => '/person/' . rawurlencode($item->slug) . '/',
                     'image' => $item->photo_url ?? '',
@@ -139,7 +139,7 @@ class QuickSearchService
                     'label' => 'Режиссёры',
                     'items' => $directors->map(static fn (Person $item) => [
                         'type' => 'directors',
-                        'title' => $item->name,
+                        'title' => Utf8::ucfirst($item->name),
                         'subtitle' => 'Режиссёр',
                         'url' => '/person/' . rawurlencode($item->slug) . '/',
                         'image' => $item->photo_url ?? '',
@@ -163,7 +163,7 @@ class QuickSearchService
                 'label' => 'Жанры',
                 'items' => $genres->map(static fn (Genre $item) => [
                     'type' => 'genres',
-                    'title' => $item->name,
+                    'title' => TaxonomyRegistry::displayName($item),
                     'subtitle' => 'Жанр',
                     'url' => '/genre/' . rawurlencode($item->slug) . '/',
                     'image' => '',
@@ -193,7 +193,7 @@ class QuickSearchService
                 'label' => 'Годы',
                 'items' => $years->map(static fn (Year $item) => [
                     'type' => 'years',
-                    'title' => $item->name,
+                    'title' => TaxonomyRegistry::displayName($item),
                     'subtitle' => 'Сериалы года',
                     'url' => '/year/' . rawurlencode($item->slug) . '/',
                     'image' => '',
@@ -215,7 +215,7 @@ class QuickSearchService
                 'label' => 'Студии',
                 'items' => $studios->map(static fn (Studio $item) => [
                     'type' => 'studios',
-                    'title' => $item->title,
+                    'title' => TaxonomyRegistry::displayName($item),
                     'subtitle' => 'Студия',
                     'url' => '/studios/' . $item->slug . '/',
                     'image' => $item->logo_url ?? '',
@@ -237,7 +237,7 @@ class QuickSearchService
                 'label' => 'Подборки',
                 'items' => $collections->map(static fn (Collection $item) => [
                     'type' => 'collections',
-                    'title' => $item->title,
+                    'title' => TaxonomyRegistry::displayName($item),
                     'subtitle' => 'Подборка',
                     'url' => '/collections/' . $item->slug . '/',
                     'image' => $item->cover_url ?? '',

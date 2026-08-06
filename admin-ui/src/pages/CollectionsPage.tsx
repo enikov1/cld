@@ -2,8 +2,7 @@ import { CopyOutlined, DeleteOutlined, EditOutlined, ExportOutlined } from '@ant
 import { Button, Col, Empty, Form, Input, InputNumber, Modal, Popconfirm, Row, Select, Space, Switch, Table, Tag, Tooltip, Typography, Upload, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { api } from '../api/client'
-import { apiUpload } from '../api/upload'
+import { api, apiUpload } from '../api/client'
 import TemplateCodeEditor from '../components/TemplateCodeEditor'
 import { useAdminTheme } from '../theme/useAdminTheme'
 import type { CollectionItem, CollectionSeriesItem, SeriesItem, StudioItem } from '../types'
@@ -46,11 +45,17 @@ function mergeSeriesOptions(
 export default function CollectionsPage() {
   const { isDark } = useAdminTheme()
   const [collections, setCollections] = useState<CollectionItem[]>([])
+  const [collectionsTotal, setCollectionsTotal] = useState(0)
+  const [collectionsPage, setCollectionsPage] = useState(1)
+  const [collectionsPerPage, setCollectionsPerPage] = useState(50)
+  const [collectionsQuery, setCollectionsQuery] = useState('')
+  const [collectionsSearch, setCollectionsSearch] = useState('')
   const [studios, setStudios] = useState<StudioItem[]>([])
   const [series, setSeries] = useState<SeriesItem[]>([])
   const [activeSlug, setActiveSlug] = useState<string>('')
   const [items, setItems] = useState<CollectionSeriesItem[]>([])
   const [loading, setLoading] = useState(false)
+  const [collectionsLoading, setCollectionsLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<CollectionItem | null>(null)
   const [addModalOpen, setAddModalOpen] = useState(false)
@@ -96,10 +101,24 @@ export default function CollectionsPage() {
     [studios],
   )
 
-  const loadCollections = useCallback(async () => {
-    const data = await api<{ items: CollectionItem[] }>('/api/admin/collections')
-    setCollections(data.items)
-  }, [])
+  const loadCollections = useCallback(async (page = collectionsPage, perPage = collectionsPerPage, q = collectionsQuery) => {
+    setCollectionsLoading(true)
+    try {
+      const params = new URLSearchParams()
+      params.set('page', String(page))
+      params.set('per_page', String(perPage))
+      if (q.trim()) params.set('q', q.trim())
+      const data = await api<{ items: CollectionItem[]; total: number; page: number; per_page: number }>(
+        `/api/admin/collections?${params}`,
+      )
+      setCollections(data.items)
+      setCollectionsTotal(data.total)
+      setCollectionsPage(data.page)
+      setCollectionsPerPage(data.per_page)
+    } finally {
+      setCollectionsLoading(false)
+    }
+  }, [collectionsPage, collectionsPerPage, collectionsQuery])
 
   const loadSeries = useCallback(async () => {
     const data = await api<{ items: SeriesItem[] }>('/api/admin/series?per_page=2000')
@@ -123,13 +142,13 @@ export default function CollectionsPage() {
   }, [])
 
   const loadCollectionSeriesIds = useCallback(async (slug: string) => {
-    const data = await api<{ series_ids: number[] }>(`/api/admin/collections/${slug}/items`)
-    return data.series_ids ?? []
+    const data = await api<{ series_ids: number[]; manual_series_ids?: number[] }>(`/api/admin/collections/${slug}/items`)
+    return data.manual_series_ids ?? data.series_ids ?? []
   }, [])
 
   useEffect(() => {
-    Promise.all([loadCollections(), loadSeries(), loadStudios()]).catch((e) => message.error(String((e as Error).message)))
-  }, [loadCollections, loadSeries, loadStudios])
+    Promise.all([loadCollections(1, collectionsPerPage, ''), loadSeries(), loadStudios()]).catch((e) => message.error(String((e as Error).message)))
+  }, [loadSeries, loadStudios]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     loadItems(activeSlug)
@@ -174,7 +193,7 @@ export default function CollectionsPage() {
   async function saveCollection(values: Record<string, unknown>) {
     try {
       const payload = editing ? { ...values, id: editing.id } : values
-      const res = await api<{ item: CollectionItem; series_ids?: number[]; auto_sync?: { added: number; removed: number } }>(
+      const res = await api<{ item: CollectionItem; series_ids?: number[]; manual_series_ids?: number[]; auto_sync?: { added: number; removed: number } }>(
         '/api/admin/collections/upsert',
         {
           method: 'POST',
@@ -212,7 +231,7 @@ export default function CollectionsPage() {
         const seriesIds = await loadCollectionSeriesIds(slug)
         form.setFieldValue('series_ids', seriesIds)
       }
-      await loadItems(slug)
+      await Promise.all([loadItems(slug), loadCollections()])
     } catch (e) {
       message.error(String((e as Error).message))
     } finally {
@@ -236,7 +255,7 @@ export default function CollectionsPage() {
       }
       setAddModalOpen(false)
       addForm.resetFields()
-      await loadItems(activeSlug)
+      await Promise.all([loadItems(activeSlug), loadCollections()])
     } catch (e) {
       message.error(String((e as Error).message))
     }
@@ -247,7 +266,7 @@ export default function CollectionsPage() {
     try {
       await api(`/api/admin/collections/${activeSlug}/items/${encodeURIComponent(seriesKey)}`, { method: 'DELETE' })
       message.success('Сериал удалён из подборки')
-      await loadItems(activeSlug)
+      await Promise.all([loadItems(activeSlug), loadCollections()])
     } catch (e) {
       message.error(String((e as Error).message))
     }
@@ -404,7 +423,12 @@ export default function CollectionsPage() {
         </div>
       ),
     },
-    { title: '#', dataIndex: 'sort_order', key: 'sort_order', width: 48 },
+    {
+      title: '#',
+      key: 'items_count',
+      width: 56,
+      render: (_, row) => row.items_count ?? 0,
+    },
     {
       title: 'Метки',
       key: 'badges',
@@ -549,7 +573,7 @@ export default function CollectionsPage() {
 
   return (
     <Row gutter={[16, 16]} className="collections-page">
-      <Col xs={24} xl={11}>
+      <Col xs={24} xl={13}>
         <div className="admin-page-card collections-page__list">
           <div className="admin-toolbar collections-page__toolbar">
             <div className="collections-page__toolbar-title">
@@ -557,6 +581,17 @@ export default function CollectionsPage() {
               <Typography.Text type="secondary">/collections/{'{slug}'}/</Typography.Text>
             </div>
             <Space wrap className="collections-page__toolbar-actions">
+              <Input.Search
+                allowClear
+                placeholder="Поиск по названию или slug"
+                value={collectionsSearch}
+                onChange={(e) => setCollectionsSearch(e.target.value)}
+                onSearch={(value) => {
+                  setCollectionsQuery(value)
+                  void loadCollections(1, collectionsPerPage, value)
+                }}
+                style={{ width: 220 }}
+              />
               <Button onClick={() => void openPromptModal()}>Промпт для ИИ</Button>
               <Button onClick={openImportModal}>Импорт из ИИ</Button>
               <Button type="primary" onClick={openCreate}>Создать</Button>
@@ -564,9 +599,19 @@ export default function CollectionsPage() {
           </div>
           <Table
             rowKey="id"
+            loading={collectionsLoading}
             columns={collectionColumns}
             dataSource={collections}
-            pagination={false}
+            pagination={{
+              current: collectionsPage,
+              pageSize: collectionsPerPage,
+              total: collectionsTotal,
+              showSizeChanger: true,
+              pageSizeOptions: ['20', '50', '100'],
+              onChange: (page, pageSize) => {
+                void loadCollections(page, pageSize, collectionsQuery)
+              },
+            }}
             size="small"
             scroll={{ x: 680 }}
             onRow={(row) => ({
@@ -577,7 +622,7 @@ export default function CollectionsPage() {
         </div>
       </Col>
 
-      <Col xs={24} xl={13}>
+      <Col xs={24} xl={11}>
         <div className="admin-page-card">
           {!activeSlug ? (
             <Empty description="Выберите подборку слева" />
@@ -665,9 +710,9 @@ export default function CollectionsPage() {
             <Select allowClear options={studioOptions} placeholder="Не выбрана" />
           </Form.Item>
           <Form.Item
-            label="Сериалы"
+            label="Сериалы (вручную)"
             name="series_ids"
-            extra="Ручной выбор сериалов в подборке. Автоматически добавленные сериалы тоже отображаются здесь."
+            extra="Только ручные позиции. Автодобавленные по ключевым словам сохраняются отдельно и здесь не редактируются."
           >
             <Select
               mode="multiple"

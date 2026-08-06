@@ -14,6 +14,7 @@ class AdminSeriesFilter
     {
         return [
             'q' => trim((string)$request->query('q', '')),
+            'id' => self::nullableInt($request, 'id'),
             'kp_id' => self::nullableString($request, 'kp_id'),
             'with_trashed' => $request->boolean('with_trashed'),
             'content_type' => self::nullableString($request, 'content_type'),
@@ -59,6 +60,10 @@ class AdminSeriesFilter
                     ->orWhere('imdb_id', 'like', '%' . $q . '%')
                     ->orWhere('tmdb_id', 'like', '%' . $q . '%');
             });
+        }
+
+        if (!empty($params['id'])) {
+            $query->where('id', (int) $params['id']);
         }
 
         $kpId = trim((string)($params['kp_id'] ?? ''));

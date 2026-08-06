@@ -35,10 +35,10 @@ import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import dayjs from 'dayjs'
-import { api } from '../api/client'
-import { apiUpload } from '../api/upload'
+import { api, apiUpload } from '../api/client'
 import SeriesPlayersEditor, { type SeriesPlayersEditorHandle } from '../components/SeriesPlayersEditor'
 import SeriesLookupSearch from '../components/SeriesLookupSearch'
+import { useSeriesDeepLink } from '../hooks/useSeriesDeepLink'
 import SeriesScheduleEditor, { type SeriesScheduleEditorHandle } from '../components/SeriesScheduleEditor'
 import type { CollectionItem, SeriesItem, StudioItem, TaxonomyOption } from '../types'
 import { BROADCAST_STATUSES, CONTENT_TYPES } from '../types'
@@ -279,7 +279,6 @@ function seriesToFormValues(item: SeriesItem): Record<string, unknown> {
 
 export default function SeriesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const deepLinkHandled = useRef(false)
   const [items, setItems] = useState<SeriesItem[]>([])
   const [studios, setStudios] = useState<StudioItem[]>([])
   const [collections, setCollections] = useState<CollectionItem[]>([])
@@ -464,42 +463,6 @@ export default function SeriesPage() {
       .catch((e) => message.error(String((e as Error).message)))
   }, [])
 
-  useEffect(() => {
-    if (deepLinkHandled.current) {
-      return
-    }
-
-    const kpId = searchParams.get('kp_id')?.trim()
-    if (!kpId) {
-      return
-    }
-
-    deepLinkHandled.current = true
-
-    ;(async () => {
-      try {
-        const params = new URLSearchParams()
-        params.set('kp_id', kpId)
-        params.set('with_trashed', '1')
-        params.set('per_page', '1')
-        const data = await api<{ items: SeriesItem[] }>(`/api/admin/series?${params}`)
-        const item = data.items.find((row) => row.kp_id === kpId)
-        if (!item) {
-          message.warning('Сериал не найден')
-          return
-        }
-
-        openEdit(item)
-
-        const next = new URLSearchParams(searchParams)
-        next.delete('kp_id')
-        setSearchParams(next, { replace: true })
-      } catch (e) {
-        message.error(String((e as Error).message))
-      }
-    })()
-  }, [searchParams, setSearchParams])
-
   function applyFilters() {
     loadSeries(1, perPage)
   }
@@ -529,14 +492,16 @@ export default function SeriesPage() {
     setDrawerOpen(true)
   }
 
-  function openEdit(row: SeriesItem) {
+  const openEdit = useCallback((row: SeriesItem) => {
     setEditing(row)
     setDrawerTab('main')
     setMainSubTab('basic')
     form.setFieldsValue(seriesToFormValues(row))
     setDrawerOpen(true)
     void loadStudios()
-  }
+  }, [form, loadStudios])
+
+  useSeriesDeepLink({ searchParams, setSearchParams, openEdit })
 
   async function applyImportedItem(item: SeriesItem) {
     const currentDescription = String(form.getFieldValue('description') ?? '').trim()

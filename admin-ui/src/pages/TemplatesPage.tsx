@@ -3,9 +3,7 @@ import {
   DeleteOutlined,
   EditOutlined,
   FileAddOutlined,
-  FileTextOutlined,
   FolderAddOutlined,
-  FolderOutlined,
   MoreOutlined,
   ReloadOutlined,
   SaveOutlined,
@@ -35,6 +33,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, apiUpload } from '../api/client'
 import TplDocsPanel from '../components/TplDocsPanel'
 import TemplateCodeEditor from '../components/TemplateCodeEditor'
+import {
+  isImageFile,
+  isSvgFile,
+  templateFileIcon,
+  templateFileKind,
+} from '../components/templateFileIcons'
 import type { TplEditorHandle } from '../components/tplEditorUtils'
 import type { ThemeItem } from '../types'
 import type { TplDocsPayload } from '../types/tplDocs'
@@ -73,9 +77,57 @@ function joinThemePath(parent: string, name: string): string {
   return `${cleanParent}/${cleanName}`
 }
 
+function parentThemePath(path: string): string {
+  if (!path.includes('/')) return ''
+  return path.slice(0, path.lastIndexOf('/'))
+}
+
+function baseThemeName(path: string): string {
+  return path.includes('/') ? path.slice(path.lastIndexOf('/') + 1) : path
+}
+
+function remapThemePath(path: string, from: string, to: string): string {
+  if (path === from) return to
+  if (path.startsWith(`${from}/`)) return `${to}${path.slice(from.length)}`
+  return path
+}
+
 function isAllowedUploadName(name: string): boolean {
   const ext = name.split('.').pop()?.toLowerCase() ?? ''
   return ALLOWED_UPLOAD_EXT.includes(ext)
+}
+
+type DropTreeNode = DataNode & { isLeaf?: boolean; pos?: string; expanded?: boolean }
+
+function resolveDropTargetPath(
+  dragKey: string,
+  dropNode: DropTreeNode,
+  dropPosition: number,
+  dropToGap?: boolean,
+): string | null {
+  if (!dragKey || dragKey === 'layout.tpl') return null
+
+  const dropKey = String(dropNode.key)
+  const dropPos = (dropNode.pos ?? '0').split('-')
+  const relativePos = dropPosition - Number(dropPos[dropPos.length - 1])
+
+  let targetDir: string
+  if (!dropToGap) {
+    targetDir = dropNode.isLeaf ? parentThemePath(dropKey) : dropKey
+  } else if (!dropNode.isLeaf && dropNode.expanded && relativePos === 1) {
+    // Ant Design: нижний gap у раскрытой папки = внутрь папки
+    targetDir = dropKey
+  } else {
+    targetDir = parentThemePath(dropKey)
+  }
+
+  if (targetDir === dragKey || targetDir.startsWith(`${dragKey}/`)) {
+    return null
+  }
+
+  const to = joinThemePath(targetDir, baseThemeName(dragKey))
+  if (to === dragKey || to === 'layout.tpl') return null
+  return to
 }
 
 function toTreeData(nodes: TemplateTreeNode[]): DataNode[] {
@@ -83,9 +135,28 @@ function toTreeData(nodes: TemplateTreeNode[]): DataNode[] {
     key: node.key,
     title: node.title,
     isLeaf: node.isLeaf,
-    icon: node.isLeaf ? <FileTextOutlined /> : <FolderOutlined />,
+    icon: templateFileIcon(node.path ?? node.key, !node.isLeaf),
     children: node.children ? toTreeData(node.children) : undefined,
   }))
+}
+
+function useLiveSvgPreview(content: string, enabled: boolean): string | null {
+  const [url, setUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!enabled) {
+      setUrl(null)
+      return
+    }
+    const blob = new Blob([content || '<svg xmlns="http://www.w3.org/2000/svg"/>'], {
+      type: 'image/svg+xml;charset=utf-8',
+    })
+    const objectUrl = URL.createObjectURL(blob)
+    setUrl(objectUrl)
+    return () => URL.revokeObjectURL(objectUrl)
+  }, [content, enabled])
+
+  return url
 }
 
 function findTreeNode(nodes: TemplateTreeNode[], key: string): TemplateTreeNode | null {
@@ -121,6 +192,7 @@ export default function TemplatesPage() {
   const [renameForm] = Form.useForm<{ to: string }>()
   const [renameFrom, setRenameFrom] = useState('')
   const [docs, setDocs] = useState<TplDocsPayload | null>(null)
+  const [cssClasses, setCssClasses] = useState<string[]>([])
   const [expandedKeys, setExpandedKeys] = useState<string[]>([])
   const editorRef = useRef<TplEditorHandle | null>(null)
   const uploadInputRef = useRef<HTMLInputElement | null>(null)
@@ -129,6 +201,15 @@ export default function TemplatesPage() {
 
   const isDirty = selectedPath !== null && content !== savedContent
   const isTplFile = selectedPath?.endsWith('.tpl') ?? false
+  const isSvg = isSvgFile(selectedPath)
+  const isRasterImage = templateFileKind(selectedPath) === 'image'
+  const isFontFile = templateFileKind(selectedPath) === 'font'
+  const liveSvgPreview = useLiveSvgPreview(content, isSvg && !binaryPreviewUrl)
+  const imagePreviewUrl = isSvg
+    ? liveSvgPreview
+    : binaryPreviewUrl && isRasterImage
+      ? binaryPreviewUrl
+      : null
   const activeTreeNode = activeTreeKey ? findTreeNode(tree, activeTreeKey) : null
   const activeIsFolder = activeTreeNode ? !activeTreeNode.isLeaf : false
   const defaultTargetDir = activeIsFolder ? activeTreeKey ?? '' : (activeTreeKey?.includes('/') ? activeTreeKey.slice(0, activeTreeKey.lastIndexOf('/')) : '')
@@ -142,6 +223,21 @@ export default function TemplatesPage() {
     const query = path ? `?path=${encodeURIComponent(path)}` : ''
     const data = await api<TplDocsPayload>(`/api/admin/templates/docs${query}`)
     setDocs(data)
+  }, [])
+
+  const loadCssClasses = useCallback(async (themeName: string) => {
+    if (!themeName) {
+      setCssClasses([])
+      return
+    }
+    try {
+      const data = await api<{ classes: string[] }>(
+        `/api/admin/templates/css-classes?theme=${encodeURIComponent(themeName)}`,
+      )
+      setCssClasses(data.classes ?? [])
+    } catch {
+      setCssClasses([])
+    }
   }, [])
 
   const loadThemes = useCallback(async () => {
@@ -194,7 +290,8 @@ export default function TemplatesPage() {
   useEffect(() => {
     if (!theme) return
     loadTree(theme).catch((err: Error) => message.error(err.message))
-  }, [theme, loadTree])
+    void loadCssClasses(theme)
+  }, [theme, loadTree, loadCssClasses])
 
   const treeData = useMemo(() => toTreeData(tree), [tree])
 
@@ -319,6 +416,57 @@ export default function TemplatesPage() {
     }
   }, [loadFile, loadTree, renameForm, renameFrom, selectedPath, theme])
 
+  const moveEntry = useCallback(
+    async (from: string, to: string) => {
+      if (!theme || from === to) return
+      try {
+        await api('/api/admin/templates/rename', {
+          method: 'POST',
+          body: JSON.stringify({ theme, from, to }),
+        })
+        message.success(`Перемещено → ${to}`)
+        await loadTree(theme)
+
+        setExpandedKeys((prev) => {
+          const next = prev.map((key) => remapThemePath(key, from, to))
+          const parent = parentThemePath(to)
+          if (parent && !next.includes(parent)) next.push(parent)
+          return [...new Set(next)]
+        })
+
+        if (selectedPath === from || selectedPath?.startsWith(`${from}/`)) {
+          const nextPath = remapThemePath(selectedPath, from, to)
+          if (binaryPreviewUrl) {
+            await loadFile(theme, nextPath)
+          } else {
+            setSelectedPath(nextPath)
+            setActiveTreeKey(nextPath)
+          }
+        } else if (activeTreeKey === from || activeTreeKey?.startsWith(`${from}/`)) {
+          setActiveTreeKey(remapThemePath(activeTreeKey, from, to))
+        }
+      } catch (err) {
+        message.error(err instanceof Error ? err.message : 'Не удалось переместить')
+      }
+    },
+    [activeTreeKey, binaryPreviewUrl, loadFile, loadTree, selectedPath, theme],
+  )
+
+  const onTreeDrop = useCallback(
+    (info: {
+      node: DropTreeNode
+      dragNode: DropTreeNode
+      dropPosition: number
+      dropToGap?: boolean
+    }) => {
+      const from = String(info.dragNode.key)
+      const to = resolveDropTargetPath(from, info.node, info.dropPosition, info.dropToGap)
+      if (!to) return
+      void moveEntry(from, to)
+    },
+    [moveEntry],
+  )
+
   const uploadFile = useCallback(
     async (file: File, targetDir = '') => {
       if (!theme) return
@@ -335,7 +483,12 @@ export default function TemplatesPage() {
         const res = await apiUpload<{ ok: boolean; path: string }>('/api/admin/templates/file/upload', formData)
         message.success(`Файл загружен: ${res.path}`)
         await loadTree(theme)
-        if (res.path.endsWith('.tpl') || res.path.endsWith('.css') || res.path.endsWith('.js') || res.path.endsWith('.svg')) {
+        if (
+          res.path.endsWith('.tpl') ||
+          res.path.endsWith('.css') ||
+          res.path.endsWith('.js') ||
+          isImageFile(res.path)
+        ) {
           await loadFile(theme, res.path)
         } else {
           setActiveTreeKey(res.path)
@@ -521,6 +674,12 @@ export default function TemplatesPage() {
             {treeData.length ? (
               <Tree
                 showIcon
+                blockNode
+                draggable={{ icon: false, nodeDraggable: (node) => String(node.key) !== 'layout.tpl' }}
+                allowDrop={({ dropNode, dropPosition }) => {
+                  if (dropPosition === 0) return !dropNode.isLeaf
+                  return true
+                }}
                 treeData={treeData}
                 expandedKeys={expandedKeys}
                 selectedKeys={activeTreeKey ? [activeTreeKey] : []}
@@ -546,12 +705,14 @@ export default function TemplatesPage() {
                           className="template-tree-node__menu"
                           icon={<MoreOutlined />}
                           onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
                         />
                       </Dropdown>
                     </span>
                   )
                 }}
                 onExpand={(keys) => setExpandedKeys(keys as string[])}
+                onDrop={onTreeDrop}
                 onSelect={(_, info) => {
                   const node = info.node as DataNode & { isLeaf?: boolean }
                   const path = String(node.key)
@@ -578,7 +739,10 @@ export default function TemplatesPage() {
             title={
               selectedPath ? (
                 <Space wrap>
-                  <Typography.Text code>{selectedPath}</Typography.Text>
+                  <span className="template-editor__path">
+                    {templateFileIcon(selectedPath)}
+                    <Typography.Text code>{selectedPath}</Typography.Text>
+                  </span>
                   {isDirty ? <Tag color="orange">Не сохранено</Tag> : <Tag color="green">Сохранено</Tag>}
                 </Space>
               ) : (
@@ -609,7 +773,21 @@ export default function TemplatesPage() {
                     type="info"
                     showIcon
                     className="template-editor__hint"
-                    message="Подсказки: наберите { или [ для автодополнения. Tab/Enter — вставить тег."
+                    message="Подсказки: { и [ — TPL-теги, < — HTML-теги. В CSS — свойства. Ctrl+Space — показать."
+                  />
+                ) : isSvg ? (
+                  <Alert
+                    type="info"
+                    showIcon
+                    className="template-editor__hint"
+                    message="SVG: слева предпросмотр (обновляется при правках), справа исходный код."
+                  />
+                ) : isRasterImage || isFontFile ? (
+                  <Alert
+                    type="info"
+                    showIcon
+                    className="template-editor__hint"
+                    message="Бинарный файл. Чтобы заменить — удалите текущий и загрузите новый с тем же именем."
                   />
                 ) : (
                   <Alert type="info" showIcon className="template-editor__hint" message="Редактирование CSS, JS, SVG или изображений." />
@@ -619,15 +797,22 @@ export default function TemplatesPage() {
                     {formatBytes(fileMeta.size)} · изменён {new Date(fileMeta.modified_at).toLocaleString('ru-RU')}
                   </Typography.Text>
                 ) : null}
-                <div className="template-editor__editor">
-                  {binaryPreviewUrl ? (
+                <div className={`template-editor__editor${isSvg ? ' template-editor__editor--svg' : ''}`}>
+                  {imagePreviewUrl ? (
                     <div className="template-editor__preview">
-                      <img src={binaryPreviewUrl} alt={selectedPath} />
+                      <div className="template-editor__preview-frame">
+                        <img src={imagePreviewUrl} alt={selectedPath ?? ''} />
+                      </div>
+                    </div>
+                  ) : null}
+                  {isFontFile && binaryPreviewUrl ? (
+                    <div className="template-editor__preview template-editor__preview--binary">
                       <Typography.Paragraph type="secondary">
-                        Бинарный файл. Загрузите новую версию через «Загрузить» с тем же именем (предварительно удалите старый).
+                        Шрифт нельзя отредактировать в браузере. Замените файл через «Загрузить».
                       </Typography.Paragraph>
                     </div>
-                  ) : (
+                  ) : null}
+                  {!binaryPreviewUrl ? (
                     <TemplateCodeEditor
                       ref={editorRef}
                       value={content}
@@ -636,9 +821,11 @@ export default function TemplatesPage() {
                       hints={isTplFile && docs ? docs.hints : []}
                       contexts={hintContexts}
                       hintsPrefiltered={Boolean(docs?.active_contexts?.length)}
+                      cssClasses={cssClasses}
                       isDark={isDark}
+                      height={isSvg ? '360px' : '420px'}
                     />
-                  )}
+                  ) : null}
                 </div>
               </Spin>
             )}

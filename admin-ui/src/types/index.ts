@@ -117,6 +117,7 @@ export type CollectionItem = {
   studio_id?: number | null
   auto_add_enabled?: boolean
   auto_keywords?: string[] | null
+  items_count?: number
 }
 
 export type StudioItem = {
@@ -135,6 +136,7 @@ export type StudioItem = {
   is_active: boolean
   is_hidden: boolean
   noindex: boolean
+  items_count?: number
 }
 
 export type StudioSeriesItem = {

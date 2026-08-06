@@ -1,12 +1,20 @@
-import { Button, Col, Empty, Form, Input, InputNumber, Modal, Popconfirm, Row, Select, Switch, Table, Tag, Tooltip, Typography, Upload, message } from 'antd'
+import { CopyOutlined, DeleteOutlined, EditOutlined, ExportOutlined } from '@ant-design/icons'
+import { Button, Col, Empty, Form, Input, InputNumber, Modal, Popconfirm, Row, Select, Space, Switch, Table, Tag, Tooltip, Typography, Upload, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { api } from '../api/client'
-import { apiUpload } from '../api/upload'
+import { api, apiUpload } from '../api/client'
 import TemplateCodeEditor from '../components/TemplateCodeEditor'
 import { useAdminTheme } from '../theme/useAdminTheme'
 import type { SeriesItem, StudioItem, StudioSeriesItem } from '../types'
-import { resolveMediaUrl } from '../utils/mediaUrl'
+import { resolveMediaUrl, siteOrigin } from '../utils/mediaUrl'
+
+function studioPublicPath(slug: string): string {
+  return `/studios/${slug}/`
+}
+
+function studioPublicUrl(slug: string): string {
+  return `${siteOrigin()}${studioPublicPath(slug)}`
+}
 
 function StudioLogoPreview({
   url,
@@ -168,7 +176,7 @@ export default function StudiosPage() {
       }
       setAddModalOpen(false)
       addForm.resetFields()
-      await loadItems(activeSlug)
+      await Promise.all([loadItems(activeSlug), loadStudios()])
     } catch (e) {
       message.error(String((e as Error).message))
     }
@@ -179,9 +187,32 @@ export default function StudiosPage() {
     try {
       await api(`/api/admin/studios/${activeSlug}/items/${encodeURIComponent(seriesKey)}`, { method: 'DELETE' })
       message.success('Сериал удалён из студии')
-      await loadItems(activeSlug)
+      await Promise.all([loadItems(activeSlug), loadStudios()])
     } catch (e) {
       message.error(String((e as Error).message))
+    }
+  }
+
+  async function removeStudio(row: StudioItem) {
+    try {
+      await api(`/api/admin/studios/${encodeURIComponent(row.slug)}`, { method: 'DELETE' })
+      message.success('Студия удалена')
+      if (activeSlug === row.slug) {
+        setActiveSlug('')
+        setItems([])
+      }
+      await loadStudios()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
+  }
+
+  async function copyStudioLink(slug: string) {
+    try {
+      await navigator.clipboard.writeText(studioPublicUrl(slug))
+      message.success('Ссылка скопирована')
+    } catch {
+      message.error('Не удалось скопировать')
     }
   }
 
@@ -192,8 +223,26 @@ export default function StudiosPage() {
       width: 72,
       render: (_, row) => <StudioLogoPreview url={row.logo_url} />,
     },
-    { title: 'Slug (URL)', dataIndex: 'slug', key: 'slug', width: 160, render: (slug) => `/studios/${slug}/` },
-    { title: 'Название', dataIndex: 'title', key: 'title' },
+    {
+      title: 'Название',
+      dataIndex: 'title',
+      key: 'title',
+      ellipsis: true,
+      render: (title, row) => (
+        <div>
+          <div>{title}</div>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            {studioPublicPath(row.slug)}
+          </Typography.Text>
+        </div>
+      ),
+    },
+    {
+      title: '#',
+      key: 'items_count',
+      width: 56,
+      render: (_, row) => row.items_count ?? 0,
+    },
     { title: 'Порядок', dataIndex: 'sort_order', width: 80 },
     {
       title: 'SEO',
@@ -221,18 +270,50 @@ export default function StudiosPage() {
     },
     {
       title: '',
-      key: 'edit',
-      width: 90,
+      key: 'actions',
+      width: 144,
+      fixed: 'right',
       render: (_, row) => (
-        <Button
-          size="small"
-          onClick={(e) => {
-            e.stopPropagation()
-            openEdit(row)
-          }}
-        >
-          Изменить
-        </Button>
+        <Space size={4} onClick={(e) => e.stopPropagation()}>
+          <Tooltip title="Открыть на сайте">
+            <Button
+              size="small"
+              icon={<ExportOutlined />}
+              href={studioPublicUrl(row.slug)}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Открыть на сайте"
+            />
+          </Tooltip>
+          <Tooltip title="Скопировать ссылку">
+            <Button
+              size="small"
+              icon={<CopyOutlined />}
+              onClick={() => void copyStudioLink(row.slug)}
+              aria-label="Скопировать ссылку"
+            />
+          </Tooltip>
+          <Tooltip title="Изменить">
+            <Button
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => openEdit(row)}
+              aria-label="Изменить"
+            />
+          </Tooltip>
+          <Popconfirm
+            title="Удалить студию?"
+            description={`«${row.title}» и все сериалы в ней будут отвязаны.`}
+            onConfirm={() => void removeStudio(row)}
+            okText="Удалить"
+            cancelText="Отмена"
+            okButtonProps={{ danger: true }}
+          >
+            <Tooltip title="Удалить">
+              <Button size="small" danger icon={<DeleteOutlined />} aria-label="Удалить" />
+            </Tooltip>
+          </Popconfirm>
+        </Space>
       ),
     },
   ]
@@ -258,8 +339,8 @@ export default function StudiosPage() {
   const logoSlug = editing?.slug || form.getFieldValue('slug')
 
   return (
-    <Row gutter={[16, 16]}>
-      <Col xs={24} xl={10}>
+    <Row gutter={[16, 16]} className="studios-page">
+      <Col xs={24} xl={13}>
         <div className="admin-page-card">
           <div className="admin-toolbar">
             <span>Студии — URL: /studios/{'{slug}'}/</span>
@@ -271,6 +352,7 @@ export default function StudiosPage() {
             dataSource={studios}
             pagination={false}
             size="small"
+            scroll={{ x: 860 }}
             onRow={(row) => ({
               onClick: () => setActiveSlug(row.slug),
               style: { cursor: 'pointer', background: row.slug === activeSlug ? '#e6f4ff' : undefined },
@@ -279,7 +361,7 @@ export default function StudiosPage() {
         </div>
       </Col>
 
-      <Col xs={24} xl={14}>
+      <Col xs={24} xl={11}>
         <div className="admin-page-card">
           {!activeSlug ? (
             <Empty description="Выберите студию слева" />
@@ -303,12 +385,40 @@ export default function StudiosPage() {
                   ) : null}
                   <div>
                     <strong>{activeStudio?.title}</strong>
-                    <div className="admin-empty-hint">/studios/{activeSlug}/</div>
+                    <div className="admin-empty-hint">{studioPublicPath(activeSlug)}</div>
                   </div>
                 </div>
-                <Button type="primary" onClick={() => setAddModalOpen(true)} disabled={!series.length}>
-                  Добавить сериалы
-                </Button>
+                <Space wrap>
+                  <Tooltip title="Открыть на сайте">
+                    <Button
+                      icon={<ExportOutlined />}
+                      href={studioPublicUrl(activeSlug)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      На сайте
+                    </Button>
+                  </Tooltip>
+                  <Button icon={<CopyOutlined />} onClick={() => void copyStudioLink(activeSlug)}>
+                    Ссылка
+                  </Button>
+                  <Button onClick={() => activeStudio && openEdit(activeStudio)}>Изменить</Button>
+                  {activeStudio ? (
+                    <Popconfirm
+                      title="Удалить студию?"
+                      description={`«${activeStudio.title}» будет удалена без возможности восстановления.`}
+                      onConfirm={() => void removeStudio(activeStudio)}
+                      okText="Удалить"
+                      cancelText="Отмена"
+                      okButtonProps={{ danger: true }}
+                    >
+                      <Button danger icon={<DeleteOutlined />}>Удалить</Button>
+                    </Popconfirm>
+                  ) : null}
+                  <Button type="primary" onClick={() => setAddModalOpen(true)} disabled={!series.length}>
+                    Добавить сериалы
+                  </Button>
+                </Space>
               </div>
               <Table rowKey="id" loading={loading} columns={itemColumns} dataSource={items} pagination={false} size="small" />
             </>

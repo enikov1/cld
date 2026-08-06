@@ -1,4 +1,4 @@
-import { Button, Form, Input, Modal, Segmented, Space, Table, Tag, message } from 'antd'
+import { Button, Form, Input, Modal, Popconfirm, Segmented, Space, Table, Tag, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -6,6 +6,7 @@ import { api } from '../api/client'
 import type { AdminStats, CommentItem } from '../types'
 import { ADMIN_ROUTES } from '../routes/adminRoutes'
 import { siteOrigin } from '../utils/mediaUrl'
+import { seriesPublicPath } from '../utils/seriesPublicPath'
 
 const statusLabels: Record<string, string> = {
   all: 'Все',
@@ -25,13 +26,6 @@ function formatDateTime(value: string | null | undefined): string {
     hour: '2-digit',
     minute: '2-digit',
   })
-}
-
-function seriesPublicPath(item: NonNullable<CommentItem['series']>): string {
-  const yearNum = Number(item.year || item.start_year || 0)
-  const year = yearNum >= 1900 && yearNum <= 2100 ? String(yearNum) : '0000'
-  const slug = (item.slug || '').trim() || 'series'
-  return `/${item.id}-${slug}-${year}.html`
 }
 
 function userAdminPath(user: NonNullable<CommentItem['user']>): string {
@@ -225,9 +219,11 @@ export default function CommentsPage() {
               {r.is_pinned ? 'Открепить' : 'Закрепить'}
             </Button>
           ) : null}
-          <Button size="small" danger onClick={() => remove(r.id)}>
-            Удалить
-          </Button>
+          <Popconfirm title="Удалить комментарий?" onConfirm={() => remove(r.id)} okText="Удалить" cancelText="Отмена" okButtonProps={{ danger: true }}>
+            <Button size="small" danger>
+              Удалить
+            </Button>
+          </Popconfirm>
         </Space>
       ),
     },

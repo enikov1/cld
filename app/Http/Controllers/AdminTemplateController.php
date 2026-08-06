@@ -52,11 +52,11 @@ class AdminTemplateController extends Controller
         $data = $request->validate([
             'theme' => ['required', 'string', 'regex:/^[a-zA-Z0-9_-]+$/'],
             'path' => ['required', 'string', 'max:500'],
-            'content' => ['required', 'string'],
+            'content' => ['nullable', 'string'],
         ]);
 
         try {
-            $result = ThemeTemplateService::writeFile($data['theme'], $data['path'], $data['content']);
+            $result = ThemeTemplateService::writeFile($data['theme'], $data['path'], (string) ($data['content'] ?? ''));
             TplCache::bumpGlobalVersion();
 
             return response()->json(array_merge(['ok' => true], $result));
@@ -161,5 +161,19 @@ class AdminTemplateController extends Controller
         $path = (string)$request->query('path', '');
 
         return response()->json(TplDocumentation::payloadForAdmin($path));
+    }
+
+    public function cssClasses(Request $request)
+    {
+        $theme = (string)$request->query('theme', ThemeManager::activeName());
+
+        try {
+            return response()->json([
+                'theme' => $theme,
+                'classes' => ThemeTemplateService::listCssClasses($theme),
+            ]);
+        } catch (InvalidArgumentException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
     }
 }

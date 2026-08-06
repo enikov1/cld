@@ -9,6 +9,7 @@ use App\Models\Year;
 use App\Support\CatalogFilterService;
 use App\Support\PaginationHelper;
 use App\Support\Speedbar;
+use App\Support\TaxonomyRegistry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 
@@ -91,7 +92,7 @@ class TaxonomyController extends TplController
             'taxonomy_type' => $type,
             'taxonomy_slug' => $item->slug,
             'page' => [
-                'heading' => $item->name,
+                'heading' => TaxonomyRegistry::displayName($item),
                 'lead' => $item->meta_description ?? '',
             ],
             'series_list' => PaginationHelper::mapSeries($paginator->items()),
@@ -123,12 +124,12 @@ class TaxonomyController extends TplController
 
         $metaTitle = trim((string)($item->meta_title ?? ''));
         if ($metaTitle === '') {
-            $metaTitle = $item->name . ' — смотреть онлайн бесплатно';
+            $metaTitle = TaxonomyRegistry::displayName($item) . ' — смотреть онлайн бесплатно';
         }
 
         $metaDescription = trim((string)($item->meta_description ?? ''));
         if ($metaDescription === '') {
-            $metaDescription = 'Сериалы: ' . $item->name;
+            $metaDescription = 'Сериалы: ' . TaxonomyRegistry::displayName($item);
         }
 
         $meta = [

@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\AdminCollectionController;
 use App\Http\Controllers\AdminNavController;
+use App\Http\Controllers\AdminStudioController;
 use App\Http\Controllers\AdminTemplateController;
 use App\Http\Controllers\AdminHomeSectionController;
 use App\Http\Controllers\AdminReactionController;
@@ -13,11 +15,9 @@ use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AdminCacheController;
 use App\Http\Controllers\AdminSystemController;
 use App\Models\Collection;
-use App\Models\CollectionItem;
 use App\Models\CronRun;
 use App\Models\Series;
 use App\Models\Studio;
-use App\Models\StudioItem;
 use App\Services\KinoPoiskConfig;
 use App\Services\AllohaConfig;
 use App\Services\AllohaAutoSyncSettings;
@@ -32,15 +32,12 @@ use App\Support\AdminAccess;
 use App\Support\AdminPath;
 use App\Support\CommentBody;
 use App\Support\CommentModeration;
+use App\Support\EncryptedSiteSecret;
 use App\Support\RobotsTxt;
 use App\Support\SiteConfig;
-use App\Support\SlugHelper;
 use App\Support\ThemeManager;
 use App\Support\TplCache;
 use App\Support\Utf8;
-use App\Services\ImageOptimizer;
-use App\Services\PosterContext;
-use App\Services\PosterStorage;
 use App\Services\BrandingStorage;
 use App\Services\BackupSettings;
 use App\Services\BackupService;
@@ -64,17 +61,17 @@ Route::get('/site/admin-path', function () {
     ]);
 });
 
-Route::middleware('admin.token')->prefix('admin')->group(function () {
+Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group(function () {
     Route::post('/site-access', function () {
         $cookie = AdminAccess::makeCookie();
         $response = response()->json(['ok' => true]);
 
         return $cookie ? $response->withCookie($cookie) : $response;
-    });
+    })->middleware('throttle:admin-auth');
 
     Route::delete('/site-access', function () {
         return response()->json(['ok' => true])->withCookie(AdminAccess::forgetCookie());
-    });
+    })->middleware('throttle:admin-auth');
 
     Route::get('/stats', function () {
         return response()->json([
@@ -99,7 +96,7 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
     });
 
     Route::get('/cache', [AdminCacheController::class, 'info']);
-    Route::post('/cache/clear', [AdminCacheController::class, 'clear']);
+    Route::post('/cache/clear', [AdminCacheController::class, 'clear'])->middleware('throttle:admin-destructive');
     Route::get('/system', [AdminSystemController::class, 'info']);
 
     Route::get('/cron-runs', function (Request $request) {
@@ -271,445 +268,26 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
     Route::post('/templates/file/upload', [AdminTemplateController::class, 'upload']);
     Route::delete('/templates/file', [AdminTemplateController::class, 'destroy']);
     Route::get('/templates/docs', [AdminTemplateController::class, 'docs']);
-
-    Route::get('/collections', function () {
-        return response()->json([
-            'items' => Collection::query()->catalogOrder()->limit(100)->get(),
-        ]);
-    });
-
-    Route::get('/collections/ai-prompt', function () {
-        $result = app(\App\Services\CollectionAiPromptService::class)->build();
-
-        return response()->json(['ok' => true, ...$result]);
-    });
-
-    Route::post('/collections/ai-import', function (Request $request) {
-        $data = $request->validate([
-            'payload' => ['required', 'string', 'max:500000'],
-            'dry_run' => ['nullable', 'boolean'],
-        ]);
-
-        $result = app(\App\Services\CollectionAiImportService::class)->import(
-            (string) $data['payload'],
-            (bool) ($data['dry_run'] ?? true),
-        );
-
-        $status = $result['ok'] || ($result['items'] !== [] || $result['skipped'] !== []) ? 200 : 422;
-
-        return response()->json($result, $status);
-    });
-
-    Route::post('/collections/upsert', function (Request $request) {
-        $data = $request->validate([
-            'id' => ['nullable', 'integer', 'exists:collections,id'],
-            'slug' => ['nullable', 'string', 'regex:/^[a-z0-9\-]*$/'],
-            'title' => ['required', 'string'],
-            'studio_id' => ['nullable', 'integer', 'exists:studios,id'],
-            'meta_title' => ['nullable', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'meta_description' => ['nullable', 'string'],
-            'seo_html' => ['nullable', 'string', 'max:65535'],
-            'cover_url' => ['nullable', 'string'],
-            'home_banner_url' => ['nullable', 'string'],
-            'sort_order' => ['nullable', 'integer'],
-            'is_pinned' => ['nullable', 'boolean'],
-            'show_on_home' => ['nullable', 'boolean'],
-            'source_updated_at' => ['nullable', 'date'],
-            'is_active' => ['nullable', 'boolean'],
-            'is_hidden' => ['nullable', 'boolean'],
-            'noindex' => ['nullable', 'boolean'],
-            'auto_add_enabled' => ['nullable', 'boolean'],
-            'auto_keywords' => ['nullable'],
-            'series_ids' => ['nullable', 'array'],
-            'series_ids.*' => ['integer', 'exists:series,id'],
-        ]);
-
-        $matcher = app(\App\Services\CollectionAutoMatcher::class);
-        $keywordsChanged = false;
-
-        $manual = trim((string)($data['slug'] ?? ''));
-        $collection = !empty($data['id'])
-            ? Collection::query()->findOrFail($data['id'])
-            : null;
-
-        if ($collection) {
-            $slug = $collection->slug;
-            $oldKeywords = $matcher->parseKeywords($collection->auto_keywords);
-            $newKeywords = array_key_exists('auto_keywords', $data)
-                ? $matcher->parseKeywords($data['auto_keywords'])
-                : $oldKeywords;
-            $keywordsChanged = $oldKeywords !== $newKeywords
-                || (array_key_exists('auto_add_enabled', $data) && (bool) $data['auto_add_enabled'] !== (bool) $collection->auto_add_enabled);
-        } elseif ($manual !== '') {
-            $slug = \Illuminate\Support\Str::slug($manual);
-        } else {
-            $slug = SlugHelper::makeUnique(
-                null,
-                $data['title'],
-                fn (string $candidate) => Collection::query()->where('slug', $candidate)->exists()
-            );
-        }
-
-        if (!$collection && Collection::query()->where('slug', $slug)->exists()) {
-            return response()->json(['ok' => false, 'error' => 'Slug already taken'], 422);
-        }
-
-        $attrs = [
-            'title' => $data['title'],
-            'studio_id' => $data['studio_id'] ?? null,
-            'meta_title' => $data['meta_title'] ?? null,
-            'description' => $data['description'] ?? null,
-            'meta_description' => $data['meta_description'] ?? null,
-            'seo_html' => isset($data['seo_html']) ? str_replace("\r\n", "\n", (string)$data['seo_html']) : null,
-            'cover_url' => $data['cover_url'] ?? null,
-            'home_banner_url' => $data['home_banner_url'] ?? null,
-            'sort_order' => $data['sort_order'] ?? 0,
-            'is_pinned' => $data['is_pinned'] ?? false,
-            'show_on_home' => $data['show_on_home'] ?? false,
-            'is_active' => $data['is_active'] ?? true,
-            'is_hidden' => $data['is_hidden'] ?? false,
-            'noindex' => $data['noindex'] ?? false,
-        ];
-
-        if (array_key_exists('auto_add_enabled', $data)) {
-            $attrs['auto_add_enabled'] = (bool) $data['auto_add_enabled'];
-        } elseif (!$collection) {
-            $attrs['auto_add_enabled'] = false;
-        }
-
-        if (array_key_exists('auto_keywords', $data)) {
-            $parsed = $matcher->parseKeywords($data['auto_keywords']);
-            $attrs['auto_keywords'] = $parsed !== [] ? $parsed : null;
-        }
-
-        if ($collection) {
-            $collection->update($attrs);
-        } else {
-            $collection = Collection::query()->create(array_merge($attrs, [
-                'slug' => $slug,
-                'source_updated_at' => $data['source_updated_at'] ?? now(),
-            ]));
-            $keywordsChanged = !empty($attrs['auto_add_enabled']) && !empty($attrs['auto_keywords']);
-        }
-
-        if (array_key_exists('series_ids', $data)) {
-            $matcher->syncExplicitMembership($collection, $data['series_ids'] ?? []);
-        }
-
-        $autoSync = ['added' => 0, 'removed' => 0];
-        if ($keywordsChanged) {
-            $autoSync = $matcher->refreshAutoItems($collection->fresh());
-        }
-
-        \App\Support\TplCache::bumpGlobalVersion();
-
-        $seriesIds = CollectionItem::query()
-            ->where('collection_id', $collection->id)
-            ->orderBy('rank_order')
-            ->pluck('series_id')
-            ->map(fn ($id) => (int) $id)
-            ->values()
-            ->all();
-
-        return response()->json([
-            'ok' => true,
-            'item' => $collection->fresh(),
-            'series_ids' => $seriesIds,
-            'auto_sync' => $autoSync,
-        ]);
-    });
-
-    Route::post('/collections/{collection_slug}/auto-sync', function (string $collection_slug) {
-        $collection = Collection::query()->where('slug', $collection_slug)->firstOrFail();
-        $result = app(\App\Services\CollectionAutoMatcher::class)->refreshAutoItems($collection);
-
-        \App\Support\TplCache::bumpGlobalVersion();
-
-        return response()->json(['ok' => true, ...$result]);
-    });
-
-    Route::post('/collections/{slug}/cover', function (Request $request, string $slug) {
-        $maxKb = (int)ceil(app(ImageOptimizer::class)->maxUploadBytes() / 1024);
-
-        $request->validate([
-            'cover' => ['required', 'file', 'image', 'max:' . $maxKb],
-            'title' => ['nullable', 'string', 'max:255'],
-            'variant' => ['nullable', 'string', 'in:cover,banner'],
-        ]);
-
-        $variant = $request->input('variant', 'cover');
-        $isBanner = $variant === 'banner';
-        $slugInput = in_array($slug, ['_draft', 'new'], true) ? '' : $slug;
-        $normalizedSlug = SlugHelper::make(
-            $slugInput,
-            trim((string) $request->input('title', '')),
-        );
-
-        $collection = Collection::query()->where('slug', $normalizedSlug)->first();
-        $contextVariant = $isBanner ? 'banner' : null;
-        $url = app(PosterStorage::class)->storeFromUpload(
-            $request->file('cover'),
-            $collection
-                ? PosterContext::forCollection($collection, $contextVariant)
-                : PosterContext::forCollectionSlug($normalizedSlug, $contextVariant),
-        );
-
-        if ($collection) {
-            if ($isBanner) {
-                $collection->home_banner_url = $url;
-            } else {
-                $collection->cover_url = $url;
-            }
-            $collection->save();
-        }
-
-        return response()->json([
-            'ok' => true,
-            'cover_url' => $isBanner ? null : $url,
-            'home_banner_url' => $isBanner ? $url : null,
-            'slug' => $normalizedSlug,
-            'item' => $collection,
-        ]);
-    });
-
-    Route::get('/collections/{collection_slug}/items', function (string $collection_slug) {
-        $collection = Collection::query()->where('slug', $collection_slug)->firstOrFail();
-
-        return response()->json([
-            'items' => CollectionItem::query()
-                ->where('collection_id', $collection->id)
-                ->with('series:id,kp_id,tmdb_id,title,slug,year')
-                ->orderBy('rank_order')
-                ->get()
-                ->map(fn (CollectionItem $item) => [
-                    'id' => $item->id,
-                    'collection_id' => $item->collection_id,
-                    'series_id' => $item->series_id,
-                    'rank_order' => $item->rank_order,
-                    'is_auto' => (bool) $item->is_auto,
-                    'series' => $item->series,
-                ]),
-            'series_ids' => CollectionItem::query()
-                ->where('collection_id', $collection->id)
-                ->orderBy('rank_order')
-                ->pluck('series_id')
-                ->map(fn ($id) => (int) $id)
-                ->values()
-                ->all(),
-            'manual_series_ids' => CollectionItem::query()
-                ->where('collection_id', $collection->id)
-                ->where('is_auto', false)
-                ->orderBy('rank_order')
-                ->pluck('series_id')
-                ->map(fn ($id) => (int) $id)
-                ->values()
-                ->all(),
-        ]);
-    });
-
-    Route::post('/collections/{collection_slug}/items', function (Request $request, string $collection_slug) {
-        $data = $request->validate([
-            'items' => ['required', 'array'],
-            'items.*.series_id' => ['nullable', 'integer'],
-            'items.*.kp_id' => ['nullable', 'string'],
-            'items.*.tmdb_id' => ['nullable', 'string'],
-            'items.*.rank_order' => ['nullable', 'integer'],
-        ]);
-
-        $collection = Collection::query()->where('slug', $collection_slug)->firstOrFail();
-        $added = 0;
-        $skipped = 0;
-
-        foreach ($data['items'] as $idx => $item) {
-            $series = \App\Support\SeriesItemResolver::fromItem($item);
-            if (!$series) {
-                $skipped++;
-                continue;
-            }
-
-            CollectionItem::query()->updateOrCreate(
-                ['collection_id' => $collection->id, 'series_id' => $series->id],
-                ['rank_order' => $item['rank_order'] ?? (int) $idx, 'is_auto' => false]
-            );
-            $added++;
-        }
-
-        return response()->json(['ok' => true, 'added' => $added, 'skipped' => $skipped]);
-    });
-
-    Route::delete('/collections/{collection_slug}/items/{seriesKey}', function (string $collection_slug, string $seriesKey) {
-        $collection = Collection::query()->where('slug', $collection_slug)->firstOrFail();
-        $series = \App\Support\AdminSeriesResolver::byKey($seriesKey);
-
-        CollectionItem::query()
-            ->where('collection_id', $collection->id)
-            ->where('series_id', $series->id)
-            ->delete();
-
-        return response()->json(['ok' => true]);
-    });
-
-    Route::delete('/collections/{collection_slug}', function (string $collection_slug) {
-        $collection = Collection::query()->where('slug', $collection_slug)->firstOrFail();
-        $collection->delete();
-
-        \App\Support\TplCache::bumpGlobalVersion();
-
-        return response()->json(['ok' => true]);
-    });
-
-    Route::get('/studios', function () {
-        return response()->json([
-            'items' => Studio::query()->catalogOrder()->limit(2000)->get(),
-        ]);
-    });
-
-    Route::post('/studios/upsert', function (Request $request) {
-        $data = $request->validate([
-            'id' => ['nullable', 'integer', 'exists:studios,id'],
-            'slug' => ['nullable', 'string', 'regex:/^[a-z0-9\-]*$/'],
-            'title' => ['required', 'string'],
-            'meta_title' => ['nullable', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'meta_description' => ['nullable', 'string'],
-            'seo_html' => ['nullable', 'string', 'max:65535'],
-            'logo_url' => ['nullable', 'string'],
-            'tmdb_id' => ['nullable', 'integer', 'min:1'],
-            'tmdb_type' => ['nullable', 'string', Rule::in(['movie', 'tv', 'company'])],
-            'sort_order' => ['nullable', 'integer'],
-            'is_pinned' => ['nullable', 'boolean'],
-            'is_active' => ['nullable', 'boolean'],
-            'is_hidden' => ['nullable', 'boolean'],
-            'noindex' => ['nullable', 'boolean'],
-        ]);
-
-        $manual = trim((string)($data['slug'] ?? ''));
-        $studio = !empty($data['id'])
-            ? Studio::query()->findOrFail($data['id'])
-            : null;
-
-        if ($studio) {
-            $slug = $studio->slug;
-        } elseif ($manual !== '') {
-            $slug = \Illuminate\Support\Str::slug($manual);
-        } else {
-            $slug = \App\Support\SlugHelper::makeUnique(
-                null,
-                $data['title'],
-                fn (string $candidate) => Studio::query()->where('slug', $candidate)->exists()
-            );
-        }
-
-        if (!$studio && Studio::query()->where('slug', $slug)->exists()) {
-            return response()->json(['ok' => false, 'error' => 'Slug already taken'], 422);
-        }
-
-        $attrs = [
-            'title' => $data['title'],
-            'meta_title' => $data['meta_title'] ?? null,
-            'description' => $data['description'] ?? null,
-            'meta_description' => $data['meta_description'] ?? null,
-            'seo_html' => isset($data['seo_html']) ? str_replace("\r\n", "\n", (string)$data['seo_html']) : null,
-            'logo_url' => $data['logo_url'] ?? null,
-            'tmdb_id' => $data['tmdb_id'] ?? null,
-            'tmdb_type' => $data['tmdb_type'] ?? null,
-            'sort_order' => $data['sort_order'] ?? 0,
-            'is_pinned' => $data['is_pinned'] ?? false,
-            'is_active' => $data['is_active'] ?? true,
-            'is_hidden' => $data['is_hidden'] ?? false,
-            'noindex' => $data['noindex'] ?? false,
-        ];
-
-        if ($studio) {
-            $studio->update($attrs);
-        } else {
-            $studio = Studio::query()->create(array_merge($attrs, [
-                'slug' => $slug,
-            ]));
-        }
-
-        TplCache::bumpGlobalVersion();
-
-        return response()->json(['ok' => true, 'item' => $studio->fresh()]);
-    });
-
-    Route::post('/studios/{slug}/logo', function (Request $request, string $slug) {
-        $maxKb = (int)ceil(app(ImageOptimizer::class)->maxUploadBytes() / 1024);
-
-        $request->validate([
-            'logo' => ['required', 'file', 'image', 'max:' . $maxKb],
-        ]);
-
-        $studio = Studio::query()->where('slug', $slug)->firstOrFail();
-        $url = app(PosterStorage::class)->storeFromUpload(
-            $request->file('logo'),
-            PosterContext::forStudio($studio),
-        );
-        $studio->logo_url = $url;
-        $studio->save();
-
-        return response()->json(['ok' => true, 'logo_url' => $url, 'item' => $studio]);
-    });
-
-    Route::get('/studios/{studio_slug}/items', function (string $studio_slug) {
-        $studio = Studio::query()->where('slug', $studio_slug)->firstOrFail();
-
-        return response()->json([
-            'items' => StudioItem::query()
-                ->where('studio_id', $studio->id)
-                ->with('series:id,kp_id,tmdb_id,title,slug,year')
-                ->orderBy('rank_order')
-                ->get(),
-        ]);
-    });
-
-    Route::post('/studios/{studio_slug}/items', function (Request $request, string $studio_slug) {
-        $data = $request->validate([
-            'items' => ['required', 'array'],
-            'items.*.series_id' => ['nullable', 'integer'],
-            'items.*.kp_id' => ['nullable', 'string'],
-            'items.*.tmdb_id' => ['nullable', 'string'],
-            'items.*.rank_order' => ['nullable', 'integer'],
-        ]);
-
-        $studio = Studio::query()->where('slug', $studio_slug)->firstOrFail();
-        $added = 0;
-        $skipped = 0;
-
-        foreach ($data['items'] as $idx => $item) {
-            $series = \App\Support\SeriesItemResolver::fromItem($item);
-            if (!$series) {
-                $skipped++;
-                continue;
-            }
-
-            StudioItem::query()->updateOrCreate(
-                ['studio_id' => $studio->id, 'series_id' => $series->id],
-                ['rank_order' => $item['rank_order'] ?? (int) $idx]
-            );
-
-            if (!$series->studio_id) {
-                $series->studio_id = $studio->id;
-                $series->save();
-            }
-            $added++;
-        }
-
-        return response()->json(['ok' => true, 'added' => $added, 'skipped' => $skipped]);
-    });
-
-    Route::delete('/studios/{studio_slug}/items/{seriesKey}', function (string $studio_slug, string $seriesKey) {
-        $studio = Studio::query()->where('slug', $studio_slug)->firstOrFail();
-        $series = \App\Support\AdminSeriesResolver::byKey($seriesKey);
-
-        StudioItem::query()
-            ->where('studio_id', $studio->id)
-            ->where('series_id', $series->id)
-            ->delete();
-
-        return response()->json(['ok' => true]);
-    });
+    Route::get('/templates/css-classes', [AdminTemplateController::class, 'cssClasses']);
+
+    Route::get('/collections', [AdminCollectionController::class, 'index']);
+    Route::get('/collections/ai-prompt', [AdminCollectionController::class, 'aiPrompt']);
+    Route::post('/collections/ai-import', [AdminCollectionController::class, 'aiImport']);
+    Route::post('/collections/upsert', [AdminCollectionController::class, 'upsert']);
+    Route::post('/collections/{collection_slug}/auto-sync', [AdminCollectionController::class, 'autoSync']);
+    Route::post('/collections/{slug}/cover', [AdminCollectionController::class, 'uploadCover']);
+    Route::get('/collections/{collection_slug}/items', [AdminCollectionController::class, 'items']);
+    Route::post('/collections/{collection_slug}/items', [AdminCollectionController::class, 'saveItems']);
+    Route::delete('/collections/{collection_slug}/items/{seriesKey}', [AdminCollectionController::class, 'destroyItem']);
+    Route::delete('/collections/{collection_slug}', [AdminCollectionController::class, 'destroy']);
+
+    Route::get('/studios', [AdminStudioController::class, 'index']);
+    Route::post('/studios/upsert', [AdminStudioController::class, 'upsert']);
+    Route::post('/studios/{slug}/logo', [AdminStudioController::class, 'uploadLogo']);
+    Route::get('/studios/{studio_slug}/items', [AdminStudioController::class, 'items']);
+    Route::post('/studios/{studio_slug}/items', [AdminStudioController::class, 'saveItems']);
+    Route::delete('/studios/{studio_slug}/items/{seriesKey}', [AdminStudioController::class, 'destroyItem']);
+    Route::delete('/studios/{studio_slug}', [AdminStudioController::class, 'destroy']);
 
     Route::get('/comments', function (Request $request) {
         $status = $request->query('status', 'approved');
@@ -942,6 +520,25 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
             'settings.*.value' => ['nullable', 'string'],
         ]);
 
+        $allowedKeys = array_values(array_unique(array_merge(
+            SiteConfig::managedKeys(),
+            [
+                'active_theme',
+                'site_background_header_offset',
+                'site_background_color',
+                'site_background_hide_mobile',
+                'site_logo_url',
+                'site_background_url',
+                'site_favicon_url',
+                KinoPoiskConfig::SETTING_KEY,
+                AllohaConfig::SETTING_KEY,
+                TmdbConfig::SETTING_KEY,
+                AdminPath::SETTING_KEY,
+                CommentModeration::SETTING_KEY,
+                RobotsTxt::SETTING_KEY,
+            ],
+        )));
+
         $oldTheme = \App\Models\SiteSetting::get('active_theme');
         $previousAdminPath = AdminPath::path();
         $themeChanged = false;
@@ -952,25 +549,20 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
             $key = $row['key'];
             $value = $row['value'] ?? null;
 
-            if ($key === KinoPoiskConfig::SETTING_KEY) {
-                $value = trim((string)($value ?? ''));
-                if ($value === '') {
-                    continue;
-                }
+            if (!in_array($key, $allowedKeys, true)) {
+                continue;
             }
 
-            if ($key === AllohaConfig::SETTING_KEY) {
-                $value = trim((string)($value ?? ''));
+            if ($key === KinoPoiskConfig::SETTING_KEY
+                || $key === AllohaConfig::SETTING_KEY
+                || $key === TmdbConfig::SETTING_KEY
+            ) {
+                $value = trim((string) ($value ?? ''));
                 if ($value === '') {
                     continue;
                 }
-            }
-
-            if ($key === TmdbConfig::SETTING_KEY) {
-                $value = trim((string)($value ?? ''));
-                if ($value === '') {
-                    continue;
-                }
+                EncryptedSiteSecret::set($key, $value);
+                continue;
             }
 
             if ($key === AdminPath::SETTING_KEY) {
@@ -1461,7 +1053,7 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
             's3_secret_set' => BackupSettings::hasS3Secret(),
             'remote_configured' => BackupSettings::isRemoteConfigured(),
         ]);
-    });
+    })->middleware('throttle:admin-destructive');
 
     Route::post('/backup/test-connection', function (BackupRemoteStorage $remote) {
         try {
@@ -1471,7 +1063,7 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
         } catch (\Throwable $e) {
             return response()->json(['ok' => false, 'error' => (string)Utf8::sanitize($e->getMessage())], 422);
         }
-    });
+    })->middleware('throttle:admin-destructive');
 
     Route::post('/backup/run', function () {
         try {
@@ -1503,7 +1095,7 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
 
             return response()->json(['ok' => false, 'error' => (string)Utf8::sanitize($e->getMessage())], 500);
         }
-    });
+    })->middleware('throttle:admin-destructive');
 
     Route::post('/backup/restore', function (Request $request, BackupService $backup) {
         $data = $request->validate([
@@ -1511,7 +1103,15 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
             'source' => ['required', 'string', Rule::in(['local', 'remote'])],
             'restore_database' => ['nullable', 'boolean'],
             'restore_files' => ['nullable', 'boolean'],
+            'confirm_token' => ['required', 'string', 'max:500'],
         ]);
+
+        if (!AdminAccess::matchesMasterToken($data['confirm_token'])) {
+            return response()->json([
+                'ok' => false,
+                'error' => 'Для восстановления подтвердите ADMIN_TOKEN',
+            ], 403);
+        }
 
         try {
             $run = CronRunLogger::run(
@@ -1546,6 +1146,6 @@ Route::middleware('admin.token')->prefix('admin')->group(function () {
 
             return response()->json(['ok' => false, 'error' => (string)Utf8::sanitize($e->getMessage())], 500);
         }
-    });
+    })->middleware('throttle:admin-destructive');
 });
 

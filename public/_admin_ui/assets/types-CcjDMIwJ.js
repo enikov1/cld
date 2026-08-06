@@ -1,0 +1,1 @@
+var e=[{value:`ongoing`,label:`Идёт`},{value:`paused`,label:`На паузе`},{value:`completed`,label:`Завершён`}],t=[{value:`film`,label:`Фильм`},{value:`series`,label:`Сериал`},{value:`cartoon`,label:`Мультфильм`},{value:`cartoon_series`,label:`Мультсериал`},{value:`anime`,label:`Аниме`},{value:`dorama`,label:`Дорама`},{value:`tv_show`,label:`ТВ-шоу`}];export{t as n,e as t};

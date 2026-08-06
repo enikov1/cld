@@ -41,12 +41,21 @@ class SeriesCardMapper
             $season = $progress['season_number'];
             $episode = $progress['last_episode_number'];
 
+            $shortDescription = trim((string)($s->short_description ?? ''));
+            if ($shortDescription === '') {
+                $shortDescription = trim((string)($s->description ?? ''));
+            }
+            if (mb_strlen($shortDescription) > 280) {
+                $shortDescription = rtrim(mb_substr($shortDescription, 0, 277)) . '…';
+            }
+
             $out[] = [
                 'id' => $id,
                 'slug' => $s->slug,
                 'url' => SeriesUrl::path($s),
                 'poster_url' => $s->poster_url ?? '',
                 'title' => $s->title,
+                'short_description' => $shortDescription,
                 'year' => $s->year,
                 'kp_rating' => $s->kp_rating,
                 'imdb_rating' => $s->imdb_rating,

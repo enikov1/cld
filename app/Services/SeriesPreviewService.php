@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\Series;
 use App\Support\SeriesUrl;
+use App\Support\TaxonomyRegistry;
+use App\Support\Utf8;
 
 class SeriesPreviewService
 {
@@ -40,9 +42,9 @@ class SeriesPreviewService
             $badges[] = ['text' => 'IMDb ' . $series->imdb_rating, 'mod' => 'imdb'];
         }
 
-        $genresText = $series->genres->pluck('name')->implode(', ');
-        $directorsText = $series->directors->take(self::PEOPLE_LIMIT)->pluck('name')->implode(', ');
-        $actorsText = $series->actors->take(self::PEOPLE_LIMIT)->pluck('name')->implode(', ');
+        $genresText = $series->genres->map(fn ($g) => TaxonomyRegistry::displayName($g))->implode(', ');
+        $directorsText = $series->directors->take(self::PEOPLE_LIMIT)->map(fn ($p) => Utf8::ucfirst($p->name))->implode(', ');
+        $actorsText = $series->actors->take(self::PEOPLE_LIMIT)->map(fn ($p) => Utf8::ucfirst($p->name))->implode(', ');
         $ageLimitLabel = $series->ageLimitLabel() ?? '';
 
         return [

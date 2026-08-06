@@ -1,4 +1,4 @@
-import { Button, Drawer, Select, Space, Table, Tag, Typography, message } from 'antd'
+import { Button, Drawer, Popconfirm, Select, Space, Table, Tag, Typography, message } from 'antd'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api/client'
@@ -139,6 +139,17 @@ export default function CronRunsPage() {
     }
   }
 
+  async function removeRun(id: number) {
+    try {
+      await api(`/api/admin/cron-runs/${id}`, { method: 'DELETE' })
+      message.success('Запись удалена')
+      if (detail?.id === id) setDetail(null)
+      await load()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
+  }
+
   const columns: ColumnsType<CronRunItem> = [
     { title: 'ID', dataIndex: 'id', width: 70 },
     {
@@ -185,11 +196,24 @@ export default function CronRunsPage() {
     {
       title: '',
       key: 'actions',
-      width: 110,
+      width: 200,
       render: (_, r) => (
-        <Button size="small" onClick={() => void openDetail(r.id)}>
-          Подробнее
-        </Button>
+        <Space>
+          <Button size="small" onClick={() => void openDetail(r.id)}>
+            Подробнее
+          </Button>
+          <Popconfirm
+            title="Удалить запись из истории?"
+            onConfirm={() => void removeRun(r.id)}
+            okText="Удалить"
+            cancelText="Отмена"
+            okButtonProps={{ danger: true }}
+          >
+            <Button size="small" danger>
+              Удалить
+            </Button>
+          </Popconfirm>
+        </Space>
       ),
     },
   ]

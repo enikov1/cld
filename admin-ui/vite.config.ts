@@ -7,10 +7,21 @@ const ADMIN_SECTIONS = new Set([
   'taxonomy',
   'series',
   'collections',
+  'studios',
   'comments',
+  'player-reports',
+  'cron-runs',
   'users',
+  'search-stats',
   'settings',
+  'templates',
   'sync',
+  'alloha-sync',
+  'backup',
+  'nav-menu',
+  'home-sections',
+  'reactions',
+  'categories',
 ])
 
 async function fetchAdminPath(): Promise<string> {
@@ -80,7 +91,8 @@ export default defineConfig(async ({ command }) => {
     plugins: [react(), adminDevPlugin(adminPath)],
     base,
     build: {
-      outDir: '../public/admin',
+      // Not public/admin — that directory shadows the default /admin SPA route in Apache.
+      outDir: '../public/_admin_ui',
       emptyOutDir: true,
     },
     server: {

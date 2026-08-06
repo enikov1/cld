@@ -269,9 +269,13 @@ export default function HomeSectionsPage() {
   }
 
   async function remove(id: number) {
-    await api(`/api/admin/home-sections/${id}`, { method: 'DELETE' })
-    message.success('Секция удалена')
-    await load()
+    try {
+      await api(`/api/admin/home-sections/${id}`, { method: 'DELETE' })
+      message.success('Секция удалена')
+      await load()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
   }
 
   async function move(id: number, direction: -1 | 1) {
@@ -284,11 +288,15 @@ export default function HomeSectionsPage() {
     next[index] = next[target]
     next[target] = tmp
 
-    await api('/api/admin/home-sections/reorder', {
-      method: 'POST',
-      body: JSON.stringify({ ids: next.map((i) => i.id) }),
-    })
-    await load()
+    try {
+      await api('/api/admin/home-sections/reorder', {
+        method: 'POST',
+        body: JSON.stringify({ ids: next.map((i) => i.id) }),
+      })
+      await load()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
   }
 
   const columns: ColumnsType<HomeSectionItem> = [

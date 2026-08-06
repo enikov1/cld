@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\SiteSetting;
+use App\Support\EncryptedSiteSecret;
 
 class AllohaConfig
 {
@@ -10,12 +10,12 @@ class AllohaConfig
 
     public static function apiToken(): string
     {
-        $fromSettings = trim((string)SiteSetting::get(self::SETTING_KEY, ''));
+        $fromSettings = trim(EncryptedSiteSecret::get(self::SETTING_KEY));
         if ($fromSettings !== '') {
             return $fromSettings;
         }
 
-        return trim((string)config('alloha.api_token', ''));
+        return trim((string) config('alloha.api_token', ''));
     }
 
     public static function isConfigured(): bool

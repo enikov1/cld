@@ -60,6 +60,7 @@ export default function BackupPage() {
   const [restoring, setRestoring] = useState(false)
   const [restoreDatabase, setRestoreDatabase] = useState(true)
   const [restoreFiles, setRestoreFiles] = useState(true)
+  const [restoreConfirmToken, setRestoreConfirmToken] = useState('')
   const [form] = Form.useForm()
 
   const load = useCallback(async () => {
@@ -162,12 +163,17 @@ export default function BackupPage() {
     setRestoreTarget(target)
     setRestoreDatabase(true)
     setRestoreFiles(true)
+    setRestoreConfirmToken('')
   }
 
   async function confirmRestore() {
     if (!restoreTarget) return
     if (!restoreDatabase && !restoreFiles) {
       message.warning('Выберите, что восстанавливать')
+      return
+    }
+    if (!restoreConfirmToken.trim()) {
+      message.warning('Введите ADMIN_TOKEN для подтверждения')
       return
     }
 
@@ -180,10 +186,12 @@ export default function BackupPage() {
           source: restoreTarget.source,
           restore_database: restoreDatabase,
           restore_files: restoreFiles,
+          confirm_token: restoreConfirmToken.trim(),
         }),
       })
       message.success(res.message || 'Восстановление завершено')
       setRestoreTarget(null)
+      setRestoreConfirmToken('')
       await load()
     } catch (e) {
       message.error(String((e as Error).message))
@@ -506,15 +514,24 @@ export default function BackupPage() {
         <Modal
           title="Восстановление из бэкапа"
           open={restoreTarget !== null}
-          onCancel={() => setRestoreTarget(null)}
+          onCancel={() => {
+            setRestoreTarget(null)
+            setRestoreConfirmToken('')
+          }}
           onOk={() => void confirmRestore()}
           okText="Восстановить"
           cancelText="Отмена"
-          okButtonProps={{ danger: true, loading: restoring }}
+          okButtonProps={{ danger: true, loading: restoring, disabled: !restoreConfirmToken.trim() }}
           confirmLoading={restoring}
         >
           {restoreTarget ? (
             <Space direction="vertical" style={{ width: '100%' }}>
+              <Alert
+                type="warning"
+                showIcon
+                message="Опасная операция"
+                description="Восстановление перезапишет базу и/или файлы сайта. Потребуется повторный ввод ADMIN_TOKEN."
+              />
               <Typography.Text>
                 Архив: <Typography.Text code>{restoreTarget.name}</Typography.Text>
               </Typography.Text>
@@ -527,6 +544,12 @@ export default function BackupPage() {
               <Checkbox checked={restoreFiles} onChange={(e) => setRestoreFiles(e.target.checked)}>
                 Восстановить файлы (загрузки и шаблоны)
               </Checkbox>
+              <Input.Password
+                value={restoreConfirmToken}
+                onChange={(e) => setRestoreConfirmToken(e.target.value)}
+                placeholder="ADMIN_TOKEN для подтверждения"
+                autoComplete="off"
+              />
             </Space>
           ) : null}
         </Modal>

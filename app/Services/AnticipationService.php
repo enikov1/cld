@@ -7,6 +7,7 @@ use App\Models\SeriesAnticipationVote;
 use App\Support\SeriesUrl;
 use App\Support\PluralRu;
 use App\Support\SiteConfig;
+use App\Support\TaxonomyRegistry;
 use App\Support\TplCache;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -162,7 +163,7 @@ class AnticipationService
     public static function mapCard(Series $series, int $rank, ?Request $request = null): array
     {
         $payload = self::payloadForSeries($series, $request);
-        $genres = $series->genres->pluck('name')->all();
+        $genres = $series->genres->map(static fn ($g) => TaxonomyRegistry::displayName($g))->all();
 
         return [
             'rank' => $rank,

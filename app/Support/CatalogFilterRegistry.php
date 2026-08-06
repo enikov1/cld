@@ -426,7 +426,7 @@ class CatalogFilterRegistry
         foreach ($items as $item) {
             $options[] = [
                 'value' => $item->slug,
-                'label' => $item->name,
+                'label' => TaxonomyRegistry::displayName($item),
                 'selected' => $selected === $item->slug,
             ];
         }
@@ -449,7 +449,7 @@ class CatalogFilterRegistry
         foreach ($items as $item) {
             $options[] = [
                 'value' => $item->slug,
-                'label' => $item->title,
+                'label' => TaxonomyRegistry::displayName($item),
                 'selected' => $selected === $item->slug,
             ];
         }

@@ -105,7 +105,7 @@ class TaxonomyRegistry
 
     public static function displayName(Model $item): string
     {
-        return (string)($item->name ?? $item->title ?? '');
+        return Utf8::ucfirst((string)($item->name ?? $item->title ?? ''));
     }
 
     public static function homeTitle(Model $item): string

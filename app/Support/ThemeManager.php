@@ -162,7 +162,7 @@ class ThemeManager
         $vars = ['name' => $name];
 
         $stylesheets = [];
-        foreach (['font-awesome.min.css', 'style.formated.css', 'new-dark.css', 'site.css'] as $file) {
+        foreach (['font-awesome.min.css', 'style.formated.css', 'new-dark.css', 'site.css', 'auth.css', 'theme-overrides.css'] as $file) {
             if (self::assetPath($file, $name)) {
                 $stylesheets[] = self::assetUrl($file, $name);
             }
@@ -184,6 +184,9 @@ class ThemeManager
         }
 
         $scripts = [];
+        if (self::assetPath('libs.js', $name)) {
+            $scripts[] = self::assetUrl('libs.js', $name);
+        }
         if (self::assetPath('site.js', $name)) {
             $scripts[] = self::assetUrl('site.js', $name);
         }

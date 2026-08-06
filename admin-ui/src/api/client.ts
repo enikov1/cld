@@ -30,15 +30,16 @@ function formatApiErrorMessage(data: Record<string, unknown>, fallback: string):
 }
 
 export async function api<T>(url: string, opts?: RequestInit): Promise<T> {
+  const { headers: optHeaders, ...restOpts } = opts ?? {}
   const res = await fetch(url, {
     credentials: 'same-origin',
+    ...restOpts,
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
       ...adminAuthHeaders(),
-      ...(opts?.headers ?? {}),
+      ...(optHeaders ?? {}),
     },
-    ...opts,
   })
 
   if (res.status === 401) {

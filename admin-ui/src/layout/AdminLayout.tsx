@@ -133,7 +133,7 @@ export default function AdminLayout({ isDark, onToggleTheme }: AdminLayoutProps)
     return () => {
       cancelled = true
     }
-  }, [location.pathname])
+  }, [])
 
   return (
     <Layout className="admin-shell">

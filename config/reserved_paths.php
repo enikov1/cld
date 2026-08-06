@@ -23,6 +23,7 @@ return [
         'skoro',
         'theme-assets',
         '_admin-assets',
+        '_admin_ui',
         'sitemap.xml',
         'robots.txt',
         'lander',

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ReactionType;
 use App\Models\SiteSetting;
 use App\Services\ReactionWidgetService;
+use App\Support\TplCache;
 use Illuminate\Http\Request;
 
 class AdminReactionController extends Controller
@@ -30,6 +31,7 @@ class AdminReactionController extends Controller
         SiteSetting::query()->updateOrCreate(['key' => 'reactions_enabled'], ['value' => $data['enabled'] ? '1' : '0']);
         SiteSetting::query()->updateOrCreate(['key' => 'reactions_badge'], ['value' => $data['badge']]);
         SiteSetting::query()->updateOrCreate(['key' => 'reactions_title'], ['value' => $data['title']]);
+        TplCache::bumpGlobalVersion();
 
         return response()->json(['ok' => true]);
     }
@@ -55,6 +57,7 @@ class AdminReactionController extends Controller
             'is_active' => $data['is_active'] ?? true,
         ]);
         $type->save();
+        TplCache::bumpGlobalVersion();
 
         return response()->json(['ok' => true, 'item' => $type]);
     }
@@ -62,6 +65,7 @@ class AdminReactionController extends Controller
     public function destroy(int $id)
     {
         ReactionType::query()->whereKey($id)->delete();
+        TplCache::bumpGlobalVersion();
 
         return response()->json(['ok' => true]);
     }
@@ -76,6 +80,7 @@ class AdminReactionController extends Controller
         foreach ($data['ids'] as $index => $id) {
             ReactionType::query()->whereKey($id)->update(['sort_order' => ($index + 1) * 10]);
         }
+        TplCache::bumpGlobalVersion();
 
         return response()->json(['ok' => true]);
     }

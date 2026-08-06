@@ -10,6 +10,7 @@ use App\Models\Year;
 use App\Support\SiteConfig;
 use App\Support\SlugHelper;
 use App\Support\TplCache;
+use App\Support\Utf8;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -195,8 +196,15 @@ class TaxonomyService
 
     private function findOrCreatePerson(string $name, ?string $photoUrl = null): ?Person
     {
+        $name = Utf8::ucfirst(trim($name));
+        if ($name === '') {
+            return null;
+        }
+
         /** @var Person|null $existing */
-        $existing = Person::query()->where('name', $name)->first();
+        $existing = Person::query()
+            ->whereIn('name', array_values(array_unique([$name, mb_strtolower($name)])))
+            ->first();
         if ($existing) {
             if ($photoUrl && !$existing->photo_url) {
                 $existing->photo_url = $this->storePersonPhoto($photoUrl, $existing->slug);
@@ -266,13 +274,15 @@ class TaxonomyService
      */
     public function findOrCreateByName(string $modelClass, string $name): ?Model
     {
-        $name = trim($name);
+        $name = Utf8::ucfirst(trim($name));
         if ($name === '') {
             return null;
         }
 
         /** @var Model|null $existing */
-        $existing = $modelClass::query()->where('name', $name)->first();
+        $existing = $modelClass::query()
+            ->whereIn('name', array_values(array_unique([$name, mb_strtolower($name)])))
+            ->first();
         if ($existing) {
             return $existing;
         }

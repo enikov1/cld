@@ -1,4 +1,4 @@
-import { Card, Col, Row, Statistic, Typography } from 'antd'
+import { Card, Col, Row, Statistic, Typography, message } from 'antd'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
@@ -8,11 +8,19 @@ import type { AdminStats } from '../types'
 export default function DashboardPage() {
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
     api<AdminStats>('/api/admin/stats')
-      .then(setStats)
-      .catch(() => setStats(null))
+      .then((data) => {
+        setStats(data)
+        setLoadError(false)
+      })
+      .catch((e) => {
+        setStats(null)
+        setLoadError(true)
+        message.error(String((e as Error).message || 'Не удалось загрузить статистику'))
+      })
       .finally(() => setLoading(false))
   }, [])
 
@@ -21,6 +29,10 @@ export default function DashboardPage() {
       <Typography.Paragraph type="secondary" style={{ marginBottom: 20 }}>
         Сводка по данным из базы. Контент добавляется через KinoPoisk sync или вручную в разделах ниже.
       </Typography.Paragraph>
+
+      {loadError ? (
+        <Typography.Paragraph type="danger">Не удалось загрузить статистику. Показаны нули.</Typography.Paragraph>
+      ) : null}
 
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
@@ -84,9 +96,17 @@ export default function DashboardPage() {
           <Card title="Быстрые действия">
             <Typography.Paragraph>
               <Link to={ADMIN_ROUTES.series}>Управление сериалами</Link>
+              {' · '}
+              <Link to={ADMIN_ROUTES.collections}>Подборки</Link>
+              {' · '}
+              <Link to={ADMIN_ROUTES.studios}>Студии</Link>
             </Typography.Paragraph>
             <Typography.Paragraph>
-              <Link to={ADMIN_ROUTES.studios}>Студии</Link>
+              <Link to={ADMIN_ROUTES['nav-menu']}>Меню</Link>
+              {' · '}
+              <Link to={ADMIN_ROUTES.templates}>Шаблоны</Link>
+              {' · '}
+              <Link to={ADMIN_ROUTES.settings}>Настройки</Link>
             </Typography.Paragraph>
             <Typography.Paragraph>
               <Link to={ADMIN_ROUTES['search-stats']}>Статистика поиска</Link>
@@ -97,9 +117,13 @@ export default function DashboardPage() {
             </Typography.Paragraph>
             <Typography.Paragraph>
               <Link to={ADMIN_ROUTES.users}>Пользователи сайта</Link>
+              {' · '}
+              <Link to={ADMIN_ROUTES.sync}>KinoPoisk</Link>
+              {' · '}
+              <Link to={ADMIN_ROUTES['alloha-sync']}>Alloha</Link>
             </Typography.Paragraph>
             <Typography.Paragraph style={{ marginBottom: 0 }}>
-              <Link to={ADMIN_ROUTES.settings}>Настройки сайта и шаблона</Link>
+              <Link to={ADMIN_ROUTES.backup}>Бэкапы</Link>
             </Typography.Paragraph>
           </Card>
         </Col>

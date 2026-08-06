@@ -41,4 +41,17 @@ final class Utf8
             $lines,
         );
     }
+
+    /**
+     * Capitalize the first character without changing the rest (Cyrillic-safe).
+     */
+    public static function ucfirst(?string $value): string
+    {
+        $value = trim((string)$value);
+        if ($value === '') {
+            return '';
+        }
+
+        return mb_strtoupper(mb_substr($value, 0, 1)) . mb_substr($value, 1);
+    }
 }

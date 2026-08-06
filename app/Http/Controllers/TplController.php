@@ -24,6 +24,16 @@ abstract class TplController extends Controller
         return $this->renderer()->render($tpl, array_merge($this->commonVars(), $vars));
     }
 
+    protected function themePartialExists(string $tpl): bool
+    {
+        $tpl = ltrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $tpl), DIRECTORY_SEPARATOR);
+        if (!str_ends_with(strtolower($tpl), '.tpl')) {
+            $tpl .= '.tpl';
+        }
+
+        return is_file(ThemeManager::activeBaseDir() . DIRECTORY_SEPARATOR . $tpl);
+    }
+
     /**
      * Attach speedbar HTML block and JSON-LD breadcrumbs to template vars.
      *
@@ -191,6 +201,9 @@ abstract class TplController extends Controller
             $layoutVars['header'] = $renderer->render('partials/header.tpl', $vars);
             $layoutVars['notifications_dropdown'] = SiteConfig::bool('notifications_enabled')
                 ? $renderer->render('partials/notifications_dropdown.tpl', $vars)
+                : '';
+            $layoutVars['sidebar'] = is_file(ThemeManager::activeBaseDir() . DIRECTORY_SEPARATOR . 'partials' . DIRECTORY_SEPARATOR . 'sidebar.tpl')
+                ? $renderer->render('partials/sidebar.tpl', $vars)
                 : '';
             $layoutVars['footer'] = $renderer->render('partials/footer.tpl', $vars);
             $layoutVars['auth_overlay'] = (

@@ -215,7 +215,11 @@ export default function AllohaSyncPage() {
       message.error(String((e as Error).message))
     } finally {
       setPlayerSyncing(false)
-      await loadPlayerProgress().catch(() => {})
+      try {
+        await loadPlayerProgress()
+      } catch {
+        /* progress panel is optional after sync */
+      }
     }
   }
 
@@ -234,7 +238,9 @@ export default function AllohaSyncPage() {
           sleep: res.progress.sleep,
         })
       })
-      .catch(() => {})
+      .catch(() => {
+        /* no running job to resume */
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- resume once on mount
   }, [])
 

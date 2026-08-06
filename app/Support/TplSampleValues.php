@@ -195,9 +195,9 @@ class TplSampleValues
                 'series.kp_rating' => $series->kp_rating !== null ? (string)$series->kp_rating : '',
                 'series.imdb_rating' => $series->imdb_rating !== null ? (string)$series->imdb_rating : '',
                 'series.user_rating' => $series->userRatingLabel() ?? '',
-                'series.genres_text' => $series->genres->pluck('name')->implode(', '),
-                'series.countries_text' => $series->countries->pluck('name')->implode(', '),
-                'series.actors_text' => $series->actors->pluck('name')->implode(', '),
+                'series.genres_text' => $series->genres->map(fn ($g) => TaxonomyRegistry::displayName($g))->implode(', '),
+                'series.countries_text' => $series->countries->map(fn ($c) => TaxonomyRegistry::displayName($c))->implode(', '),
+                'series.actors_text' => $series->actors->map(fn ($p) => Utf8::ucfirst($p->name))->implode(', '),
                 'series.broadcast_status_label' => $series->broadcastStatusLabel() ?? '',
                 'series.episode_progress_label' => $series->episodeProgressLabel(),
                 'series.next_episode_reminder' => '3 серия выйдет через 2 дня',
@@ -458,6 +458,36 @@ class TplSampleValues
 
         if (is_bool($value)) {
             return $value ? '1' : '';
+        }
+
+        if (is_array($value)) {
+            if ($value === []) {
+                return '[]';
+            }
+
+            $isList = array_is_list($value);
+            $parts = [];
+            foreach ($value as $key => $item) {
+                if (is_scalar($item) || $item === null) {
+                    $itemStr = self::stringify($item);
+                } elseif (is_array($item)) {
+                    $itemStr = '{…}';
+                } else {
+                    $itemStr = get_debug_type($item);
+                }
+
+                $parts[] = $isList ? $itemStr : ($key . ': ' . $itemStr);
+                if (count($parts) >= 3) {
+                    $parts[] = '…';
+                    break;
+                }
+            }
+
+            return '[' . implode(', ', $parts) . ']';
+        }
+
+        if (is_object($value)) {
+            return get_debug_type($value);
         }
 
         return (string)$value;

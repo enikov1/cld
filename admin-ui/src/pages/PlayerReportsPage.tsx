@@ -5,13 +5,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import type { PlayerReportItem } from '../types'
 import { siteOrigin } from '../utils/mediaUrl'
-
-function seriesPublicPath(item: NonNullable<PlayerReportItem['series']>): string {
-  const yearNum = Number(item.year || item.start_year || 0)
-  let year = yearNum >= 1900 && yearNum <= 2100 ? String(yearNum) : '0000'
-  const slug = (item.slug || '').trim() || 'series'
-  return `/${item.id}-${slug}-${year}.html`
-}
+import { seriesPublicPath } from '../utils/seriesPublicPath'
 
 export default function PlayerReportsPage() {
   const [items, setItems] = useState<PlayerReportItem[]>([])
@@ -71,7 +65,7 @@ export default function PlayerReportsPage() {
               {r.series.kp_id ? (
                 <Link to={`/series?kp_id=${encodeURIComponent(r.series.kp_id)}`}>В админке</Link>
               ) : r.series.id ? (
-                <Link to={`/series?kp_id=${encodeURIComponent(String(r.series.id))}`}>В админке</Link>
+                <Link to={`/series?id=${encodeURIComponent(String(r.series.id))}`}>В админке</Link>
               ) : null}
               <a href={`${siteOrigin()}${seriesPublicPath(r.series)}`} target="_blank" rel="noopener noreferrer">
                 На сайте

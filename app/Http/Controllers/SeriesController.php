@@ -21,6 +21,8 @@ use App\Support\SeasonEpisodeLabels;
 use App\Support\SiteConfig;
 use App\Support\SeriesUrl;
 use App\Support\Speedbar;
+use App\Support\TaxonomyRegistry;
+use App\Support\Utf8;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
@@ -139,48 +141,49 @@ class SeriesController extends TplController
             'channel_name' => $series->channel_name,
             'channel_url' => $series->channel_url,
             'channel_logo_url' => $series->channel_logo_url,
-            'countries_text' => $series->countries->pluck('name')->implode(', '),
-            'genres_text' => $series->genres->pluck('name')->implode(', '),
-            'actors_text' => $displayActors->pluck('name')->implode(', '),
-            'directors_text' => $displayDirectors->pluck('name')->implode(', '),
-            'collections_text' => $series->collections->pluck('title')->implode(', '),
-            'studios_text' => $studios->pluck('title')->implode(', '),
+            'countries_text' => $series->countries->map(fn ($c) => TaxonomyRegistry::displayName($c))->implode(', '),
+            'genres_text' => $series->genres->map(fn ($g) => TaxonomyRegistry::displayName($g))->implode(', '),
+            'actors_text' => $displayActors->map(fn ($p) => Utf8::ucfirst($p->name))->implode(', '),
+            'directors_text' => $displayDirectors->map(fn ($p) => Utf8::ucfirst($p->name))->implode(', '),
+            'collections_text' => $series->collections->map(fn ($c) => TaxonomyRegistry::displayName($c))->implode(', '),
+            'studios_text' => $studios->map(fn ($s) => TaxonomyRegistry::displayName($s))->implode(', '),
             'year_label' => $displayYear > 0 ? (string)$displayYear : '',
             'year_url' => $yearUrl,
             'premiere_is_year_only' => $premiereIsYearOnly,
             'collections' => $this->mapLinkItems($series->collections, fn ($c) => [
                 'slug' => $c->slug,
-                'title' => $c->title,
-                'name' => $c->title,
+                'title' => TaxonomyRegistry::displayName($c),
+                'name' => TaxonomyRegistry::displayName($c),
                 'url' => '/collections/' . $c->slug . '/',
             ]),
             'studios' => $this->mapLinkItems($studios->values(), fn (Studio $s) => [
                 'slug' => $s->slug,
-                'title' => $s->title,
-                'name' => $s->title,
+                'title' => TaxonomyRegistry::displayName($s),
+                'name' => TaxonomyRegistry::displayName($s),
                 'logo_url' => $s->logo_url ?? '',
                 'url' => '/studios/' . $s->slug . '/',
             ]),
             'countries' => $this->mapLinkItems($series->countries, fn ($c) => [
                 'slug' => $c->slug,
-                'name' => $c->name,
+                'name' => TaxonomyRegistry::displayName($c),
                 'url' => '/country/' . $c->slug . '/',
             ]),
             'genres' => $this->mapLinkItems($series->genres, fn ($g) => [
                 'slug' => $g->slug,
-                'name' => $g->name,
+                'name' => TaxonomyRegistry::displayName($g),
                 'url' => '/genre/' . $g->slug . '/',
             ]),
             'actors' => $this->mapLinkItems($displayActors, fn ($p) => [
                 'slug' => $p->slug,
-                'name' => $p->name,
+                'name' => Utf8::ucfirst($p->name),
                 'url' => '/person/' . $p->slug . '/',
                 'photo_url' => $p->photo_url,
             ]),
             'directors' => $this->mapLinkItems($displayDirectors, fn ($p) => [
                 'slug' => $p->slug,
-                'name' => $p->name,
+                'name' => Utf8::ucfirst($p->name),
                 'url' => '/person/' . $p->slug . '/',
+                'photo_url' => $p->photo_url,
             ]),
             'age_limit' => $series->age_limit,
             'age_limit_label' => $series->ageLimitLabel(),
@@ -272,9 +275,12 @@ class SeriesController extends TplController
                 : '',
             'has_related' => $hasRelated,
             'related_cards_html' => $hasRelated
-                ? $this->renderPartial('partials/series_cards.tpl', [
-                    'series_list' => $relatedMapped,
-                ])
+                ? $this->renderPartial(
+                    $this->themePartialExists('partials/related_cards.tpl')
+                        ? 'partials/related_cards.tpl'
+                        : 'partials/series_cards.tpl',
+                    ['series_list' => $relatedMapped]
+                )
                 : '',
         ]);
 

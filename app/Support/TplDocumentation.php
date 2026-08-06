@@ -210,7 +210,7 @@ class TplDocumentation
                     self::docVar('seo_counters_code', 'HTML/JS счётчиков и метрик'),
                     self::docVar('ad_vpaid_code', 'VPAID-реклама из настроек (VideoRoll и др.)'),
                 ]),
-                ['speedbar_block', 'seo_jsonld', 'meta.robots', 'meta.prev', 'meta.next', 'theme.stylesheets', 'theme.scripts', 'theme.js', 'seo_google_verification', 'seo_yandex_verification', 'seo_counters_code', 'ad_vpaid_code'],
+                ['speedbar_block', 'seo_jsonld', 'meta.robots', 'meta.prev', 'meta.next', 'theme.stylesheets', 'theme.scripts', 'theme.js', 'seo_google_verification', 'seo_yandex_verification', 'seo_counters_code', 'ad_vpaid_code', 'site.has_favicon', 'site.has_background', 'has_notifications'],
                 [
                     self::loop('theme.stylesheets', 'Подключённые CSS темы'),
                 ],
@@ -250,7 +250,7 @@ class TplDocumentation
                     self::docVar('content_type_section_6', 'Секция type-6: дорама'),
                     self::docVar('content_type_section_7', 'Секция type-7: тв-шоу'),
                 ] + self::seriesCardItemVariables()),
-                ['is_home_first', 'popular_list', 'popular_cards_html', 'home_popular_title', 'new_episodes_list', 'new_episodes_cards_html', 'new_episodes_block', 'has_schedule_calendar', 'schedule_calendar', 'schedule_calendar_json', 'schedule_calendar_block', 'home_sections', 'category_sections', 'custom_home_sections', 'content_type_sections', 'promo_collections', 'promo_studios', 'series_list', 'pagination_block', 'home_seo_html', 'catalog_filters_block', 'filter_fields', 'category_seo_html', 'page.lead', 'type-1', 'type-2', 'type-3', 'type-4', 'type-5', 'type-6', 'type-7', 'item.badge_new_episode', 'item.badge_popular', 'item.season_badge', 'item.episode_badge', 'item.top_reaction_emoji'],
+                ['is_home_first', 'popular_list', 'popular_cards_html', 'home_popular_title', 'new_episodes_list', 'new_episodes_cards_html', 'new_episodes_block', 'has_schedule_calendar', 'schedule_calendar', 'schedule_calendar_json', 'schedule_calendar_block', 'home_sections', 'category_sections', 'custom_home_sections', 'content_type_sections', 'promo_collections', 'promo_studios', 'series_list', 'pagination_block', 'home_seo_html', 'catalog_filters_block', 'filter_fields', 'category_seo_html', 'page.lead', 'has_watch_history', 'has_active', 'type-1', 'type-2', 'type-3', 'type-4', 'type-5', 'type-6', 'type-7', 'item.badge_new_episode', 'item.badge_popular', 'item.season_badge', 'item.episode_badge', 'item.top_reaction_emoji'],
                 [
                     self::loop('popular_list', 'Карусель «Популярное»'),
                     self::loop('new_episodes_list', 'Карусель «Новые серии»'),
@@ -312,12 +312,12 @@ class TplDocumentation
                     self::docVar('seo.canonical', 'Canonical URL'),
                     self::docVar('ad_vpaid_code', 'VPAID-реклама из настроек (VideoRoll и др.)'),
                 ]),
-                ['series.description', 'series.year', 'series.year_url', 'series.studios', 'series.collections', 'has_player', 'has_reactions', 'has_schedule', 'episodes_modal', 'reactions_widget', 'has_related', 'related_cards_html', 'ad_vpaid_code', 'type-1', 'type-2', 'type-3', 'type-4', 'type-5', 'type-6', 'type-7'],
+                ['series.description', 'series.year', 'series.year_url', 'series.studios', 'series.collections', 'has_player', 'has_players', 'has_reactions', 'has_schedule', 'has_comments', 'has_comments_vote', 'has_series_vote', 'has_notifications', 'has_watchlists', 'has_favourites', 'has_coming_soon', 'has_telegram', 'has_related', 'episodes_modal', 'reactions_widget', 'related_cards_html', 'ad_vpaid_code', 'type-1', 'type-2', 'type-3', 'type-4', 'type-5', 'type-6', 'type-7'],
                 [
                     self::loop('series.genres', 'Жанры сериала (name, slug, url, is_last)'),
                     self::loop('series.countries', 'Страны (name, slug, url, is_last)'),
-                    self::loop('series.actors', 'Актёры (name, slug, url, is_last)'),
-                    self::loop('series.directors', 'Режиссёры (name, slug, url, is_last)'),
+                    self::loop('series.actors', 'Актёры (name, slug, url, photo_url, is_last)'),
+                    self::loop('series.directors', 'Режиссёры (name, slug, url, photo_url, is_last)'),
                     self::loop('series.studios', 'Студии (title, slug, url, logo_url, is_last)'),
                     self::loop('series.collections', 'Подборки (title, slug, url, is_last)'),
                     self::loop('schedule', 'Расписание выхода серий'),
@@ -335,7 +335,7 @@ class TplDocumentation
                     self::docVar('seo.title', 'Fallback SEO'),
                     self::docVar('seo.canonical', 'Canonical'),
                 ]),
-                ['query', 'series_list', 'taxonomy_groups', 'popular_searches', 'pagination_block'],
+                ['query', 'series_list', 'taxonomy_groups', 'popular_searches', 'pagination_block', 'has_results'],
                 [
                     self::loop('series_list', 'Результаты поиска'),
                     self::loop('taxonomy_groups', 'Группы таксономии'),
@@ -411,7 +411,7 @@ class TplDocumentation
                     self::docVar('profile_stats.comments', 'Число комментариев'),
                     self::docVar('flash_success', 'Flash-сообщение'),
                 ]),
-                ['flash_success'],
+                ['flash_success', 'has_notifications'],
                 [
                     self::loop('watchlists', 'Списки «Буду смотреть»'),
                     self::loop('profile_comments', 'Комментарии пользователя'),
@@ -435,7 +435,7 @@ class TplDocumentation
                 'partials/*.tpl',
                 'Частичные шаблоны — переменные зависят от места подключения.',
                 array_merge(self::globalVariables(), self::seriesCardItemVariables()),
-                ['item.badge_new_episode', 'item.badge_popular', 'item.season_badge', 'item.episode_badge', 'item.top_reaction_emoji'],
+                ['item.badge_new_episode', 'item.badge_popular', 'item.season_badge', 'item.episode_badge', 'item.top_reaction_emoji', 'has_notifications', 'has_active', 'has_comments_vote', 'has_schedule_calendar'],
                 [
                     self::loop('series_list', 'Сетка сериалов'),
                 ],
@@ -449,7 +449,7 @@ class TplDocumentation
                     self::docVar('error_title', 'Заголовок'),
                     self::docVar('error_message', 'Текст ошибки'),
                 ]),
-                [],
+                ['has_notifications', 'has_favicon', 'has_logo'],
                 [],
                 ['errors', 'global'],
             ),
@@ -513,7 +513,14 @@ class TplDocumentation
      */
     private static function globalFlags(): array
     {
-        return ['auth.logged_in', 'auth.is_admin', 'ad_vpaid_code'];
+        return [
+            'auth.logged_in',
+            'auth.is_admin',
+            'ad_vpaid_code',
+            'has_notifications',
+            'site.has_favicon',
+            'site.has_background',
+        ];
     }
 
     /**
@@ -561,8 +568,9 @@ class TplDocumentation
 
             foreach ($ctx['flags'] ?? [] as $f) {
                 $name = $f['name'];
-                $add("[{$name}]", "[{$name}]", 'block', 'Показать если не пусто', $contexts);
-                $add("[not-{$name}]", "[not-{$name}]", 'block', 'Показать если пусто', $contexts);
+                $detail = self::flagDetail($name);
+                $add("[{$name}]", "[{$name}]", 'block', $detail, $contexts);
+                $add("[not-{$name}]", "[not-{$name}]", 'block', 'Инверсия: ' . mb_strtolower($detail), $contexts);
             }
 
             foreach ($ctx['loops'] ?? [] as $l) {
@@ -592,6 +600,35 @@ class TplDocumentation
         ];
     }
 
+    private static function flagDetail(string $name): string
+    {
+        return match ($name) {
+            'has_notifications' => 'Уведомления включены в настройках',
+            'has_watch_history' => 'История просмотров включена',
+            'has_schedule_calendar' => 'Календарь выхода серий на главной',
+            'has_active' => 'Есть активные фильтры каталога',
+            'has_player', 'has_players' => 'Есть хотя бы один плеер',
+            'has_reactions' => 'Виджет реакций включён',
+            'has_schedule' => 'Есть расписание серий',
+            'has_comments' => 'Комментарии включены',
+            'has_comments_vote' => 'Голосование за комментарии включено',
+            'has_series_vote' => 'Оценка сериала включена',
+            'has_watchlists' => 'Списки «Буду смотреть» включены',
+            'has_favourites' => 'Избранное включено',
+            'has_coming_soon' => 'Контент скоро выйдет (anticipation)',
+            'has_telegram' => 'Указана ссылка Telegram',
+            'has_related' => 'Есть блок рекомендаций',
+            'has_results' => 'Есть результаты поиска',
+            'has_favicon', 'site.has_favicon' => 'Загружен favicon',
+            'site.has_background' => 'Задан фоновый фон сайта',
+            'has_logo' => 'Задан логотип',
+            'auth.logged_in' => 'Пользователь авторизован',
+            'auth.is_admin' => 'Пользователь — администратор',
+            'ad_vpaid_code' => 'Есть VPAID-реклама',
+            default => 'Показать если значение не пусто',
+        };
+    }
+
     /**
      * @return array<int, array{name: string, description: string}>
      */
@@ -603,6 +640,7 @@ class TplDocumentation
             self::docVar('item.title', 'Название'),
             self::docVar('item.poster_url', 'URL постера'),
             self::docVar('item.year', 'Год'),
+            self::docVar('item.short_description', 'Краткое описание (для карточек)'),
             self::docVar('item.kp_rating', 'Рейтинг КП'),
             self::docVar('item.imdb_rating', 'Рейтинг IMDb'),
             self::docVar('item.season_badge', 'Бейдж сезона, напр. S5'),

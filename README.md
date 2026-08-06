@@ -230,7 +230,7 @@ php artisan queue:work --sleep=3 --tries=3
 |----------|----------|
 | URL | `/admin/` по умолчанию, можно сменить через `ADMIN_PATH` в `.env` или в настройках сайта |
 | API-токен | `ADMIN_TOKEN` в `.env` — передаётся в заголовке `X-Admin-Token` |
-| Сборка | `cd admin-ui && npm run build` → файлы в `public/admin/` |
+| Сборка | `cd admin-ui && npm run build` → файлы в `public/_admin_ui/` |
 
 Если админка не открывается и показывает «Admin UI не собран» — выполните сборку `admin-ui`.
 

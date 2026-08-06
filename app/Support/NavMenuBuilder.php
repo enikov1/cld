@@ -103,7 +103,7 @@ class NavMenuBuilder
                 ->limit(max(1, $section->item_limit))
                 ->get()
                 ->map(fn (Genre $g) => [
-                    'label' => $g->name,
+                    'label' => TaxonomyRegistry::displayName($g),
                     'url' => '/genre/' . rawurlencode($g->slug) . '/',
                 ])
                 ->all(),
@@ -113,7 +113,7 @@ class NavMenuBuilder
                 ->limit(max(1, $section->item_limit))
                 ->get()
                 ->map(fn (Country $c) => [
-                    'label' => $c->name,
+                    'label' => TaxonomyRegistry::displayName($c),
                     'url' => '/country/' . rawurlencode($c->slug) . '/',
                 ])
                 ->all(),
@@ -124,7 +124,7 @@ class NavMenuBuilder
                 ->limit(max(1, $section->item_limit))
                 ->get()
                 ->map(fn (Collection $c) => [
-                    'label' => $c->title,
+                    'label' => TaxonomyRegistry::displayName($c),
                     'url' => '/collections/' . $c->slug . '/',
                 ])
                 ->all(),
@@ -135,7 +135,7 @@ class NavMenuBuilder
                 ->limit(max(1, $section->item_limit))
                 ->get()
                 ->map(fn (Studio $s) => [
-                    'label' => $s->title,
+                    'label' => TaxonomyRegistry::displayName($s),
                     'url' => '/studios/' . $s->slug . '/',
                 ])
                 ->all(),
@@ -146,13 +146,13 @@ class NavMenuBuilder
                 ->limit(max(1, $section->item_limit))
                 ->get()
                 ->map(fn (Year $y) => [
-                    'label' => $y->name,
+                    'label' => TaxonomyRegistry::displayName($y),
                     'url' => TaxonomyRegistry::publicUrl(TaxonomyRegistry::TYPE_YEARS, $y->slug),
                 ])
                 ->all(),
             default => $section->links
                 ->map(fn (NavMegaLink $link) => [
-                    'label' => $link->label,
+                    'label' => Utf8::ucfirst($link->label),
                     'url' => $link->url,
                 ])
                 ->values()

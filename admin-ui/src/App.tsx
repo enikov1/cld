@@ -1,28 +1,31 @@
-import { ConfigProvider, theme } from 'antd'
+import { ConfigProvider, Spin, theme } from 'antd'
 import ruRU from 'antd/locale/ru_RU'
+import { Suspense, lazy } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthContext'
+import AdminErrorBoundary from './components/AdminErrorBoundary'
 import AdminLayout from './layout/AdminLayout'
-import CollectionsPage from './pages/CollectionsPage'
-import StudiosPage from './pages/StudiosPage'
-import CommentsPage from './pages/CommentsPage'
-import PlayerReportsPage from './pages/PlayerReportsPage'
-import CronRunsPage from './pages/CronRunsPage'
-import DashboardPage from './pages/DashboardPage'
-import NavMenuPage from './pages/NavMenuPage'
-import KinoPoiskSyncPage from './pages/KinoPoiskSyncPage'
-import AllohaSyncPage from './pages/AllohaSyncPage'
-import BackupPage from './pages/BackupPage'
-import HomeSectionsPage from './pages/HomeSectionsPage'
 import LoginPage from './pages/LoginPage'
-import TaxonomyPage from './pages/TaxonomyPage'
-import ReactionsPage from './pages/ReactionsPage'
-import SearchStatsPage from './pages/SearchStatsPage'
-import SeriesPage from './pages/SeriesPage'
-import SettingsPage from './pages/SettingsPage'
-import TemplatesPage from './pages/TemplatesPage'
-import UsersPage from './pages/UsersPage'
 import { useAdminTheme } from './theme/useAdminTheme'
+
+const DashboardPage = lazy(() => import('./pages/DashboardPage'))
+const NavMenuPage = lazy(() => import('./pages/NavMenuPage'))
+const HomeSectionsPage = lazy(() => import('./pages/HomeSectionsPage'))
+const ReactionsPage = lazy(() => import('./pages/ReactionsPage'))
+const TaxonomyPage = lazy(() => import('./pages/TaxonomyPage'))
+const SeriesPage = lazy(() => import('./pages/SeriesPage'))
+const CollectionsPage = lazy(() => import('./pages/CollectionsPage'))
+const StudiosPage = lazy(() => import('./pages/StudiosPage'))
+const CommentsPage = lazy(() => import('./pages/CommentsPage'))
+const PlayerReportsPage = lazy(() => import('./pages/PlayerReportsPage'))
+const CronRunsPage = lazy(() => import('./pages/CronRunsPage'))
+const UsersPage = lazy(() => import('./pages/UsersPage'))
+const SearchStatsPage = lazy(() => import('./pages/SearchStatsPage'))
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const TemplatesPage = lazy(() => import('./pages/TemplatesPage'))
+const KinoPoiskSyncPage = lazy(() => import('./pages/KinoPoiskSyncPage'))
+const AllohaSyncPage = lazy(() => import('./pages/AllohaSyncPage'))
+const BackupPage = lazy(() => import('./pages/BackupPage'))
 
 type AppProps = {
   basename: string
@@ -44,33 +47,43 @@ function ProtectedLayout({ isDark, onToggleTheme }: AppRoutesProps) {
   return <AdminLayout isDark={isDark} onToggleTheme={onToggleTheme} />
 }
 
+function PageFallback() {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
+      <Spin size="large" />
+    </div>
+  )
+}
+
 function AppRoutes({ isDark, onToggleTheme }: AppRoutesProps) {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/" element={<ProtectedLayout isDark={isDark} onToggleTheme={onToggleTheme} />}>
-        <Route index element={<DashboardPage />} />
-        <Route path="nav-menu" element={<NavMenuPage />} />
-        <Route path="categories" element={<Navigate to="/taxonomy" replace />} />
-        <Route path="home-sections" element={<HomeSectionsPage />} />
-        <Route path="reactions" element={<ReactionsPage />} />
-        <Route path="taxonomy" element={<TaxonomyPage />} />
-        <Route path="series" element={<SeriesPage />} />
-        <Route path="collections" element={<CollectionsPage />} />
-        <Route path="studios" element={<StudiosPage />} />
-        <Route path="comments" element={<CommentsPage />} />
-        <Route path="player-reports" element={<PlayerReportsPage />} />
-        <Route path="cron-runs" element={<CronRunsPage />} />
-        <Route path="users" element={<UsersPage />} />
-        <Route path="search-stats" element={<SearchStatsPage />} />
-        <Route path="settings" element={<SettingsPage />} />
-        <Route path="templates" element={<TemplatesPage />} />
-        <Route path="sync" element={<KinoPoiskSyncPage />} />
-        <Route path="alloha-sync" element={<AllohaSyncPage />} />
-        <Route path="backup" element={<BackupPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Route>
-    </Routes>
+    <Suspense fallback={<PageFallback />}>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/" element={<ProtectedLayout isDark={isDark} onToggleTheme={onToggleTheme} />}>
+          <Route index element={<DashboardPage />} />
+          <Route path="nav-menu" element={<NavMenuPage />} />
+          <Route path="categories" element={<Navigate to="/taxonomy" replace />} />
+          <Route path="home-sections" element={<HomeSectionsPage />} />
+          <Route path="reactions" element={<ReactionsPage />} />
+          <Route path="taxonomy" element={<TaxonomyPage />} />
+          <Route path="series" element={<SeriesPage />} />
+          <Route path="collections" element={<CollectionsPage />} />
+          <Route path="studios" element={<StudiosPage />} />
+          <Route path="comments" element={<CommentsPage />} />
+          <Route path="player-reports" element={<PlayerReportsPage />} />
+          <Route path="cron-runs" element={<CronRunsPage />} />
+          <Route path="users" element={<UsersPage />} />
+          <Route path="search-stats" element={<SearchStatsPage />} />
+          <Route path="settings" element={<SettingsPage />} />
+          <Route path="templates" element={<TemplatesPage />} />
+          <Route path="sync" element={<KinoPoiskSyncPage />} />
+          <Route path="alloha-sync" element={<AllohaSyncPage />} />
+          <Route path="backup" element={<BackupPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </Suspense>
   )
 }
 
@@ -90,7 +103,9 @@ export default function App({ basename }: AppProps) {
     >
       <BrowserRouter basename={basename}>
         <AuthProvider>
-          <AppRoutes isDark={isDark} onToggleTheme={toggle} />
+          <AdminErrorBoundary>
+            <AppRoutes isDark={isDark} onToggleTheme={toggle} />
+          </AdminErrorBoundary>
         </AuthProvider>
       </BrowserRouter>
     </ConfigProvider>

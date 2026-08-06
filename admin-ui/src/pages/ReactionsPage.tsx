@@ -108,9 +108,13 @@ export default function ReactionsPage() {
   }
 
   async function remove(id: number) {
-    await api(`/api/admin/reactions/${id}`, { method: 'DELETE' })
-    message.success('Реакция удалена')
-    await load()
+    try {
+      await api(`/api/admin/reactions/${id}`, { method: 'DELETE' })
+      message.success('Реакция удалена')
+      await load()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
   }
 
   async function move(id: number, direction: -1 | 1) {
@@ -123,11 +127,15 @@ export default function ReactionsPage() {
     next[index] = next[target]
     next[target] = tmp
 
-    await api('/api/admin/reactions/reorder', {
-      method: 'POST',
-      body: JSON.stringify({ ids: next.map((i) => i.id) }),
-    })
-    await load()
+    try {
+      await api('/api/admin/reactions/reorder', {
+        method: 'POST',
+        body: JSON.stringify({ ids: next.map((i) => i.id) }),
+      })
+      await load()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
   }
 
   const columns: ColumnsType<ReactionItem> = [

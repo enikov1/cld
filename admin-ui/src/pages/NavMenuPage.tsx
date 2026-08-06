@@ -195,9 +195,13 @@ export default function NavMenuPage() {
   }
 
   async function removeItem(id: number) {
-    await api(`/api/admin/nav/items/${id}`, { method: 'DELETE' })
-    message.success('Пункт удалён')
-    await load()
+    try {
+      await api(`/api/admin/nav/items/${id}`, { method: 'DELETE' })
+      message.success('Пункт удалён')
+      await load()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
   }
 
   async function moveItem(id: number, direction: -1 | 1) {
@@ -210,11 +214,15 @@ export default function NavMenuPage() {
     next[index] = next[target]
     next[target] = tmp
 
-    await api('/api/admin/nav/items/reorder', {
-      method: 'POST',
-      body: JSON.stringify({ ids: next.map((i) => i.id) }),
-    })
-    await load()
+    try {
+      await api('/api/admin/nav/items/reorder', {
+        method: 'POST',
+        body: JSON.stringify({ ids: next.map((i) => i.id) }),
+      })
+      await load()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
   }
 
   function openMegaDrawer(row: NavItem) {
@@ -259,9 +267,13 @@ export default function NavMenuPage() {
   }
 
   async function removeButton(id: number) {
-    await api(`/api/admin/nav/mega-buttons/${id}`, { method: 'DELETE' })
-    message.success('Кнопка удалена')
-    await load()
+    try {
+      await api(`/api/admin/nav/mega-buttons/${id}`, { method: 'DELETE' })
+      message.success('Кнопка удалена')
+      await load()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
   }
 
   async function moveButton(id: number, direction: -1 | 1) {
@@ -271,11 +283,15 @@ export default function NavMenuPage() {
     const target = index + direction
     if (index < 0 || target < 0 || target >= buttons.length) return
     ;[buttons[index], buttons[target]] = [buttons[target], buttons[index]]
-    await api('/api/admin/nav/mega-buttons/reorder', {
-      method: 'POST',
-      body: JSON.stringify({ ids: buttons.map((b) => b.id) }),
-    })
-    await load()
+    try {
+      await api('/api/admin/nav/mega-buttons/reorder', {
+        method: 'POST',
+        body: JSON.stringify({ ids: buttons.map((b) => b.id) }),
+      })
+      await load()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
   }
 
   function openCreateSection() {
@@ -315,9 +331,13 @@ export default function NavMenuPage() {
   }
 
   async function removeSection(id: number) {
-    await api(`/api/admin/nav/mega-sections/${id}`, { method: 'DELETE' })
-    message.success('Колонка удалена')
-    await load()
+    try {
+      await api(`/api/admin/nav/mega-sections/${id}`, { method: 'DELETE' })
+      message.success('Колонка удалена')
+      await load()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
   }
 
   async function moveSection(id: number, direction: -1 | 1) {
@@ -327,11 +347,15 @@ export default function NavMenuPage() {
     const target = index + direction
     if (index < 0 || target < 0 || target >= sections.length) return
     ;[sections[index], sections[target]] = [sections[target], sections[index]]
-    await api('/api/admin/nav/mega-sections/reorder', {
-      method: 'POST',
-      body: JSON.stringify({ ids: sections.map((s) => s.id) }),
-    })
-    await load()
+    try {
+      await api('/api/admin/nav/mega-sections/reorder', {
+        method: 'POST',
+        body: JSON.stringify({ ids: sections.map((s) => s.id) }),
+      })
+      await load()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
   }
 
   function openCreateLink(sectionId: number) {
@@ -370,9 +394,13 @@ export default function NavMenuPage() {
   }
 
   async function removeLink(id: number) {
-    await api(`/api/admin/nav/mega-links/${id}`, { method: 'DELETE' })
-    message.success('Ссылка удалена')
-    await load()
+    try {
+      await api(`/api/admin/nav/mega-links/${id}`, { method: 'DELETE' })
+      message.success('Ссылка удалена')
+      await load()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
   }
 
   const itemLinkType = Form.useWatch('link_type', itemForm)

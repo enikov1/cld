@@ -1,6 +1,6 @@
-import { autocompletion, type Completion, type CompletionContext } from '@codemirror/autocomplete'
-import { css } from '@codemirror/lang-css'
-import { html } from '@codemirror/lang-html'
+import { autocompletion, type Completion, type CompletionContext, type CompletionSource } from '@codemirror/autocomplete'
+import { css, cssLanguage } from '@codemirror/lang-css'
+import { html, htmlLanguage } from '@codemirror/lang-html'
 import { javascript } from '@codemirror/lang-javascript'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { Decoration, EditorView, ViewPlugin, closeHoverTooltips, hoverTooltip } from '@codemirror/view'
@@ -23,6 +23,7 @@ type TemplateCodeEditorProps = {
   hints?: TplHint[]
   contexts?: string[]
   hintsPrefiltered?: boolean
+  cssClasses?: string[]
   isDark?: boolean
   readOnly?: boolean
   height?: string
@@ -132,127 +133,72 @@ function tplHoverHints(hints: TplHint[]) {
   )
 }
 
-function tplCursorHintPlugin(hints: TplHint[]) {
-  const index = buildHintIndex(hints)
+function tplCompletionSource(hints: TplHint[], contexts: string[], prefiltered: boolean): CompletionSource {
+  return (context: CompletionContext) => {
+    const variableMatch = context.matchBefore(/\{[a-zA-Z0-9_.|]*$/)
+    if (variableMatch) {
+      const query = variableMatch.text.slice(1)
+      const options = completionOptions(hints, contexts, query, 'variable', prefiltered).map(toCompletion)
+      return options.length
+        ? { from: variableMatch.from + 1, options, validFor: /^[a-zA-Z0-9_.|]*$/ }
+        : null
+    }
 
-  return ViewPlugin.fromClass(
-    class {
-      tooltip: HTMLDivElement | null = null
-      view: EditorView
+    const tagMatch = context.matchBefore(/\[[a-zA-Z0-9_.\-]*$/)
+    if (tagMatch) {
+      const query = tagMatch.text.slice(1)
+      const options = completionOptions(hints, contexts, query, 'tag', prefiltered).map(toCompletion)
+      return options.length
+        ? { from: tagMatch.from + 1, options, validFor: /^[a-zA-Z0-9_.\-]*$/ }
+        : null
+    }
 
-      constructor(view: EditorView) {
-        this.view = view
-        this.sync()
+    if (context.explicit) {
+      const token = findTplTokenAt(context.state.doc, context.pos)
+      if (token?.kind === 'variable') {
+        const query = token.insert.slice(1).replace(/\|raw$/, '')
+        const options = completionOptions(hints, contexts, query, 'variable', prefiltered).map(toCompletion)
+        return options.length
+          ? { from: token.from + 1, to: token.to - (token.insert.endsWith('|raw}') ? 4 : 1), options }
+          : null
       }
 
-      update(update: { docChanged: boolean; selectionSet: boolean; view: EditorView }) {
-        if (update.docChanged || update.selectionSet) {
-          this.sync()
-        }
+      if (token?.kind === 'tag') {
+        const query = token.insert.slice(1).replace(/^\//, '')
+        const options = completionOptions(hints, contexts, query, 'tag', prefiltered).map(toCompletion)
+        return options.length ? { from: token.from + 1, to: token.to - 1, options } : null
       }
+    }
 
-      destroy() {
-        this.tooltip?.remove()
-        this.tooltip = null
-      }
-
-      private sync() {
-        const pos = this.view.state.selection.main.head
-        if (!this.view.state.selection.main.empty) {
-          this.hide()
-          return
-        }
-
-        const token = findTplTokenAt(this.view.state.doc, pos)
-        if (!token) {
-          this.hide()
-          return
-        }
-
-        const hint = lookupHint(index, token.insert)
-        if (!hint) {
-          this.hide()
-          return
-        }
-
-        this.show(hint, pos)
-      }
-
-      private hide() {
-        if (this.tooltip) {
-          this.tooltip.remove()
-          this.tooltip = null
-        }
-      }
-
-      private show(hint: TplHint, pos: number) {
-        if (!this.tooltip) {
-          this.tooltip = document.createElement('div')
-          this.tooltip.className = 'cm-tpl-hover cm-tpl-cursor-hint'
-          this.view.dom.appendChild(this.tooltip)
-        }
-
-        this.tooltip.replaceChildren(...Array.from(renderHintTooltip(hint).childNodes))
-
-        const coords = this.view.coordsAtPos(pos)
-        if (!coords) {
-          this.hide()
-          return
-        }
-
-        const editorRect = this.view.dom.getBoundingClientRect()
-        this.tooltip.style.display = 'block'
-        this.tooltip.style.left = `${coords.left - editorRect.left}px`
-        this.tooltip.style.top = `${coords.bottom - editorRect.top + 6}px`
-      }
-    },
-  )
+    return null
+  }
 }
 
-function tplAutocomplete(hints: TplHint[], contexts: string[], prefiltered: boolean) {
+function cssClassCompletionSource(classes: string[]): CompletionSource {
+  return (context: CompletionContext) => {
+    const match = context.matchBefore(/\.?[a-zA-Z_-][\w-]*/)
+    if (!match || (match.from === match.to && !context.explicit)) return null
+
+    const raw = match.text
+    const withDot = raw.startsWith('.')
+    const query = (withDot ? raw.slice(1) : raw).toLowerCase()
+    const options = classes
+      .filter((name) => !query || name.toLowerCase().includes(query))
+      .slice(0, 40)
+      .map((name) => ({
+        label: `.${name}`,
+        type: 'class',
+        apply: withDot ? name : `.${name}`,
+      }))
+
+    return options.length ? { from: match.from, options, validFor: /^\.?[\w-]*$/ } : null
+  }
+}
+
+function baseAutocompletion() {
   return autocompletion({
     activateOnTyping: true,
-    maxRenderedOptions: 16,
-    override: [
-      (context: CompletionContext) => {
-        const variableMatch = context.matchBefore(/\{[a-zA-Z0-9_.|]*$/)
-        if (variableMatch) {
-          const query = variableMatch.text.slice(1)
-          const options = completionOptions(hints, contexts, query, 'variable', prefiltered).map(toCompletion)
-          return options.length
-            ? { from: variableMatch.from + 1, options, validFor: /^[a-zA-Z0-9_.|]*$/ }
-            : null
-        }
-
-        const tagMatch = context.matchBefore(/\[[a-zA-Z0-9_.\-]*$/)
-        if (tagMatch) {
-          const query = tagMatch.text.slice(1)
-          const options = completionOptions(hints, contexts, query, 'tag', prefiltered).map(toCompletion)
-          return options.length
-            ? { from: tagMatch.from + 1, options, validFor: /^[a-zA-Z0-9_.\-]*$/ }
-            : null
-        }
-
-        if (context.explicit) {
-          const token = findTplTokenAt(context.state.doc, context.pos)
-          if (token?.kind === 'variable') {
-            const query = token.insert.slice(1).replace(/\|raw$/, '')
-            const options = completionOptions(hints, contexts, query, 'variable', prefiltered).map(toCompletion)
-            return options.length
-              ? { from: token.from + 1, to: token.to - (token.insert.endsWith('|raw}') ? 4 : 1), options }
-              : null
-          }
-
-          if (token?.kind === 'tag') {
-            const query = token.insert.slice(1).replace(/^\//, '')
-            const options = completionOptions(hints, contexts, query, 'tag', prefiltered).map(toCompletion)
-            return options.length ? { from: token.from + 1, to: token.to - 1, options } : null
-          }
-        }
-
-        return null
-      },
-    ],
+    maxRenderedOptions: 24,
   })
 }
 
@@ -270,18 +216,36 @@ function languageExtensions(
   hints: TplHint[],
   contexts: string[],
   prefiltered: boolean,
+  cssClasses: string[],
 ) {
   const lower = (filePath ?? '').toLowerCase()
-  if (lower.endsWith('.css')) return [css()]
-  if (lower.endsWith('.js')) return [javascript()]
-  if (lower.endsWith('.html') || lower.endsWith('.htm')) return [html()]
+  const cssCompletion = cssClasses.length
+    ? [css(), baseAutocompletion(), cssLanguage.data.of({ autocomplete: cssClassCompletionSource(cssClasses) })]
+    : [css(), baseAutocompletion()]
+
+  if (lower.endsWith('.css')) return cssCompletion
+  if (lower.endsWith('.js')) return [javascript(), baseAutocompletion()]
+  if (lower.endsWith('.html') || lower.endsWith('.htm')) {
+    return [
+      html(),
+      baseAutocompletion(),
+      ...(cssClasses.length
+        ? [htmlLanguage.data.of({ autocomplete: cssClassCompletionSource(cssClasses) })]
+        : []),
+    ]
+  }
   if (lower.endsWith('.tpl') || lower.endsWith('.svg')) {
     return [
       html(),
+      htmlLanguage.data.of({
+        autocomplete: tplCompletionSource(hints, contexts, prefiltered),
+      }),
+      ...(cssClasses.length
+        ? [htmlLanguage.data.of({ autocomplete: cssClassCompletionSource(cssClasses) })]
+        : []),
+      baseAutocompletion(),
       tplHighlightPlugin,
-      tplAutocomplete(hints, contexts, prefiltered),
       tplHoverHints(hints),
-      tplCursorHintPlugin(hints),
     ]
   }
   return []
@@ -295,6 +259,7 @@ const TemplateCodeEditor = forwardRef<TplEditorHandle, TemplateCodeEditorProps>(
     hints = [],
     contexts = [],
     hintsPrefiltered = false,
+    cssClasses = [],
     isDark = false,
     readOnly = false,
     height = '420px',
@@ -302,11 +267,10 @@ const TemplateCodeEditor = forwardRef<TplEditorHandle, TemplateCodeEditorProps>(
   ref,
 ) {
   const editorRef = useRef<ReactCodeMirrorRef | null>(null)
-  const rootRef = useRef<HTMLDivElement | null>(null)
 
   const extensions = useMemo(
-    () => languageExtensions(filePath, hints, contexts, hintsPrefiltered),
-    [contexts, filePath, hints, hintsPrefiltered],
+    () => languageExtensions(filePath, hints, contexts, hintsPrefiltered, cssClasses),
+    [contexts, cssClasses, filePath, hints, hintsPrefiltered],
   )
 
   useEffect(() => {
@@ -315,7 +279,6 @@ const TemplateCodeEditor = forwardRef<TplEditorHandle, TemplateCodeEditorProps>(
       if (view) {
         view.dispatch({ effects: closeHoverTooltips })
       }
-      rootRef.current?.querySelectorAll('.cm-tpl-cursor-hint').forEach((el) => el.remove())
       document.querySelectorAll('.cm-tooltip-hover').forEach((el) => el.remove())
     }
   }, [filePath])
@@ -337,7 +300,7 @@ const TemplateCodeEditor = forwardRef<TplEditorHandle, TemplateCodeEditorProps>(
   }))
 
   return (
-    <div className="template-codemirror" ref={rootRef}>
+    <div className="template-codemirror">
       <CodeMirror
         key={filePath ?? 'empty'}
         ref={editorRef}

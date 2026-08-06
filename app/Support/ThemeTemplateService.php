@@ -23,6 +23,53 @@ class ThemeTemplateService
         return self::buildTree($root, $root);
     }
 
+    /**
+     * Unique CSS class names from theme stylesheets (for editor autocomplete).
+     *
+     * @return list<string>
+     */
+    public static function listCssClasses(string $theme): array
+    {
+        $assetsDir = self::themeRoot($theme) . DIRECTORY_SEPARATOR . 'assets';
+        if (!is_dir($assetsDir)) {
+            return [];
+        }
+
+        $classes = [];
+        $files = glob($assetsDir . DIRECTORY_SEPARATOR . '*.css') ?: [];
+        foreach ($files as $file) {
+            $base = basename($file);
+            if (str_ends_with($base, '.min.css')) {
+                continue;
+            }
+            if (str_starts_with($base, 'font-awesome')) {
+                continue;
+            }
+
+            $content = @file_get_contents($file);
+            if ($content === false || $content === '') {
+                continue;
+            }
+
+            if (!preg_match_all('/\.([a-zA-Z_][\w-]*)/', $content, $matches)) {
+                continue;
+            }
+
+            foreach ($matches[1] as $className) {
+                $classes[$className] = true;
+            }
+        }
+
+        $list = array_keys($classes);
+        sort($list, SORT_STRING);
+
+        if (count($list) > 2500) {
+            $list = array_slice($list, 0, 2500);
+        }
+
+        return $list;
+    }
+
     public static function readFile(string $theme, string $path): array
     {
         $relative = self::normalizeRelativePath($path);
@@ -46,13 +93,19 @@ class ThemeTemplateService
             throw new InvalidArgumentException('Не удалось прочитать файл.');
         }
 
-        return [
+        $result = [
             'path' => $relative,
             'content' => $content,
             'binary' => false,
             'size' => $size,
             'modified_at' => $modifiedAt,
         ];
+
+        if (self::isPreviewableImage($relative)) {
+            $result['preview_url'] = self::publicAssetUrl($theme, $relative);
+        }
+
+        return $result;
     }
 
     public static function writeFile(string $theme, string $path, string $content): array
@@ -394,6 +447,13 @@ class ThemeTemplateService
         return in_array($ext, ['tpl', 'css', 'js', 'svg'], true);
     }
 
+    private static function isPreviewableImage(string $relative): bool
+    {
+        $ext = strtolower(pathinfo($relative, PATHINFO_EXTENSION));
+
+        return in_array($ext, ['svg', 'png', 'jpg', 'jpeg', 'gif', 'webp'], true);
+    }
+
     private static function publicAssetUrl(string $theme, string $relative): string
     {
         $relative = ltrim(str_replace('\\', '/', $relative), '/');
@@ -401,7 +461,7 @@ class ThemeTemplateService
             $relative = 'assets/' . $relative;
         }
 
-        return ThemeManager::webPath($theme) . '/' . $relative;
+        return ThemeManager::assetUrl($relative, $theme);
     }
 
     private static function resolveExistingFile(string $theme, string $relative): string
@@ -436,17 +496,48 @@ class ThemeTemplateService
     {
         $root = self::themeRoot($theme);
         $rootNorm = rtrim(str_replace('\\', '/', $root), '/');
-        $targetDir = is_file($fullPath) ? dirname($fullPath) : $fullPath;
-        $targetReal = realpath($targetDir);
 
-        if ($targetReal === false) {
-            $targetNorm = rtrim(str_replace('\\', '/', $targetDir), '/');
-        } else {
-            $targetNorm = rtrim(str_replace('\\', '/', $targetReal), '/');
+        $cursor = $fullPath;
+        while (true) {
+            if (is_link($cursor)) {
+                throw new InvalidArgumentException('Символические ссылки в теме запрещены.');
+            }
+            $parent = dirname($cursor);
+            if ($parent === $cursor) {
+                break;
+            }
+            if (file_exists($cursor)) {
+                break;
+            }
+            $cursor = $parent;
         }
 
+        $targetDir = is_file($fullPath) ? dirname($fullPath) : $fullPath;
+        $existing = $targetDir;
+        while (!file_exists($existing) && dirname($existing) !== $existing) {
+            $existing = dirname($existing);
+        }
+
+        $targetReal = realpath($existing);
+        if ($targetReal === false) {
+            throw new InvalidArgumentException('Путь выходит за пределы темы.');
+        }
+
+        $targetNorm = rtrim(str_replace('\\', '/', $targetReal), '/');
         if ($targetNorm !== $rootNorm && !str_starts_with($targetNorm, $rootNorm . '/')) {
             throw new InvalidArgumentException('Путь выходит за пределы темы.');
+        }
+
+        $check = $targetReal;
+        while ($check !== false && $check !== '' && $check !== dirname($check)) {
+            if (is_link($check)) {
+                throw new InvalidArgumentException('Символические ссылки в теме запрещены.');
+            }
+            $norm = rtrim(str_replace('\\', '/', $check), '/');
+            if ($norm === $rootNorm) {
+                break;
+            }
+            $check = dirname($check);
         }
     }
 

@@ -10,9 +10,18 @@ class AdminPanelController extends Controller
 {
     public const ASSET_ROUTE = '_admin-assets';
 
+    public const UI_DIR = '_admin_ui';
+
     public static function assetRoutePrefix(): string
     {
         return self::ASSET_ROUTE;
+    }
+
+    public static function uiPath(string $relative = ''): string
+    {
+        $base = public_path(self::UI_DIR);
+
+        return $relative === '' ? $base : $base . DIRECTORY_SEPARATOR . ltrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $relative), DIRECTORY_SEPARATOR);
     }
 
     public function serve(Request $request, ?string $spaPath = null)
@@ -21,14 +30,10 @@ class AdminPanelController extends Controller
             abort(404);
         }
 
-        if ($spaPath === null && !str_ends_with($request->getPathInfo(), '/')) {
-            $query = $request->getQueryString();
-            $target = AdminPath::base() . '/' . ($query ? '?' . $query : '');
+        // No trailing-slash redirect: .htaccess strips slashes for non-directories,
+        // so forcing /admin → /admin/ would loop with R=301 + directory rules.
 
-            return redirect($target, 301);
-        }
-
-        $indexPath = public_path('admin/index.html');
+        $indexPath = self::uiPath('index.html');
         if (!is_file($indexPath)) {
             return response(
                 'Admin UI не собран. Выполните: cd site/admin-ui && npm run build',
@@ -40,13 +45,21 @@ class AdminPanelController extends Controller
         $adminBase = AdminPath::base();
         $html = self::prepareAdminHtml(file_get_contents($indexPath), $adminBase);
 
-        return response($html, 200, ['Content-Type' => 'text/html; charset=UTF-8']);
+        return response($html, 200, [
+            'Content-Type' => 'text/html; charset=UTF-8',
+            // Hashed asset filenames change every build — never cache the shell HTML.
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+        ]);
     }
 
     public static function prepareAdminHtml(string $html, string $adminBase): string
     {
-        $assetBase = '/' . self::ASSET_ROUTE . '/';
+        // Prefer the fixed public folder so Apache/nginx can serve files without PHP.
+        $assetBase = '/' . self::UI_DIR . '/assets/';
         $html = str_replace('./assets/', $assetBase, $html);
+        $html = str_replace('href="./favicon.svg"', 'href="/' . self::UI_DIR . '/favicon.svg"', $html);
+        $html = str_replace('href="./icons.svg"', 'href="/' . self::UI_DIR . '/icons.svg"', $html);
 
         $baseHref = htmlspecialchars($adminBase . '/', ENT_QUOTES, 'UTF-8');
         $inject = '<base href="' . $baseHref . '">'
@@ -57,8 +70,8 @@ class AdminPanelController extends Controller
 
     public function asset(string $file): BinaryFileResponse
     {
-        $base = realpath(public_path('admin/assets'));
-        $target = realpath(public_path('admin/assets/' . $file));
+        $base = realpath(self::uiPath('assets'));
+        $target = realpath(self::uiPath('assets/' . $file));
 
         if ($base === false || $target === false || !str_starts_with($target, $base . DIRECTORY_SEPARATOR)) {
             abort(404);
@@ -73,15 +86,16 @@ class AdminPanelController extends Controller
     private static function assetHeaders(string $file): array
     {
         $lower = strtolower($file);
+        $headers = [
+            'Cache-Control' => 'public, max-age=31536000, immutable',
+        ];
 
         if (str_ends_with($lower, '.js')) {
-            return ['Content-Type' => 'application/javascript; charset=UTF-8'];
+            $headers['Content-Type'] = 'application/javascript; charset=UTF-8';
+        } elseif (str_ends_with($lower, '.css')) {
+            $headers['Content-Type'] = 'text/css; charset=UTF-8';
         }
 
-        if (str_ends_with($lower, '.css')) {
-            return ['Content-Type' => 'text/css; charset=UTF-8'];
-        }
-
-        return [];
+        return $headers;
     }
 }

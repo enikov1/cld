@@ -97,6 +97,7 @@ class AdminSeriesController extends Controller
         }
 
         $response = Http::timeout(12)
+            ->withOptions(['allow_redirects' => false])
             ->withHeaders([
                 'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
                 'Accept' => 'text/html,application/xhtml+xml',
@@ -725,6 +726,7 @@ class AdminSeriesController extends Controller
         );
         $series->poster_url = $url;
         $series->save();
+        TplCache::forgetSeries($series->id);
 
         return response()->json(['ok' => true, 'poster_url' => $url, 'item' => $this->serializeSeries($series)]);
     }
@@ -739,6 +741,7 @@ class AdminSeriesController extends Controller
         $series->is_pinned = $data['pinned'];
         $series->pinned_at = $data['pinned'] ? now() : null;
         $series->save();
+        TplCache::forgetSeries($series->id);
 
         return response()->json(['ok' => true, 'item' => $this->serializeSeries($series)]);
     }
@@ -752,6 +755,7 @@ class AdminSeriesController extends Controller
         $series = AdminSeriesResolver::byKey($kp_id);
         $series->is_active = $data['is_active'];
         $series->save();
+        TplCache::forgetSeries($series->id);
 
         return response()->json(['ok' => true, 'item' => $this->serializeSeries($series)]);
     }
@@ -759,7 +763,10 @@ class AdminSeriesController extends Controller
     public function destroy(string $kp_id)
     {
         $series = AdminSeriesResolver::byKey($kp_id);
+        $seriesId = $series->id;
         $series->delete();
+        TplCache::forgetSeries($seriesId);
+        TplCache::bumpGlobalVersion();
 
         return response()->json(['ok' => true]);
     }
@@ -768,6 +775,8 @@ class AdminSeriesController extends Controller
     {
         $series = AdminSeriesResolver::byKey($kp_id, true);
         $series->restore();
+        TplCache::forgetSeries($series->id);
+        TplCache::bumpGlobalVersion();
 
         return response()->json([
             'ok' => true,
