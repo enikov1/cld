@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->web(prepend: [
             \App\Http\Middleware\CheckMaintenanceMode::class,
+            \App\Http\Middleware\ApplySiteRedirects::class,
         ]);
         $middleware->api(prepend: [
             \App\Http\Middleware\CheckMaintenanceMode::class,

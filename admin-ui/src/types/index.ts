@@ -329,6 +329,7 @@ export type AdminPageKey =
   | 'cron-runs'
   | 'users'
   | 'search-stats'
+  | 'redirects'
   | 'settings'
   | 'templates'
   | 'sync'

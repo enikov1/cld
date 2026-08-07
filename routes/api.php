@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminCollectionController;
+use App\Http\Controllers\AdminRedirectController;
 use App\Http\Controllers\AdminNavController;
 use App\Http\Controllers\AdminStudioController;
 use App\Http\Controllers\AdminTemplateController;
@@ -269,6 +270,12 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
     Route::delete('/templates/file', [AdminTemplateController::class, 'destroy']);
     Route::get('/templates/docs', [AdminTemplateController::class, 'docs']);
     Route::get('/templates/css-classes', [AdminTemplateController::class, 'cssClasses']);
+
+    Route::get('/redirects', [AdminRedirectController::class, 'index']);
+    Route::get('/redirects/series-options', [AdminRedirectController::class, 'seriesOptions']);
+    Route::post('/redirects/upsert', [AdminRedirectController::class, 'upsert']);
+    Route::post('/redirects/{id}/toggle', [AdminRedirectController::class, 'toggle']);
+    Route::delete('/redirects/{id}', [AdminRedirectController::class, 'destroy']);
 
     Route::get('/collections', [AdminCollectionController::class, 'index']);
     Route::get('/collections/ai-prompt', [AdminCollectionController::class, 'aiPrompt']);
