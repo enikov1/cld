@@ -78,4 +78,26 @@ class AdminAuthSmokeTest extends TestCase
             'value' => 'Safe message',
         ]);
     }
+
+    public function test_settings_save_keeps_admin_session_after_cache_flush(): void
+    {
+        $login = $this->withHeader('X-ADMIN-TOKEN', 'smoke-admin-token')
+            ->postJson('/api/admin/site-access');
+
+        $login->assertOk();
+        $cookie = $login->getCookie('admin_site_access', false);
+        $this->assertNotNull($cookie);
+
+        $this->withUnencryptedCookie('admin_site_access', $cookie->getValue())
+            ->postJson('/api/admin/settings', [
+                'settings' => [
+                    ['key' => 'ui_msg_generic_error', 'value' => 'Updated message'],
+                ],
+            ])
+            ->assertOk();
+
+        $this->withUnencryptedCookie('admin_site_access', $cookie->getValue())
+            ->getJson('/api/admin/stats')
+            ->assertOk();
+    }
 }

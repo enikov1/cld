@@ -53,6 +53,14 @@ return [
             'lock_path' => storage_path('framework/cache/data'),
         ],
 
+        // Admin panel sessions — separate from the default store so Cache::flush()
+        // (e.g. after saving site settings) does not log admins out.
+        'admin' => [
+            'driver' => 'file',
+            'path' => storage_path('framework/cache/admin-sessions'),
+            'lock_path' => storage_path('framework/cache/admin-sessions'),
+        ],
+
         'memcached' => [
             'driver' => 'memcached',
             'persistent_id' => env('MEMCACHED_PERSISTENT_ID'),

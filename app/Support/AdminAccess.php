@@ -3,8 +3,8 @@
 namespace App\Support;
 
 use App\Http\Controllers\AdminPanelController;
+use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\Cookie;
 
 class AdminAccess
@@ -93,7 +93,7 @@ class AdminAccess
         }
 
         $sessionId = bin2hex(random_bytes(32));
-        Cache::put(
+        self::sessionStore()->put(
             self::SESSION_CACHE_PREFIX . hash('sha256', $sessionId),
             [
                 'created_at' => now()->toIso8601String(),
@@ -120,7 +120,7 @@ class AdminAccess
         $request ??= request();
         $cookie = (string) $request->cookie(self::COOKIE_NAME, '');
         if ($cookie !== '' && !hash_equals(self::expectedToken(), $cookie)) {
-            Cache::forget(self::SESSION_CACHE_PREFIX . hash('sha256', $cookie));
+            self::sessionStore()->forget(self::SESSION_CACHE_PREFIX . hash('sha256', $cookie));
         }
 
         return cookie()->forget(self::COOKIE_NAME);
@@ -132,7 +132,12 @@ class AdminAccess
             return false;
         }
 
-        return Cache::has(self::SESSION_CACHE_PREFIX . hash('sha256', $sessionId));
+        return self::sessionStore()->has(self::SESSION_CACHE_PREFIX . hash('sha256', $sessionId));
+    }
+
+    private static function sessionStore(): CacheRepository
+    {
+        return cache()->store((string) config('admin.session_store', 'admin'));
     }
 
     private static function cookieSecure(): bool

@@ -349,6 +349,24 @@ resolve_php_bin() {
     die "PHP не найден после установки. Перезапустите скрипт."
 }
 
+ensure_storage_link() {
+    local link="${APP_DIR}/public/storage"
+
+    mkdir -p "${APP_DIR}/storage/app/public"
+
+    if [[ -L "$link" ]]; then
+        php artisan storage:link --force >/dev/null 2>&1 || true
+        return 0
+    fi
+
+    if [[ -e "$link" ]]; then
+        warn "public/storage существует, но не является симлинком — storage:link пропущен"
+        return 0
+    fi
+
+    php artisan storage:link
+}
+
 setup_queue_and_scheduler() {
     local php_bin queue_unit cron_file cron_line queue_log
 
@@ -775,7 +793,7 @@ if [[ "$SKIP_BUILD" != "1" ]]; then
     restore_backup_if_present
 
     log "Подключаю папку загрузок..."
-    php artisan storage:link 2>/dev/null || true
+    ensure_storage_link
 
     log "Собираю оформление сайта (тема)..."
     npm ci

@@ -17,4 +17,6 @@ return [
 
     'path' => env('ADMIN_PATH', ''),
 
+    'session_store' => env('ADMIN_SESSION_STORE', 'admin'),
+
 ];

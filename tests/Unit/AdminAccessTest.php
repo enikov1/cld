@@ -4,7 +4,6 @@ namespace Tests\Unit;
 
 use App\Support\AdminAccess;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 class AdminAccessTest extends TestCase
@@ -13,7 +12,7 @@ class AdminAccessTest extends TestCase
     {
         parent::setUp();
         config(['admin.token' => 'test-admin-token-value']);
-        Cache::flush();
+        cache()->store('admin')->flush();
     }
 
     public function test_header_token_is_accepted(): void

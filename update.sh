@@ -92,6 +92,24 @@ resolve_php_bin() {
     die "PHP не найден"
 }
 
+ensure_storage_link() {
+    local link="${APP_DIR}/public/storage"
+
+    mkdir -p "${APP_DIR}/storage/app/public"
+
+    if [[ -L "$link" ]]; then
+        php artisan storage:link --force >/dev/null 2>&1 || true
+        return 0
+    fi
+
+    if [[ -e "$link" ]]; then
+        warn "public/storage существует, но не является симлинком — storage:link пропущен"
+        return 0
+    fi
+
+    php artisan storage:link
+}
+
 # Systemd queue worker + Laravel Scheduler (cron)
 setup_queue_and_scheduler() {
     local php_bin queue_unit cron_file cron_line queue_log
@@ -233,7 +251,7 @@ else
 fi
 
 log "Storage link..."
-php artisan storage:link 2>/dev/null || true
+ensure_storage_link
 
 # ─── Кэш Laravel ──────────────────────────────────────────────────────────────
 
