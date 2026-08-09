@@ -33,7 +33,7 @@ import {
   type CSSProperties,
   type HTMLAttributes,
 } from 'react'
-import { api } from '../api/client'
+import { api, isApiNotFound } from '../api/client'
 import { useBusyFavicon } from '../documentMeta/AdminDocumentMeta'
 
 type PlayerRow = {
@@ -158,7 +158,12 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
       const data = await api<{ players: Array<Omit<PlayerRow, 'key'>> }>(`/api/admin/series/${kpId}/players`)
       applyRows(mapApiPlayers(data.players ?? []), true)
     } catch (e) {
-      message.error(String((e as Error).message))
+      // New series: KP ID already set, but record not saved yet — keep empty list without toast.
+      if (isApiNotFound(e)) {
+        applyRows([], true)
+      } else {
+        message.error(String((e as Error).message))
+      }
     } finally {
       setLoading(false)
     }

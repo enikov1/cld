@@ -1,7 +1,7 @@
 import { Alert, Button, Collapse, Dropdown, Input, InputNumber, Select, Space, Spin, Typography, message } from 'antd'
 import type { MenuProps } from 'antd'
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import { api } from '../api/client'
+import { api, isApiNotFound } from '../api/client'
 import { useBusyFavicon } from '../documentMeta/AdminDocumentMeta'
 
 type ScheduleEpisode = {
@@ -83,7 +83,12 @@ const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(funct
       setResolvedTmdbId(data.tmdb_id ?? null)
       setTmdbConfigured(data.tmdb_api_key_set !== false)
     } catch (e) {
-      message.error(String((e as Error).message))
+      // New series: KP ID already set, but record not saved yet — keep empty schedule without toast.
+      if (isApiNotFound(e)) {
+        applySeasons([], true)
+      } else {
+        message.error(String((e as Error).message))
+      }
     } finally {
       setLoading(false)
     }

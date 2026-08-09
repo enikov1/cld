@@ -3,6 +3,7 @@ import { Button, Col, Empty, Form, Input, InputNumber, Modal, Popconfirm, Row, S
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, apiUpload } from '../api/client'
+import CollectionImageAiControls from '../components/CollectionImageAiControls'
 import EntitySeoAiControls from '../components/EntitySeoAiControls'
 import TemplateCodeEditor from '../components/TemplateCodeEditor'
 import { useBusyFavicon, useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
@@ -15,6 +16,12 @@ import {
   type AiImportPreview,
   type AiPromptResponse,
 } from '../utils/collectionAiPrompt'
+import {
+  COLLECTION_BANNER_AI_PROMPT_KEY,
+  COLLECTION_COVER_AI_PROMPT_KEY,
+  DEFAULT_COLLECTION_BANNER_AI_PROMPT,
+  DEFAULT_COLLECTION_COVER_AI_PROMPT,
+} from '../utils/collectionImageAiPrompt'
 import {
   COLLECTION_SEO_AI_PROMPT_KEY,
   DEFAULT_COLLECTION_SEO_AI_PROMPT,
@@ -794,27 +801,63 @@ export default function CollectionsPage() {
           <Form.Item label="Обложка для каталога (4:3)" name="cover_url" extra="Используется на странице /collections/">
             <Input />
           </Form.Item>
-          <Upload
-            beforeUpload={(file) => uploadCollectionImage(file, 'cover')}
-            showUploadList={false}
-            accept="image/*"
-          >
-            <Button style={{ marginBottom: 12 }} disabled={!coverSlug && !watchedTitle}>
-              Загрузить обложку 4:3
-            </Button>
-          </Upload>
+          <Space wrap style={{ marginBottom: 12 }}>
+            <Upload
+              beforeUpload={(file) => uploadCollectionImage(file, 'cover')}
+              showUploadList={false}
+              accept="image/*"
+            >
+              <Button disabled={!coverSlug && !watchedTitle}>
+                Загрузить обложку 4:3
+              </Button>
+            </Upload>
+            <CollectionImageAiControls
+              settingKey={COLLECTION_COVER_AI_PROMPT_KEY}
+              defaultTemplate={DEFAULT_COLLECTION_COVER_AI_PROMPT}
+              label="обложки подборки (4:3)"
+              aspectLabel="обложки 4:3"
+              buildVars={() => {
+                const name = String(form.getFieldValue('title') || '').trim()
+                if (!name) return null
+                const slug = String(form.getFieldValue('slug') || editing?.slug || '').trim()
+                return {
+                  name,
+                  slug,
+                  url: `/collections/${slug || '{slug}'}/`,
+                }
+              }}
+            />
+          </Space>
           <Form.Item label="Баннер для главной (16:4)" name="home_banner_url" extra="Широкий баннер для блока на главной странице">
             <Input />
           </Form.Item>
-          <Upload
-            beforeUpload={(file) => uploadCollectionImage(file, 'banner')}
-            showUploadList={false}
-            accept="image/*"
-          >
-            <Button style={{ marginBottom: 12 }} disabled={!coverSlug && !watchedTitle}>
-              Загрузить баннер 16:4
-            </Button>
-          </Upload>
+          <Space wrap style={{ marginBottom: 12 }}>
+            <Upload
+              beforeUpload={(file) => uploadCollectionImage(file, 'banner')}
+              showUploadList={false}
+              accept="image/*"
+            >
+              <Button disabled={!coverSlug && !watchedTitle}>
+                Загрузить баннер 16:4
+              </Button>
+            </Upload>
+            <CollectionImageAiControls
+              settingKey={COLLECTION_BANNER_AI_PROMPT_KEY}
+              defaultTemplate={DEFAULT_COLLECTION_BANNER_AI_PROMPT}
+              label="баннера подборки (16:4)"
+              aspectLabel="баннера 16:4"
+              buildVars={() => {
+                const name = String(form.getFieldValue('title') || '').trim()
+                if (!name) return null
+                const slug = String(form.getFieldValue('slug') || editing?.slug || '').trim()
+                return {
+                  name,
+                  slug,
+                  url: `/collections/${slug || '{slug}'}/`,
+                }
+              }}
+            />
+          </Space>
           <Row gutter={16}>
             <Col span={6}>
               <Form.Item label="Порядок" name="sort_order"><InputNumber style={{ width: '100%' }} /></Form.Item>

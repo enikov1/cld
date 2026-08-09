@@ -8,6 +8,20 @@ const knownValidationMessages: Record<string, string> = {
   'The name field is required.': 'Укажите имя.',
 }
 
+export class ApiError extends Error {
+  readonly status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
+export function isApiNotFound(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 404
+}
+
 function humanizeValidationMessage(message: string): string {
   return knownValidationMessages[message] ?? message
 }
@@ -27,6 +41,10 @@ function formatApiErrorMessage(data: Record<string, unknown>, fallback: string):
   }
 
   return fallback
+}
+
+function throwApiError(res: Response, message: string): never {
+  throw new ApiError(message, res.status)
 }
 
 export async function api<T>(url: string, opts?: RequestInit): Promise<T> {
@@ -54,7 +72,7 @@ export async function api<T>(url: string, opts?: RequestInit): Promise<T> {
     } catch {
       // Body already consumed by res.json() — do not call res.text().
     }
-    throw new Error(message)
+    throwApiError(res, message)
   }
 
   if (res.status === 204) {
@@ -87,7 +105,7 @@ export async function apiUpload<T>(url: string, formData: FormData): Promise<T> 
     } catch {
       // Body already consumed.
     }
-    throw new Error(message)
+    throwApiError(res, message)
   }
 
   return (await res.json()) as T
