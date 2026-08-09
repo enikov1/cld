@@ -1,7 +1,8 @@
 import { CopyOutlined, DeleteOutlined, EditOutlined, ExportOutlined } from '@ant-design/icons'
 import { Button, Col, Empty, Form, Input, InputNumber, Modal, Popconfirm, Row, Select, Space, Switch, Table, Tag, Tooltip, Typography, Upload, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api, apiUpload } from '../api/client'
 import EntitySeoAiControls from '../components/EntitySeoAiControls'
 import TemplateCodeEditor from '../components/TemplateCodeEditor'
@@ -85,6 +86,8 @@ export default function StudiosPage() {
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [form] = Form.useForm()
   const [addForm] = Form.useForm()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const deepLinkHandled = useRef(false)
   const logoUrl = Form.useWatch('logo_url', form)
 
   useDocumentTitle(
@@ -160,6 +163,31 @@ export default function StudiosPage() {
     })
     setModalOpen(true)
   }
+
+  useEffect(() => {
+    if (deepLinkHandled.current || studios.length === 0) {
+      return
+    }
+    const id = searchParams.get('id')?.trim()
+    const slug = searchParams.get('slug')?.trim()
+    if (!id && !slug) {
+      return
+    }
+    deepLinkHandled.current = true
+    const row = id
+      ? studios.find((item) => String(item.id) === id)
+      : studios.find((item) => item.slug === slug)
+    if (!row) {
+      message.warning('Студия не найдена')
+    } else {
+      setActiveSlug(row.slug)
+      openEdit(row)
+    }
+    const next = new URLSearchParams(searchParams)
+    next.delete('id')
+    next.delete('slug')
+    setSearchParams(next, { replace: true })
+  }, [studios, searchParams, setSearchParams]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function saveStudio(values: Record<string, unknown>) {
     try {

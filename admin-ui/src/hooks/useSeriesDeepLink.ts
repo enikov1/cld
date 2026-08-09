@@ -7,7 +7,7 @@ import type { SeriesItem } from '../types'
 type UseSeriesDeepLinkOptions = {
   searchParams: URLSearchParams
   setSearchParams: SetURLSearchParams
-  openEdit: (item: SeriesItem) => void
+  openEdit: (item: SeriesItem) => void | Promise<void>
 }
 
 /**

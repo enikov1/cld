@@ -12,6 +12,11 @@ use ZipArchive;
 
 class BackupService
 {
+    private const ALREADY_COMPRESSED = [
+        'jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'zip', 'gz', 'bz2', '7z',
+        'mp4', 'webm', 'mp3', 'ogg', 'woff', 'woff2',
+    ];
+
     public function __construct(
         private readonly BackupRemoteStorage $remoteStorage,
     ) {}
@@ -27,6 +32,8 @@ class BackupService
      */
     public function run(): array
     {
+        $this->prepareLongRunningProcess();
+
         $settings = BackupSettings::get();
         $log = [];
 
@@ -38,6 +45,7 @@ class BackupService
         }
 
         $this->ensureBackupDirectory();
+        $lock = $this->acquireLock('.run.lock', 'Бэкап уже выполняется. Дождитесь завершения.');
         $workDir = storage_path('app/backups/tmp_' . date('Ymd_His') . '_' . bin2hex(random_bytes(3)));
         File::makeDirectory($workDir, 0755, true);
 
@@ -52,13 +60,8 @@ class BackupService
                 $this->dumpDatabase($workDir);
             }
 
-            if ($settings['include_files']) {
-                $log[] = 'Архивация файлов сайта…';
-                $this->addSiteFiles($workDir);
-            }
-
             $log[] = 'Создание ZIP-архива…';
-            $this->createZipArchive($workDir, $archivePath);
+            $this->createZipArchive($workDir, $settings['include_files'], $archivePath);
             $archiveSize = is_file($archivePath) ? (int)filesize($archivePath) : 0;
             $log[] = 'Архив: ' . $archiveName . ' (' . $this->formatBytes($archiveSize) . ')';
 
@@ -113,6 +116,7 @@ class BackupService
             ];
         } finally {
             File::deleteDirectory($workDir);
+            $this->releaseLock($lock);
         }
     }
 
@@ -217,6 +221,8 @@ class BackupService
      */
     public function restore(string $name, string $source, bool $restoreDatabase = true, bool $restoreFiles = true): array
     {
+        $this->prepareLongRunningProcess();
+
         $log = [];
 
         if (!$restoreDatabase && !$restoreFiles) {
@@ -230,6 +236,9 @@ class BackupService
         if (!in_array($source, ['local', 'remote'], true)) {
             throw new RuntimeException('Некорректный источник бэкапа.');
         }
+
+        $this->ensureBackupDirectory();
+        $lock = $this->acquireLock('.restore.lock', 'Восстановление уже выполняется. Дождитесь завершения.');
 
         $archivePath = null;
         $downloaded = false;
@@ -292,7 +301,77 @@ class BackupService
             if (is_dir($workDir)) {
                 File::deleteDirectory($workDir);
             }
+            $this->releaseLock($lock);
         }
+    }
+
+    private function prepareLongRunningProcess(): void
+    {
+        @ignore_user_abort(true);
+        @set_time_limit(0);
+        @ini_set('max_execution_time', '0');
+        // Large ZIP builds should stream from disk; keep a modest ceiling for PHP overhead.
+        $current = ini_get('memory_limit');
+        if (is_string($current) && $current !== '' && $current !== '-1') {
+            $bytes = $this->memoryLimitToBytes($current);
+            if ($bytes > 0 && $bytes < 512 * 1024 * 1024) {
+                @ini_set('memory_limit', '512M');
+            }
+        }
+    }
+
+    private function memoryLimitToBytes(string $value): int
+    {
+        $value = trim($value);
+        if ($value === '' || $value === '-1') {
+            return -1;
+        }
+
+        $unit = strtolower(substr($value, -1));
+        $number = (float)$value;
+        return (int) match ($unit) {
+            'g' => $number * 1024 * 1024 * 1024,
+            'm' => $number * 1024 * 1024,
+            'k' => $number * 1024,
+            default => $number,
+        };
+    }
+
+    /**
+     * @return array{handle: resource, path: string}
+     */
+    private function acquireLock(string $filename, string $busyMessage): array
+    {
+        $path = storage_path('app/backups/' . $filename);
+        $handle = fopen($path, 'c+');
+        if ($handle === false) {
+            throw new RuntimeException('Не удалось создать lock-файл бэкапа.');
+        }
+
+        if (!flock($handle, LOCK_EX | LOCK_NB)) {
+            fclose($handle);
+            throw new RuntimeException($busyMessage);
+        }
+
+        ftruncate($handle, 0);
+        fwrite($handle, (string)getmypid() . "\n" . date('c') . "\n");
+        fflush($handle);
+
+        return ['handle' => $handle, 'path' => $path];
+    }
+
+    /**
+     * @param array{handle: resource, path: string} $lock
+     */
+    private function releaseLock(array $lock): void
+    {
+        $handle = $lock['handle'] ?? null;
+        if (!is_resource($handle)) {
+            return;
+        }
+
+        flock($handle, LOCK_UN);
+        fclose($handle);
     }
 
     /**
@@ -438,7 +517,8 @@ class BackupService
         }
 
         $process = new Process($command);
-        $process->setTimeout(3600);
+        $process->setTimeout(7200);
+        $process->setIdleTimeout(1800);
         $process->setInput($handle);
         if (!empty($config['password'])) {
             $process->setEnv(array_merge($_ENV, ['MYSQL_PWD' => (string)$config['password']]));
@@ -527,7 +607,7 @@ class BackupService
             throw new RuntimeException('Драйвер БД не поддерживается для бэкапа: ' . $driver);
         }
 
-        $sqlFile = $directory . '/database.sql';
+        $sqlFile = $directory . DIRECTORY_SEPARATOR . 'database.sql';
         $mysqldump = MysqldumpBinary::resolve();
         $command = [
             $mysqldump,
@@ -540,11 +620,14 @@ class BackupService
             '--lock-tables=false',
             '--routines',
             '--triggers',
+            // Stream dump straight to disk — avoids loading multi‑GB SQL into PHP memory.
+            '--result-file=' . $sqlFile,
             (string)($config['database'] ?? ''),
         ];
 
         $process = new Process($command);
-        $process->setTimeout(3600);
+        $process->setTimeout(7200);
+        $process->setIdleTimeout(1800);
         if (!empty($config['password'])) {
             $process->setEnv(array_merge($_ENV, ['MYSQL_PWD' => (string)$config['password']]));
         }
@@ -558,34 +641,92 @@ class BackupService
             );
         }
 
-        $output = $process->getOutput();
-        if ($output === '') {
+        if (!is_file($sqlFile) || filesize($sqlFile) === 0) {
             throw new RuntimeException('mysqldump вернул пустой результат.');
-        }
-
-        if (file_put_contents($sqlFile, $output) === false) {
-            throw new RuntimeException('Не удалось сохранить дамп БД.');
         }
     }
 
-    private function addSiteFiles(string $directory): void
+    /**
+     * Build ZIP from DB dump in $workDir and (optionally) live site files — without a full temp copy.
+     */
+    private function createZipArchive(string $workDir, bool $includeFiles, string $archivePath): void
     {
-        $filesRoot = $directory . '/files';
-        File::makeDirectory($filesRoot, 0755, true);
+        if (!class_exists(ZipArchive::class)) {
+            throw new RuntimeException('Расширение PHP ZipArchive не установлено.');
+        }
 
-        $sources = [
-            'storage_public' => storage_path('app/public'),
-            'templates' => resource_path('tpl'),
-        ];
+        if (is_file($archivePath)) {
+            @unlink($archivePath);
+        }
 
-        foreach ($sources as $label => $source) {
-            if (!is_dir($source)) {
+        $zip = new ZipArchive();
+        if ($zip->open($archivePath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            throw new RuntimeException('Не удалось создать ZIP-архив.');
+        }
+
+        try {
+            $this->addDirectoryToZip($zip, $workDir, '');
+
+            if ($includeFiles) {
+                $sources = [
+                    'files/storage_public' => storage_path('app/public'),
+                    'files/templates' => resource_path('tpl'),
+                ];
+
+                foreach ($sources as $prefix => $source) {
+                    if (!is_dir($source)) {
+                        continue;
+                    }
+                    $zip->addEmptyDir($prefix);
+                    $this->addDirectoryToZip($zip, $source, $prefix);
+                }
+            }
+        } finally {
+            $zip->close();
+        }
+
+        if (!is_file($archivePath) || filesize($archivePath) === 0) {
+            throw new RuntimeException('ZIP-архив пуст или не создан.');
+        }
+    }
+
+    private function addDirectoryToZip(ZipArchive $zip, string $sourceDir, string $prefix): void
+    {
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($sourceDir, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::SELF_FIRST,
+        );
+
+        $sourceDir = rtrim(str_replace('\\', '/', $sourceDir), '/');
+
+        foreach ($iterator as $item) {
+            /** @var \SplFileInfo $item */
+            $absolute = str_replace('\\', '/', $item->getPathname());
+            $relative = substr($absolute, strlen($sourceDir) + 1);
+            if ($relative === false || $relative === '') {
                 continue;
             }
 
-            $target = $filesRoot . '/' . $label;
-            File::makeDirectory($target, 0755, true);
-            $this->copyDirectory($source, $target);
+            $entry = $prefix !== '' ? $prefix . '/' . $relative : $relative;
+
+            if ($item->isDir()) {
+                $zip->addEmptyDir($entry);
+                continue;
+            }
+
+            if (!$zip->addFile($item->getPathname(), $entry)) {
+                throw new RuntimeException(
+                    'Не удалось добавить файл в архив: ' . (string)Utf8::sanitize($entry),
+                );
+            }
+
+            $ext = strtolower(pathinfo($entry, PATHINFO_EXTENSION));
+            if (in_array($ext, self::ALREADY_COMPRESSED, true)) {
+                $zip->setCompressionName($entry, ZipArchive::CM_STORE);
+            } else {
+                // Fast deflate — large backups (posters + SQL) finish much sooner than default level 6.
+                $zip->setCompressionName($entry, ZipArchive::CM_DEFLATE, 1);
+            }
         }
     }
 
@@ -619,38 +760,6 @@ class BackupService
                 );
             }
         }
-    }
-
-    private function createZipArchive(string $sourceDir, string $archivePath): void
-    {
-        if (!class_exists(ZipArchive::class)) {
-            throw new RuntimeException('Расширение PHP ZipArchive не установлено.');
-        }
-
-        $zip = new ZipArchive();
-        if ($zip->open($archivePath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-            throw new RuntimeException('Не удалось создать ZIP-архив.');
-        }
-
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($sourceDir, \FilesystemIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::SELF_FIRST,
-        );
-
-        foreach ($iterator as $item) {
-            /** @var \SplFileInfo $item */
-            $relative = substr($item->getPathname(), strlen($sourceDir) + 1);
-            $relative = str_replace('\\', '/', $relative);
-
-            if ($item->isDir()) {
-                $zip->addEmptyDir($relative);
-                continue;
-            }
-
-            $zip->addFile($item->getPathname(), $relative);
-        }
-
-        $zip->close();
     }
 
     private function pruneLocal(int $retentionCount): int

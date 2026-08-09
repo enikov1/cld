@@ -145,6 +145,10 @@ class TaxonomyService
         }
 
         if ($directors !== []) {
+            $maxDirectors = SiteConfig::int('import_max_directors');
+            if ($maxDirectors > 0 && count($directors) > $maxDirectors) {
+                $directors = array_slice($directors, 0, $maxDirectors);
+            }
             $directorIds = $this->resolvePeopleIds($directors);
             $this->syncPeopleByIds($series, $directorIds, 'director');
         }

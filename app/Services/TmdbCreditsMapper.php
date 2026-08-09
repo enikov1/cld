@@ -19,6 +19,7 @@ class TmdbCreditsMapper
         $cast = is_array($credits['cast'] ?? null) ? $credits['cast'] : [];
         $crew = is_array($credits['crew'] ?? null) ? $credits['crew'] : [];
         $maxActors = SiteConfig::int('import_max_actors');
+        $maxDirectors = SiteConfig::int('import_max_directors');
 
         $actors = [];
         foreach ($cast as $member) {
@@ -55,6 +56,9 @@ class TmdbCreditsMapper
                 'name' => $name,
                 'photo_url' => self::profileUrl($member['profile_path'] ?? null),
             ];
+            if ($maxDirectors > 0 && count($directors) >= $maxDirectors) {
+                break;
+            }
         }
 
         return [

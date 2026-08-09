@@ -1,8 +1,10 @@
+import { DeleteOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons'
 import { Alert, Button, Collapse, Dropdown, Input, InputNumber, Select, Space, Spin, Typography, message } from 'antd'
 import type { MenuProps } from 'antd'
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { api, isApiNotFound } from '../api/client'
 import { useBusyFavicon } from '../documentMeta/AdminDocumentMeta'
+import { TmdbIcon } from './brandIcons'
 
 type ScheduleEpisode = {
   episode_number: number
@@ -278,14 +280,14 @@ const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(funct
 
       <Space style={{ marginBottom: 12 }} wrap>
         <Dropdown menu={{ items: importMenu }} disabled={!canImportTmdb || loading || importing}>
-          <Button type="primary" loading={importing} disabled={!canImportTmdb || loading}>
+          <Button type="primary" icon={<TmdbIcon />} loading={importing} disabled={!canImportTmdb || loading}>
             Импорт из TMDB
           </Button>
         </Dropdown>
-        <Button onClick={addSeason} disabled={loading || importing}>
+        <Button icon={<PlusOutlined />} onClick={addSeason} disabled={loading || importing}>
           Добавить сезон
         </Button>
-        <Button onClick={() => saveSchedule()} loading={saving} disabled={loading || importing}>
+        <Button icon={<SaveOutlined />} onClick={() => saveSchedule()} loading={saving} disabled={loading || importing}>
           Сохранить расписание
         </Button>
       </Space>
@@ -311,12 +313,13 @@ const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(funct
             extra: (
               <Button
                 size="small"
+                icon={<PlusOutlined />}
                 onClick={(e) => {
                   e.stopPropagation()
                   addEpisode(si)
                 }}
               >
-                + серия
+                серия
               </Button>
             ),
             children: (
@@ -345,6 +348,7 @@ const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(funct
                   <Button
                     danger
                     size="small"
+                    icon={<DeleteOutlined />}
                     onClick={() => {
                       setSeasons(seasons.filter((_, i) => i !== si))
                     }}
@@ -420,6 +424,7 @@ const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(funct
                     <Button
                       danger
                       size="small"
+                      icon={<DeleteOutlined />}
                       onClick={() => {
                         const next = [...seasons]
                         next[si] = {
@@ -428,9 +433,8 @@ const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(funct
                         }
                         setSeasons(next)
                       }}
-                    >
-                      ×
-                    </Button>
+                      aria-label="Удалить серию"
+                    />
                   </Space>
                 ))}
               </Space>

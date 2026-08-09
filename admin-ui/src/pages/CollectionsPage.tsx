@@ -1,7 +1,8 @@
 import { CopyOutlined, DeleteOutlined, EditOutlined, ExportOutlined } from '@ant-design/icons'
 import { Button, Col, Empty, Form, Input, InputNumber, Modal, Popconfirm, Row, Select, Space, Switch, Table, Tag, Tooltip, Typography, Upload, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api, apiUpload } from '../api/client'
 import CollectionImageAiControls from '../components/CollectionImageAiControls'
 import EntitySeoAiControls from '../components/EntitySeoAiControls'
@@ -83,6 +84,8 @@ export default function CollectionsPage() {
   const [importCreating, setImportCreating] = useState(false)
   const [form] = Form.useForm()
   const [addForm] = Form.useForm()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const deepLinkHandled = useRef(false)
   const watchedSeriesIds = (Form.useWatch('series_ids', form) as number[] | undefined) ?? []
   const watchedSlug = String(Form.useWatch('slug', form) ?? '').trim()
   const watchedTitle = String(Form.useWatch('title', form) ?? '').trim()
@@ -217,6 +220,41 @@ export default function CollectionsPage() {
       message.error(String((e as Error).message))
     }
   }
+
+  useEffect(() => {
+    if (deepLinkHandled.current) {
+      return
+    }
+    const id = searchParams.get('id')?.trim()
+    const slug = searchParams.get('slug')?.trim()
+    if (!id && !slug) {
+      return
+    }
+    deepLinkHandled.current = true
+
+    ;(async () => {
+      try {
+        const params = new URLSearchParams({ per_page: '1', page: '1' })
+        if (id) params.set('id', id)
+        if (slug) params.set('slug', slug)
+        const data = await api<{ items: CollectionItem[] }>(`/api/admin/collections?${params}`)
+        const row = data.items[0]
+        if (!row) {
+          message.warning('Подборка не найдена')
+          return
+        }
+        setActiveSlug(row.slug)
+        await openEdit(row)
+      } catch (e) {
+        message.error(String((e as Error).message))
+      } finally {
+        const next = new URLSearchParams(searchParams)
+        next.delete('id')
+        next.delete('slug')
+        setSearchParams(next, { replace: true })
+      }
+    })()
+  }, [searchParams, setSearchParams]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function saveCollection(values: Record<string, unknown>) {
     try {

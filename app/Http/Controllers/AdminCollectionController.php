@@ -21,10 +21,18 @@ class AdminCollectionController extends Controller
     public function index(Request $request)
     {
         $q = trim((string) $request->query('q', ''));
+        $id = (int) $request->query('id', 0);
+        $slug = trim((string) $request->query('slug', ''));
         $perPage = min(200, max(10, (int) $request->query('per_page', 50)));
         $page = max(1, (int) $request->query('page', 1));
 
         $query = Collection::query()->withCount('items')->catalogOrder();
+        if ($id > 0) {
+            $query->where('id', $id);
+        }
+        if ($slug !== '') {
+            $query->where('slug', $slug);
+        }
         if ($q !== '') {
             $query->where(function ($builder) use ($q) {
                 $builder->where('title', 'like', '%' . $q . '%')

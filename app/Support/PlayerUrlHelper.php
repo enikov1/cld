@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\PlayerSource;
 use App\Models\Series;
+use App\Services\RutubeTrailerService;
 
 class PlayerUrlHelper
 {
@@ -61,6 +62,11 @@ class PlayerUrlHelper
             }
 
             return $content;
+        }
+
+        $rutubeEmbed = RutubeTrailerService::toEmbedUrl($content);
+        if ($rutubeEmbed !== '') {
+            return $rutubeEmbed;
         }
 
         return self::sanitize($content);

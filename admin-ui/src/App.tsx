@@ -22,11 +22,13 @@ const PlayerReportsPage = lazy(() => import('./pages/PlayerReportsPage'))
 const CronRunsPage = lazy(() => import('./pages/CronRunsPage'))
 const UsersPage = lazy(() => import('./pages/UsersPage'))
 const SearchStatsPage = lazy(() => import('./pages/SearchStatsPage'))
+const ViewsStatsPage = lazy(() => import('./pages/ViewsStatsPage'))
 const RedirectsPage = lazy(() => import('./pages/RedirectsPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const TemplatesPage = lazy(() => import('./pages/TemplatesPage'))
 const KinoPoiskSyncPage = lazy(() => import('./pages/KinoPoiskSyncPage'))
 const AllohaSyncPage = lazy(() => import('./pages/AllohaSyncPage'))
+const RutubeSyncPage = lazy(() => import('./pages/RutubeSyncPage'))
 const BackupPage = lazy(() => import('./pages/BackupPage'))
 
 type AppProps = {
@@ -77,11 +79,13 @@ function AppRoutes({ isDark, onToggleTheme }: AppRoutesProps) {
           <Route path="cron-runs" element={<CronRunsPage />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="search-stats" element={<SearchStatsPage />} />
+          <Route path="views-stats" element={<ViewsStatsPage />} />
           <Route path="redirects" element={<RedirectsPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="templates" element={<TemplatesPage />} />
           <Route path="sync" element={<KinoPoiskSyncPage />} />
           <Route path="alloha-sync" element={<AllohaSyncPage />} />
+          <Route path="rutube-sync" element={<RutubeSyncPage />} />
           <Route path="backup" element={<BackupPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

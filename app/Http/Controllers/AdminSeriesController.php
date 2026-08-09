@@ -32,7 +32,14 @@ class AdminSeriesController extends Controller
     {
         $params = AdminSeriesFilter::params($request);
 
-        $query = Series::query()->with(['genres', 'countries', 'actors', 'directors', 'studio', 'studios']);
+        // Full payload (relations + long text) only when opening a single card by id/kp_id.
+        // List rows skip actors/directors/collections — those dominate response size and query time.
+        $full = !empty($params['id']) || trim((string) ($params['kp_id'] ?? '')) !== '';
+
+        $query = Series::query();
+        if ($full) {
+            $query->with(['genres', 'countries', 'actors', 'directors', 'studio', 'studios', 'collections']);
+        }
         if ($params['with_trashed']) {
             $query->withTrashed();
         }
@@ -42,17 +49,21 @@ class AdminSeriesController extends Controller
 
         $paginator = $query->paginate(
             (int)$params['per_page'],
-            ['*'],
+            $full ? ['*'] : $this->seriesListColumns(),
             'page',
             (int)$params['page'],
         );
 
         $ids = collect($paginator->items())->pluck('id')->map(fn ($id) => (int)$id)->all();
         $views3d = SeriesViewService::viewsSumForSeriesIds($ids, 3);
-        $views7d = SeriesViewService::viewsSumForSeriesIds($ids, 7);
+        $views7d = $full ? SeriesViewService::viewsSumForSeriesIds($ids, 7) : [];
 
         return response()->json([
-            'items' => collect($paginator->items())->map(fn (Series $s) => $this->serializeSeries($s, $views3d, $views7d))->values()->all(),
+            'items' => collect($paginator->items())->map(
+                fn (Series $s) => $full
+                    ? $this->serializeSeries($s, $views3d, $views7d)
+                    : $this->serializeSeriesListItem($s, $views3d)
+            )->values()->all(),
             'total' => $paginator->total(),
             'page' => $paginator->currentPage(),
             'per_page' => $paginator->perPage(),
@@ -802,6 +813,76 @@ class AdminSeriesController extends Controller
             'ok' => true,
             'item' => $this->serializeSeries($series->load(['genres', 'countries', 'actors', 'directors', 'studio', 'studios', 'collections'])),
         ]);
+    }
+
+    /**
+     * Columns needed for the admin table and row actions (no long text / JSON blobs).
+     *
+     * @return list<string>
+     */
+    private function seriesListColumns(): array
+    {
+        return [
+            'id',
+            'kp_id',
+            'imdb_id',
+            'tmdb_id',
+            'slug',
+            'title',
+            'poster_url',
+            'year',
+            'start_year',
+            'premiere_date',
+            'content_type',
+            'broadcast_status',
+            'season_number',
+            'last_episode_number',
+            'kp_rating',
+            'tmdb_popularity',
+            'views_count',
+            'popular_badge_active',
+            'is_active',
+            'is_hidden',
+            'is_pinned',
+            'sort_order',
+            'deleted_at',
+        ];
+    }
+
+    /**
+     * Compact row for list/select UIs — avoids heavy relation payloads (actors especially).
+     *
+     * @param array<int, int> $views3d
+     * @return array<string, mixed>
+     */
+    private function serializeSeriesListItem(Series $series, array $views3d = []): array
+    {
+        return [
+            'id' => (int) $series->id,
+            'kp_id' => $series->kp_id,
+            'imdb_id' => $series->imdb_id,
+            'tmdb_id' => $series->tmdb_id,
+            'slug' => $series->slug,
+            'title' => $series->title,
+            'poster_url' => $series->poster_url,
+            'year' => $series->year,
+            'start_year' => $series->start_year,
+            'premiere_date' => $series->premiere_date,
+            'content_type' => $series->content_type,
+            'broadcast_status' => $series->broadcast_status,
+            'season_number' => $series->season_number,
+            'last_episode_number' => $series->last_episode_number,
+            'kp_rating' => $series->kp_rating,
+            'tmdb_popularity' => $series->tmdb_popularity,
+            'views_count' => (int) ($series->views_count ?? 0),
+            'views_3d' => $views3d[(int) $series->id] ?? 0,
+            'popular_badge_active' => (bool) $series->popular_badge_active,
+            'is_active' => (bool) $series->is_active,
+            'is_hidden' => (bool) $series->is_hidden,
+            'is_pinned' => (bool) $series->is_pinned,
+            'sort_order' => $series->sort_order,
+            'deleted_at' => $series->deleted_at,
+        ];
     }
 
     /**

@@ -9,6 +9,7 @@ import {
   InputNumber,
   Modal,
   Popconfirm,
+  Popover,
   Row,
   Select,
   Space,
@@ -23,16 +24,22 @@ import {
 } from 'antd'
 import {
   CheckOutlined,
+  ClearOutlined,
   CopyOutlined,
   DeleteOutlined,
   EditOutlined,
   EyeInvisibleOutlined,
   EyeOutlined,
   ExportOutlined,
+  FilterOutlined,
+  PlusOutlined,
   PushpinFilled,
   PushpinOutlined,
+  SaveOutlined,
   UndoOutlined,
+  UploadOutlined,
 } from '@ant-design/icons'
+import { AllohaIcon, KinopoiskIcon, TmdbIcon } from '../components/brandIcons'
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -566,14 +573,29 @@ export default function SeriesPage() {
     }
   }, [filterForm, page, perPage])
 
+  const fetchFullSeries = useCallback(async (row: SeriesItem): Promise<SeriesItem> => {
+    // List payload is compact (no genre_ids / actors). Editor needs the full card.
+    if (row.genre_ids !== undefined) {
+      return row
+    }
+    const params = new URLSearchParams()
+    params.set('id', String(row.id))
+    params.set('per_page', '1')
+    params.set('with_trashed', '1')
+    const data = await api<{ items: SeriesItem[] }>(`/api/admin/series?${params}`)
+    return data.items[0] ?? row
+  }, [])
+
   useEffect(() => {
     filterForm.setFieldsValue({
       sort: 'default',
       with_trashed: false,
     })
-    Promise.all([loadTaxonomy(), loadStudios(), loadCollections()])
-      .then(() => loadSeries(1, 50, filterForm.getFieldsValue()))
-      .catch((e) => message.error(String((e as Error).message)))
+    // List first — do not wait for taxonomy/people (can be huge).
+    void loadSeries(1, 50, filterForm.getFieldsValue())
+    void Promise.all([loadTaxonomy(), loadStudios(), loadCollections()]).catch((e) =>
+      message.error(String((e as Error).message)),
+    )
   }, [])
 
   function applyFilters() {
@@ -607,16 +629,24 @@ export default function SeriesPage() {
     setDrawerOpen(true)
   }
 
-  const openEdit = useCallback((row: SeriesItem) => {
+  const openEdit = useCallback(async (row: SeriesItem) => {
     setEditing(row)
     setDrawerTab('main')
     setMainSubTab('basic')
-    form.setFieldsValue(seriesToFormValues(row))
-    setFormDirty(false)
     setPosterMeta(null)
     setDrawerOpen(true)
+    setFormDirty(false)
     void loadStudios()
-  }, [form, loadStudios])
+    // Prefill from list row so the drawer opens immediately; replace with full card when ready.
+    form.setFieldsValue(seriesToFormValues(row))
+    try {
+      const item = await fetchFullSeries(row)
+      setEditing(item)
+      form.setFieldsValue(seriesToFormValues(item))
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
+  }, [fetchFullSeries, form, loadStudios])
 
   useSeriesDeepLink({ searchParams, setSearchParams, openEdit })
 
@@ -1016,23 +1046,40 @@ export default function SeriesPage() {
       ellipsis: true,
       sorter: true,
       sortOrder: columnSortOrder(currentSort, 'title'),
-      render: (t, r) => (
-        <Space size={8} align="start" style={{ maxWidth: '100%' }}>
-          {r.poster_url ? (
-            <img
-              src={resolveMediaUrl(r.poster_url, posterCacheBust)}
-              alt=""
-              style={{ width: 36, height: 52, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
-            />
-          ) : null}
-          <Space direction="vertical" size={0} style={{ minWidth: 0 }}>
-            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', maxWidth: 280 }}>
-              {t}{r.deleted_at ? ' (удалён)' : ''}
-            </span>
-            {r.is_pinned ? <Tag color="orange">Закреплён</Tag> : null}
+      render: (t, r) => {
+        const posterSrc = r.poster_url ? resolveMediaUrl(r.poster_url, posterCacheBust) : null
+        return (
+          <Space size={8} align="start" style={{ maxWidth: '100%' }}>
+            {posterSrc ? (
+              <Popover
+                trigger="hover"
+                mouseEnterDelay={0.15}
+                placement="right"
+                overlayClassName="series-poster-preview"
+                content={
+                  <img
+                    src={posterSrc}
+                    alt=""
+                    className="series-poster-preview__img"
+                  />
+                }
+              >
+                <img
+                  src={posterSrc}
+                  alt=""
+                  className="series-list-poster"
+                />
+              </Popover>
+            ) : null}
+            <Space direction="vertical" size={0} style={{ minWidth: 0 }}>
+              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', maxWidth: 280 }}>
+                {t}{r.deleted_at ? ' (удалён)' : ''}
+              </span>
+              {r.is_pinned ? <Tag color="orange">Закреплён</Tag> : null}
+            </Space>
           </Space>
-        </Space>
-      ),
+        )
+      },
     },
     {
       title: 'Тип',
@@ -1192,7 +1239,7 @@ export default function SeriesPage() {
         <Space wrap>
           <span className="admin-empty-hint">Всего: {total}</span>
         </Space>
-        <Button type="primary" onClick={openCreate}>Добавить</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Добавить</Button>
       </div>
 
       <Card
@@ -1200,7 +1247,7 @@ export default function SeriesPage() {
         title="Фильтры"
         style={{ marginBottom: 16 }}
         extra={
-          <Button type="link" onClick={() => setFiltersOpen((v) => !v)}>
+          <Button type="link" icon={<FilterOutlined />} onClick={() => setFiltersOpen((v) => !v)}>
             {filtersOpen ? 'Свернуть' : 'Развернуть'}
           </Button>
         }
@@ -1342,8 +1389,8 @@ export default function SeriesPage() {
               </Col>
             </Row>
             <Space>
-              <Button type="primary" htmlType="submit">Применить</Button>
-              <Button onClick={resetFilters}>Сбросить</Button>
+              <Button type="primary" htmlType="submit" icon={<CheckOutlined />}>Применить</Button>
+              <Button icon={<ClearOutlined />} onClick={resetFilters}>Сбросить</Button>
             </Space>
           </Form>
         ) : null}
@@ -1396,10 +1443,10 @@ export default function SeriesPage() {
         width={820}
         extra={
           <Space>
-            <Button onClick={importKp} loading={importing}>Импорт KP</Button>
-            <Button onClick={importAlloha} loading={importingAlloha}>Импорт Alloha</Button>
-            <Button onClick={importTmdb} loading={importingTmdb}>Импорт TMDB</Button>
-            <Button type="primary" loading={saving} onClick={saveAll}>Сохранить</Button>
+            <Button icon={<KinopoiskIcon />} onClick={importKp} loading={importing}>Импорт KP</Button>
+            <Button icon={<AllohaIcon />} onClick={importAlloha} loading={importingAlloha}>Импорт Alloha</Button>
+            <Button icon={<TmdbIcon />} onClick={importTmdb} loading={importingTmdb}>Импорт TMDB</Button>
+            <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={saveAll}>Сохранить</Button>
           </Space>
         }
       >
@@ -1687,7 +1734,7 @@ export default function SeriesPage() {
                       ) : null}
                       <Space direction="vertical" size={8}>
                         <Upload beforeUpload={uploadPoster} showUploadList={false} accept="image/*">
-                          <Button>Загрузить постер на сервер</Button>
+                          <Button icon={<UploadOutlined />}>Загрузить постер на сервер</Button>
                         </Upload>
                         {posterUrl ? (
                           posterMetaLoading && !formatPosterMeta(posterMeta).length ? (

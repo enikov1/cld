@@ -1,7 +1,8 @@
 import { Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tabs, Tag, Tooltip, Typography, Upload, message } from 'antd'
 import { CopyOutlined, EditOutlined, ImportOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api, apiUpload } from '../api/client'
 import TemplateCodeEditor from '../components/TemplateCodeEditor'
 import { useBusyFavicon, useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
@@ -37,7 +38,19 @@ async function loadTaxonomySeoPromptTemplate(): Promise<string> {
   return value || DEFAULT_TAXONOMY_SEO_AI_PROMPT
 }
 
-function TaxonomyTab({ type, label, urlPrefix }: { type: TaxonomyType; label: string; urlPrefix: string }) {
+function TaxonomyTab({
+  type,
+  label,
+  urlPrefix,
+  deepLinkId,
+  onDeepLinkHandled,
+}: {
+  type: TaxonomyType
+  label: string
+  urlPrefix: string
+  deepLinkId?: string | null
+  onDeepLinkHandled?: () => void
+}) {
   const { isDark } = useAdminTheme()
   const [items, setItems] = useState<TaxonomyItem[]>([])
   const [loading, setLoading] = useState(false)
@@ -45,6 +58,7 @@ function TaxonomyTab({ type, label, urlPrefix }: { type: TaxonomyType; label: st
   const [editing, setEditing] = useState<TaxonomyItem | null>(null)
   const [form] = Form.useForm()
   const photoUrl = Form.useWatch('photo_url', form)
+  const deepLinkHandled = useRef(false)
 
   const [promptModalOpen, setPromptModalOpen] = useState(false)
   const [promptLoading, setPromptLoading] = useState(false)
@@ -90,6 +104,20 @@ function TaxonomyTab({ type, label, urlPrefix }: { type: TaxonomyType; label: st
   useEffect(() => {
     load()
   }, [load])
+
+  useEffect(() => {
+    if (deepLinkHandled.current || !deepLinkId || loading || items.length === 0) {
+      return
+    }
+    deepLinkHandled.current = true
+    const row = items.find((item) => String(item.id) === deepLinkId)
+    if (row) {
+      openEdit(row)
+    } else {
+      message.warning('Элемент справочника не найден')
+    }
+    onDeepLinkHandled?.()
+  }, [deepLinkId, items, loading, onDeepLinkHandled]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function openCreate() {
     setEditing(null)
@@ -604,13 +632,42 @@ function TaxonomyTab({ type, label, urlPrefix }: { type: TaxonomyType; label: st
 }
 
 export default function TaxonomyPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const typeParam = searchParams.get('type')?.trim()
+  const initialType = TYPES.some((t) => t.key === typeParam) ? (typeParam as TaxonomyType) : 'genres'
+  const [activeType, setActiveType] = useState<TaxonomyType>(initialType)
+  const deepLinkId = searchParams.get('id')?.trim() || null
+
+  useEffect(() => {
+    if (TYPES.some((t) => t.key === typeParam)) {
+      setActiveType(typeParam as TaxonomyType)
+    }
+  }, [typeParam])
+
+  const clearDeepLink = useCallback(() => {
+    const next = new URLSearchParams(searchParams)
+    next.delete('id')
+    next.delete('type')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
+
   return (
     <div className="admin-page-card">
       <Tabs
+        activeKey={activeType}
+        onChange={(key) => setActiveType(key as TaxonomyType)}
         items={TYPES.map((t) => ({
           key: t.key,
           label: t.label,
-          children: <TaxonomyTab type={t.key} label={t.label} urlPrefix={t.urlPrefix} />,
+          children: (
+            <TaxonomyTab
+              type={t.key}
+              label={t.label}
+              urlPrefix={t.urlPrefix}
+              deepLinkId={activeType === t.key ? deepLinkId : null}
+              onDeepLinkHandled={clearDeepLink}
+            />
+          ),
         }))}
       />
     </div>

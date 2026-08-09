@@ -49,6 +49,29 @@ const TO_TYPE_OPTIONS = [
 	{ value: 'url', label: 'На произвольный URL' },
 ]
 
+/** Убирает домен из полной ссылки, оставляя только путь (как RedirectPath::normalizeFrom). */
+function normalizeFromPathInput(value: unknown): string {
+	const raw = String(value ?? '')
+	const trimmed = raw.trim()
+	if (!trimmed) return raw
+
+	if (/^https?:\/\//i.test(trimmed)) {
+		try {
+			const url = new URL(trimmed)
+			let path = url.pathname || '/'
+			path = path.replace(/\/+/g, '/') || '/'
+			if (path !== '/' && path.endsWith('/')) {
+				path = path.replace(/\/+$/, '')
+			}
+			return path
+		} catch {
+			return raw
+		}
+	}
+
+	return raw
+}
+
 function targetLabel(item: RedirectItem): string {
 	if (item.to_type === 'series') {
 		return item.series?.title ?? `Сериал #${item.series_id ?? '?'}`
@@ -154,7 +177,7 @@ export default function RedirectsPage() {
     const values = await form.validateFields()
     const payload: Record<string, unknown> = {
       id: editing?.id,
-      from_path: values.from_path,
+      from_path: normalizeFromPathInput(values.from_path),
       to_type: values.to_type,
       status_code: values.status_code,
       is_active: values.is_active,
@@ -319,9 +342,18 @@ export default function RedirectsPage() {
 						name="from_path"
 						label="Исходный путь"
 						rules={[{ required: true, message: 'Укажите путь, с которого будет редирект' }]}
-						extra="Например: /old-page.html или /serialy/staryj-serial.html"
+						normalize={normalizeFromPathInput}
+						extra="Можно вставить полную ссылку — домен уберётся автоматически. Например: /old-page.html"
 					>
-						<Input placeholder="/staryj-url.html" />
+						<Input
+							placeholder="/staryj-url.html"
+							onBlur={(e) => {
+								const next = normalizeFromPathInput(e.target.value)
+								if (next !== e.target.value) {
+									form.setFieldsValue({ from_path: next })
+								}
+							}}
+						/>
 					</Form.Item>
 
 					<Form.Item name="to_type" label="Куда перенаправлять" rules={[{ required: true }]}>

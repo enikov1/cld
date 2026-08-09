@@ -214,6 +214,59 @@ export type AdminStats = {
   users_blocked: number
   series_with_player: number
   active_theme: string
+  views?: ViewsStatsDashboardSnapshot
+}
+
+export type ViewsStatsDashboardSnapshot = {
+  ready: boolean
+  views_today: number
+  views_7d: number
+  views_30d: number
+  views_total: number
+  series_active_today: number
+}
+
+export type ViewsStatsSummary = {
+  views_today: number
+  views_yesterday: number
+  views_period: number
+  views_prev_period: number
+  views_change_pct: number | null
+  views_total: number
+  series_active_period: number
+  series_active_today: number
+  avg_per_day: number
+  days: number
+}
+
+export type ViewsStatsPoint = {
+  bucket: string
+  label: string
+  views: number
+}
+
+export type ViewsStatsTopSeries = {
+  id: number
+  title: string
+  slug: string
+  year: number | null
+  poster_url: string | null
+  is_active: boolean
+  views: number
+  views_total: number
+  share: number
+}
+
+export type ViewsStatsResponse = {
+  ready: boolean
+  period: string
+  group: 'day' | 'week' | 'month'
+  date_from: string | null
+  date_to: string | null
+  cache_ttl: number
+  summary: ViewsStatsSummary
+  timeseries: ViewsStatsPoint[]
+  top_series: ViewsStatsTopSeries[]
 }
 
 export type PlayerReportItem = {
@@ -329,11 +382,13 @@ export type AdminPageKey =
   | 'cron-runs'
   | 'users'
   | 'search-stats'
+  | 'views-stats'
   | 'redirects'
   | 'settings'
   | 'templates'
   | 'sync'
   | 'alloha-sync'
+  | 'rutube-sync'
   | 'backup'
 
 export const BROADCAST_STATUSES = [

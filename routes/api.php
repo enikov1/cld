@@ -10,11 +10,13 @@ use App\Http\Controllers\AdminReactionController;
 use App\Http\Controllers\AdminPlayersController;
 use App\Http\Controllers\AdminScheduleController;
 use App\Http\Controllers\AdminSearchController;
+use App\Http\Controllers\AdminGlobalSearchController;
 use App\Http\Controllers\AdminSeriesController;
 use App\Http\Controllers\AdminTaxonomyController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AdminCacheController;
 use App\Http\Controllers\AdminSystemController;
+use App\Http\Controllers\AdminViewsStatsController;
 use App\Models\Collection;
 use App\Models\CronRun;
 use App\Models\Series;
@@ -23,6 +25,7 @@ use App\Services\KinoPoiskConfig;
 use App\Services\AllohaConfig;
 use App\Services\AllohaAutoSyncSettings;
 use App\Services\AllohaLatestSyncService;
+use App\Services\AdminViewsStatsService;
 use App\Services\CronRunLogger;
 use App\Services\TmdbConfig;
 use App\Services\TmdbAutoSyncSettings;
@@ -39,6 +42,7 @@ use App\Support\SiteConfig;
 use App\Support\ThemeManager;
 use App\Support\TplCache;
 use App\Support\Utf8;
+use App\Support\ArtisanDetached;
 use App\Services\BrandingStorage;
 use App\Services\BackupSettings;
 use App\Services\BackupService;
@@ -75,26 +79,32 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
     })->middleware('throttle:admin-auth');
 
     Route::get('/stats', function () {
-        return response()->json([
-            'series_total' => Series::query()->count(),
-            'series_active' => Series::query()->where('is_active', true)->count(),
-            'collections' => Collection::query()->count(),
-            'collections_active' => Collection::query()->where('is_active', true)->count(),
-            'studios' => Studio::query()->count(),
-            'studios_active' => Studio::query()->where('is_active', true)->count(),
-            'comments_total' => \App\Models\Comment::query()->count(),
-            'comments_pending' => \App\Models\Comment::query()->where('status', 'pending')->count(),
-            'player_reports_total' => \App\Models\PlayerReport::query()->count(),
-            'player_reports_today' => \App\Models\PlayerReport::query()->where('created_at', '>=', now()->startOfDay())->count(),
-            'users_total' => \App\Models\User::query()->count(),
-            'users_blocked' => \App\Models\User::query()->where('is_blocked', true)->count(),
-            'series_with_player' => Series::query()
-                ->whereNotNull('player_url')
-                ->where('player_url', '!=', '')
-                ->count(),
-            'active_theme' => ThemeManager::activeName(),
-        ]);
+        return response()->json(Cache::remember('admin_inventory_stats', 60, function () {
+            return [
+                'series_total' => Series::query()->count(),
+                'series_active' => Series::query()->where('is_active', true)->count(),
+                'collections' => Collection::query()->count(),
+                'collections_active' => Collection::query()->where('is_active', true)->count(),
+                'studios' => Studio::query()->count(),
+                'studios_active' => Studio::query()->where('is_active', true)->count(),
+                'comments_total' => \App\Models\Comment::query()->count(),
+                'comments_pending' => \App\Models\Comment::query()->where('status', 'pending')->count(),
+                'player_reports_total' => \App\Models\PlayerReport::query()->count(),
+                'player_reports_today' => \App\Models\PlayerReport::query()->where('created_at', '>=', now()->startOfDay())->count(),
+                'users_total' => \App\Models\User::query()->count(),
+                'users_blocked' => \App\Models\User::query()->where('is_blocked', true)->count(),
+                'series_with_player' => Series::query()
+                    ->whereNotNull('player_url')
+                    ->where('player_url', '!=', '')
+                    ->count(),
+                'active_theme' => ThemeManager::activeName(),
+                'views' => AdminViewsStatsService::dashboardSnapshot(),
+            ];
+        }));
     });
+
+    Route::get('/views-stats', [AdminViewsStatsController::class, 'index']);
+    Route::get('/views-stats/summary', [AdminViewsStatsController::class, 'summary']);
 
     Route::get('/cache', [AdminCacheController::class, 'info']);
     Route::post('/cache/clear', [AdminCacheController::class, 'clear'])->middleware('throttle:admin-destructive');
@@ -213,9 +223,15 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
     Route::post('/series/{kp_id}/schedule/import-tmdb', [AdminScheduleController::class, 'importFromTmdb']);
     Route::get('/series/{kp_id}/players', [AdminPlayersController::class, 'show']);
     Route::post('/series/{kp_id}/players/add-alloha', [AdminPlayersController::class, 'addAllohaPlayer']);
+    Route::post('/series/{kp_id}/players/add-rutube-trailer', [AdminPlayersController::class, 'addRutubeTrailer']);
     Route::post('/series/{kp_id}/players', [AdminPlayersController::class, 'save']);
     Route::post('/players/alloha/sync-all', [AdminPlayersController::class, 'syncAllohaAll']);
     Route::get('/players/alloha/sync-progress', [AdminPlayersController::class, 'allohaSyncProgress']);
+    Route::post('/players/rutube-trailer/sync-all', [AdminPlayersController::class, 'syncRutubeTrailersAll']);
+    Route::get('/players/rutube-trailer/sync-progress', [AdminPlayersController::class, 'rutubeTrailerSyncProgress']);
+    Route::post('/players/rutube-trailer/sync-pause', [AdminPlayersController::class, 'pauseRutubeTrailerSync']);
+    Route::post('/players/rutube-trailer/sync-resume', [AdminPlayersController::class, 'resumeRutubeTrailerSync']);
+    Route::post('/players/rutube-trailer/sync-stop', [AdminPlayersController::class, 'stopRutubeTrailerSync']);
     Route::post('/players/cdnvideohub/sync-all', [AdminPlayersController::class, 'syncCdnVideoHubAll']);
 
     Route::get('/users', [AdminUserController::class, 'index']);
@@ -227,6 +243,8 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
     Route::post('/search-stats/clear', [AdminSearchController::class, 'clear']);
     Route::delete('/search-stats/logs/{id}', [AdminSearchController::class, 'destroyLog']);
     Route::delete('/search-stats/{id}', [AdminSearchController::class, 'destroy']);
+
+    Route::get('/global-search', [AdminGlobalSearchController::class, 'search']);
 
     Route::get('/taxonomies/options', [AdminTaxonomyController::class, 'options']);
     Route::get('/taxonomies/{type}', [AdminTaxonomyController::class, 'index']);
@@ -1012,10 +1030,11 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
         ]);
     });
 
-    Route::get('/backup/settings', function (BackupService $backup) {
+    Route::get('/backup/settings', function () {
         $settings = BackupSettings::get();
         $lastRun = BackupSettings::lastRunAt();
 
+        // Intentionally no archive listing here — remote FTP/S3 listing can hang the page.
         return response()->json([
             'settings' => $settings,
             'interval_options' => BackupSettings::intervalOptions(),
@@ -1025,8 +1044,40 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
             'remote_password_set' => BackupSettings::hasPassword(),
             's3_secret_set' => BackupSettings::hasS3Secret(),
             'remote_configured' => BackupSettings::isRemoteConfigured(),
+            'backup_running' => CronRunLogger::isJobRunning(CronRunLogger::JOB_BACKUP),
+            'restore_running' => CronRunLogger::isJobRunning(CronRunLogger::JOB_BACKUP_RESTORE),
+        ]);
+    });
+
+    Route::get('/backup/archives', function (BackupService $backup) {
+        return response()->json([
             'local_backups' => $backup->listLocalBackups(),
             'backups' => $backup->listAvailableBackups(),
+            'remote_configured' => BackupSettings::isRemoteConfigured(),
+            'backup_running' => CronRunLogger::isJobRunning(CronRunLogger::JOB_BACKUP),
+            'restore_running' => CronRunLogger::isJobRunning(CronRunLogger::JOB_BACKUP_RESTORE),
+        ]);
+    });
+
+    Route::get('/backup/job', function (Request $request) {
+        $type = trim((string)$request->query('type', 'run'));
+        $jobKey = $type === 'restore' ? CronRunLogger::JOB_BACKUP_RESTORE : CronRunLogger::JOB_BACKUP;
+        $run = CronRunLogger::latestJob($jobKey);
+
+        return response()->json([
+            'type' => $type === 'restore' ? 'restore' : 'run',
+            'running' => $run !== null && $run->status === CronRun::STATUS_RUNNING,
+            'run' => $run ? [
+                'id' => $run->id,
+                'status' => $run->status,
+                'message' => $run->message,
+                'error' => $run->error,
+                'log' => $run->log,
+                'counts' => $run->counts,
+                'started_at' => optional($run->started_at)?->toIso8601String(),
+                'finished_at' => optional($run->finished_at)?->toIso8601String(),
+                'duration_ms' => $run->duration_ms,
+            ] : null,
         ]);
     });
 
@@ -1090,28 +1141,29 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
 
     Route::post('/backup/run', function () {
         try {
-            $exitCode = Artisan::call('backup:run', [
-                '--force' => true,
-                '--trigger' => 'admin',
-            ]);
-            $output = trim((string)Utf8::sanitize(Artisan::output()));
-            $lastRun = \App\Models\CronRun::query()
-                ->where('job_key', CronRunLogger::JOB_BACKUP)
-                ->orderByDesc('id')
-                ->first();
+            if (CronRunLogger::isJobRunning(CronRunLogger::JOB_BACKUP)) {
+                $run = CronRunLogger::latestJob(CronRunLogger::JOB_BACKUP);
 
-            if ($exitCode !== 0) {
                 return response()->json([
-                    'ok' => false,
-                    'error' => (string)Utf8::sanitize($lastRun?->error) ?: ($output ?: 'Ошибка бэкапа'),
-                    'cron_run_id' => $lastRun?->id,
-                ], 500);
+                    'ok' => true,
+                    'started' => false,
+                    'already_running' => true,
+                    'message' => 'Бэкап уже выполняется',
+                    'cron_run_id' => $run?->id,
+                ]);
             }
+
+            // Detached process — HTTP must not wait for 500MB+ archives.
+            ArtisanDetached::spawn([
+                'backup:run',
+                '--force',
+                '--trigger=admin',
+            ]);
 
             return response()->json([
                 'ok' => true,
-                'message' => (string)Utf8::sanitize($lastRun?->message) ?: ($output ?: 'Бэкап создан'),
-                'cron_run_id' => $lastRun?->id,
+                'started' => true,
+                'message' => 'Бэкап запущен в фоне. Можно закрыть страницу — статус появится в истории задач.',
             ]);
         } catch (\Throwable $e) {
             report($e);
@@ -1120,7 +1172,7 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
         }
     })->middleware('throttle:admin-destructive');
 
-    Route::post('/backup/restore', function (Request $request, BackupService $backup) {
+    Route::post('/backup/restore', function (Request $request) {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'source' => ['required', 'string', Rule::in(['local', 'remote'])],
@@ -1136,33 +1188,47 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
             ], 403);
         }
 
-        try {
-            $run = CronRunLogger::run(
-                CronRunLogger::JOB_BACKUP_RESTORE,
-                'backup:restore',
-                CronRun::TRIGGER_ADMIN,
-                fn () => $backup->restore(
-                    $data['name'],
-                    $data['source'],
-                    (bool)($data['restore_database'] ?? true),
-                    (bool)($data['restore_files'] ?? true),
-                ),
-                ['name' => $data['name'], 'source' => $data['source']],
-                'Восстановление из бэкапа',
-            );
+        if (!preg_match('/^backup_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.zip$/', $data['name'])) {
+            return response()->json(['ok' => false, 'error' => 'Некорректное имя архива'], 422);
+        }
 
-            if ($run->status === CronRun::STATUS_FAILED) {
+        $restoreDatabase = (bool)($data['restore_database'] ?? true);
+        $restoreFiles = (bool)($data['restore_files'] ?? true);
+        if (!$restoreDatabase && !$restoreFiles) {
+            return response()->json(['ok' => false, 'error' => 'Выберите, что восстанавливать'], 422);
+        }
+
+        try {
+            if (CronRunLogger::isJobRunning(CronRunLogger::JOB_BACKUP_RESTORE)) {
+                $run = CronRunLogger::latestJob(CronRunLogger::JOB_BACKUP_RESTORE);
+
                 return response()->json([
-                    'ok' => false,
-                    'error' => (string)Utf8::sanitize($run->error) ?: 'Ошибка восстановления',
-                    'cron_run_id' => $run->id,
-                ], 500);
+                    'ok' => true,
+                    'started' => false,
+                    'already_running' => true,
+                    'message' => 'Восстановление уже выполняется',
+                    'cron_run_id' => $run?->id,
+                ]);
             }
+
+            $args = [
+                'backup:restore',
+                $data['name'],
+                '--source=' . $data['source'],
+                '--trigger=admin',
+            ];
+            if ($restoreDatabase && !$restoreFiles) {
+                $args[] = '--database';
+            } elseif ($restoreFiles && !$restoreDatabase) {
+                $args[] = '--files';
+            }
+
+            ArtisanDetached::spawn($args);
 
             return response()->json([
                 'ok' => true,
-                'message' => (string)Utf8::sanitize($run->message),
-                'cron_run_id' => $run->id,
+                'started' => true,
+                'message' => 'Восстановление запущено в фоне. Не обновляйте сайт до завершения.',
             ]);
         } catch (\Throwable $e) {
             report($e);

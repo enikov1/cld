@@ -1,3 +1,4 @@
+import { EyeOutlined } from '@ant-design/icons'
 import { Card, Col, Row, Statistic, Typography, message } from 'antd'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -24,6 +25,8 @@ export default function DashboardPage() {
       .finally(() => setLoading(false))
   }, [])
 
+  const views = stats?.views
+
   return (
     <div>
       <Typography.Paragraph type="secondary" style={{ marginBottom: 20 }}>
@@ -34,6 +37,38 @@ export default function DashboardPage() {
         <Typography.Paragraph type="danger">Не удалось загрузить статистику. Показаны нули.</Typography.Paragraph>
       ) : null}
 
+      <Typography.Title level={5} style={{ marginTop: 0 }}>
+        Просмотры · <Link to={ADMIN_ROUTES['views-stats']}>подробнее</Link>
+      </Typography.Title>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading}>
+            <Statistic title="Сегодня" value={views?.views_today ?? 0} prefix={<EyeOutlined />} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading}>
+            <Statistic title="7 дней" value={views?.views_7d ?? 0} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading}>
+            <Statistic title="30 дней" value={views?.views_30d ?? 0} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading}>
+            <Statistic title="Сериалов с просмотрами сегодня" value={views?.series_active_today ?? 0} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading}>
+            <Statistic title="Просмотров за всё время" value={views?.views_total ?? 0} />
+          </Card>
+        </Col>
+      </Row>
+
+      <Typography.Title level={5}>Контент и модерация</Typography.Title>
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
@@ -109,6 +144,8 @@ export default function DashboardPage() {
               <Link to={ADMIN_ROUTES.settings}>Настройки</Link>
             </Typography.Paragraph>
             <Typography.Paragraph>
+              <Link to={ADMIN_ROUTES['views-stats']}>Просмотры</Link>
+              {' · '}
               <Link to={ADMIN_ROUTES['search-stats']}>Статистика поиска</Link>
               {' · '}
               <Link to={ADMIN_ROUTES.comments}>Модерация комментариев</Link>
@@ -121,6 +158,8 @@ export default function DashboardPage() {
               <Link to={ADMIN_ROUTES.sync}>KinoPoisk</Link>
               {' · '}
               <Link to={ADMIN_ROUTES['alloha-sync']}>Alloha</Link>
+              {' · '}
+              <Link to={ADMIN_ROUTES['rutube-sync']}>Rutube</Link>
             </Typography.Paragraph>
             <Typography.Paragraph style={{ marginBottom: 0 }}>
               <Link to={ADMIN_ROUTES.backup}>Бэкапы</Link>

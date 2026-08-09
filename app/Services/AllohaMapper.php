@@ -35,6 +35,12 @@ class AllohaMapper
             $actors = array_slice($actors, 0, $maxActors);
         }
 
+        $directors = TaxonomyService::parseCreditsString($credits['directors'] ?? null);
+        $maxDirectors = SiteConfig::int('import_max_directors');
+        if ($maxDirectors > 0 && count($directors) > $maxDirectors) {
+            $directors = array_slice($directors, 0, $maxDirectors);
+        }
+
         return [
             'kp_id' => (string)$kpId,
             'imdb_id' => isset($ids['imdb']) ? (string)$ids['imdb'] : null,
@@ -57,7 +63,7 @@ class AllohaMapper
             '_genre_names' => self::splitList($data['genre'] ?? null),
             '_country_names' => self::splitList($data['country'] ?? null),
             '_actor_people' => $actors,
-            '_director_people' => TaxonomyService::parseCreditsString($credits['directors'] ?? null),
+            '_director_people' => $directors,
             'poster_source_url' => $data['poster'] ?? null,
             '_translations' => is_array($data['translations'] ?? null) ? $data['translations'] : [],
             '_default_iframe' => $data['iframe'] ?? null,

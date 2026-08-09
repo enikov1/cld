@@ -2,13 +2,17 @@
 
 namespace App\Services;
 
-use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Storage;
+use League\Flysystem\FileAttributes;
 use RuntimeException;
 
 class BackupRemoteStorage
 {
-    public function disk(): Filesystem
+    /** Seconds for FTP/SFTP transfer of large archives (500MB+). */
+    private const TRANSFER_TIMEOUT = 7200;
+
+    public function disk(): FilesystemAdapter
     {
         $settings = BackupSettings::get();
 
@@ -35,7 +39,7 @@ class BackupRemoteStorage
             'username' => $settings['username'],
             'password' => BackupSettings::password(),
             'root' => $settings['remote_path'],
-            'timeout' => 120,
+            'timeout' => self::TRANSFER_TIMEOUT,
             'throw' => true,
         ];
 
@@ -44,13 +48,16 @@ class BackupRemoteStorage
             $config['ssl'] = false;
         }
 
-        return Storage::build($config);
+        /** @var FilesystemAdapter $disk */
+        $disk = Storage::build($config);
+
+        return $disk;
     }
 
     /**
      * @param array<string,mixed> $settings
      */
-    private function buildS3Disk(array $settings): Filesystem
+    private function buildS3Disk(array $settings): FilesystemAdapter
     {
         if ($settings['s3_key'] === '' || $settings['s3_bucket'] === '' || $settings['s3_region'] === '') {
             throw new RuntimeException('Укажите Access Key, регион и bucket для S3.');
@@ -68,6 +75,10 @@ class BackupRemoteStorage
             'bucket' => $settings['s3_bucket'],
             'root' => $settings['remote_path'],
             'throw' => true,
+            'http' => [
+                'connect_timeout' => 30,
+                'timeout' => self::TRANSFER_TIMEOUT,
+            ],
         ];
 
         if ($settings['s3_endpoint'] !== '') {
@@ -80,7 +91,10 @@ class BackupRemoteStorage
             $config['use_path_style_endpoint'] = true;
         }
 
-        return Storage::build($config);
+        /** @var FilesystemAdapter $disk */
+        $disk = Storage::build($config);
+
+        return $disk;
     }
 
     public function testConnection(): void
@@ -127,7 +141,10 @@ class BackupRemoteStorage
         }
 
         try {
-            $this->disk()->writeStream($remoteName, $stream);
+            $ok = $this->disk()->writeStream($remoteName, $stream);
+            if ($ok === false) {
+                throw new RuntimeException('Не удалось загрузить архив на удалённый сервер.');
+            }
         } finally {
             if (is_resource($stream)) {
                 fclose($stream);
@@ -151,7 +168,10 @@ class BackupRemoteStorage
         }
 
         try {
-            stream_copy_to_stream($stream, $target);
+            $copied = stream_copy_to_stream($stream, $target);
+            if ($copied === false) {
+                throw new RuntimeException('Ошибка при скачивании архива.');
+            }
         } finally {
             if (is_resource($stream)) {
                 fclose($stream);
@@ -170,21 +190,54 @@ class BackupRemoteStorage
         $items = [];
         $disk = $this->disk();
 
-        foreach ($this->listBackupFiles() as $file) {
-            $name = basename(str_replace('\\', '/', $file));
-            $size = null;
-            try {
-                $size = $disk->size($file);
-            } catch (\Throwable) {
-                // ignore
-            }
+        // listContents returns size in one pass — avoids N+1 size() round-trips on FTP/SFTP/S3.
+        try {
+            foreach ($disk->listContents('', false) as $attributes) {
+                if (!$attributes->isFile()) {
+                    continue;
+                }
 
-            $items[] = [
-                'name' => $name,
-                'size' => is_int($size) ? $size : null,
-                'created_at' => self::parseBackupTimestamp($name),
-            ];
+                $path = $attributes->path();
+                $name = basename(str_replace('\\', '/', $path));
+                if (!str_starts_with($name, 'backup_') || !str_ends_with($name, '.zip')) {
+                    continue;
+                }
+
+                $size = null;
+                try {
+                    $size = $attributes instanceof FileAttributes
+                        ? $attributes->fileSize()
+                        : null;
+                } catch (\Throwable) {
+                    // ignore
+                }
+
+                $items[] = [
+                    'name' => $name,
+                    'size' => is_int($size) ? $size : null,
+                    'created_at' => self::parseBackupTimestamp($name),
+                ];
+            }
+        } catch (\Throwable) {
+            // Fallback for adapters that don't support listContents metadata.
+            foreach ($this->listBackupFiles() as $file) {
+                $name = basename(str_replace('\\', '/', $file));
+                $size = null;
+                try {
+                    $size = $disk->size($file);
+                } catch (\Throwable) {
+                    // ignore
+                }
+
+                $items[] = [
+                    'name' => $name,
+                    'size' => is_int($size) ? $size : null,
+                    'created_at' => self::parseBackupTimestamp($name),
+                ];
+            }
         }
+
+        usort($items, static fn (array $a, array $b) => strcmp($b['name'], $a['name']));
 
         return $items;
     }

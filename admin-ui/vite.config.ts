@@ -17,6 +17,7 @@ const ADMIN_SECTIONS = new Set([
   'templates',
   'sync',
   'alloha-sync',
+  'rutube-sync',
   'backup',
   'nav-menu',
   'home-sections',

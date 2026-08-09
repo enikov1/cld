@@ -7,6 +7,9 @@ use App\Models\Series;
 use App\Services\AllohaBulkPlayerProgress;
 use App\Services\AllohaBulkPlayerSync;
 use App\Services\CdnVideoHubPlayerSync;
+use App\Services\RutubeBulkTrailerProgress;
+use App\Services\RutubeBulkTrailerSync;
+use App\Services\RutubeTrailerService;
 use App\Support\AdminSeriesResolver;
 use App\Support\PlayerUrlHelper;
 use App\Support\TplCache;
@@ -71,6 +74,107 @@ class AdminPlayersController extends Controller
         ]);
     }
 
+    public function syncRutubeTrailersAll(Request $request, RutubeBulkTrailerSync $sync)
+    {
+        $data = $request->validate([
+            'tab_name' => ['nullable', 'string', 'max:120'],
+            'existing_mode' => ['nullable', 'string', 'in:skip,update'],
+            'kp_id' => ['nullable', 'string'],
+            'sleep' => ['nullable', 'numeric', 'min:0', 'max:30'],
+            'batch_size' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'restart' => ['nullable', 'boolean'],
+            'continue' => ['nullable', 'boolean'],
+        ]);
+
+        $restart = (bool) ($data['restart'] ?? false);
+        $continue = (bool) ($data['continue'] ?? false);
+
+        $progress = $sync->runProgressiveBatch(
+            $restart || !$continue,
+            (string) ($data['tab_name'] ?? 'Трейлер'),
+            (string) ($data['existing_mode'] ?? 'skip'),
+            isset($data['kp_id']) ? (string) $data['kp_id'] : null,
+            (float) ($data['sleep'] ?? 0.5),
+            (int) ($data['batch_size'] ?? 10),
+        );
+
+        if (($progress['status'] ?? '') === 'failed') {
+            return response()->json([
+                'ok' => false,
+                'error' => (string) ($progress['message'] ?? 'Не удалось выполнить массовую простановку трейлеров'),
+                'progress' => $progress,
+                'percent' => RutubeBulkTrailerProgress::percent($progress),
+                'done' => false,
+            ], 422);
+        }
+
+        $status = (string) ($progress['status'] ?? '');
+
+        return response()->json([
+            'ok' => true,
+            'progress' => $progress,
+            'percent' => RutubeBulkTrailerProgress::percent($progress),
+            'done' => $status === 'done',
+            'paused' => $status === 'paused',
+            'stopped' => $status === 'stopped',
+            'message' => (string) ($progress['message'] ?? ''),
+            'synced' => (int) ($progress['synced'] ?? 0),
+            'skipped' => (int) ($progress['skipped'] ?? 0),
+            'failed' => (int) ($progress['failed'] ?? 0),
+        ]);
+    }
+
+    public function rutubeTrailerSyncProgress()
+    {
+        $progress = RutubeBulkTrailerProgress::get();
+        $status = (string) ($progress['status'] ?? '');
+
+        return response()->json([
+            'ok' => true,
+            'progress' => $progress,
+            'percent' => RutubeBulkTrailerProgress::percent($progress),
+            'done' => $status === 'done',
+            'paused' => $status === 'paused',
+            'stopped' => $status === 'stopped',
+        ]);
+    }
+
+    public function pauseRutubeTrailerSync(RutubeBulkTrailerSync $sync)
+    {
+        $progress = $sync->pause();
+
+        return response()->json([
+            'ok' => true,
+            'progress' => $progress,
+            'percent' => RutubeBulkTrailerProgress::percent($progress),
+            'paused' => ($progress['status'] ?? '') === 'paused',
+        ]);
+    }
+
+    public function resumeRutubeTrailerSync(RutubeBulkTrailerSync $sync)
+    {
+        $progress = $sync->resume();
+
+        return response()->json([
+            'ok' => true,
+            'progress' => $progress,
+            'percent' => RutubeBulkTrailerProgress::percent($progress),
+            'paused' => ($progress['status'] ?? '') === 'paused',
+        ]);
+    }
+
+    public function stopRutubeTrailerSync(RutubeBulkTrailerSync $sync)
+    {
+        $progress = $sync->stop();
+
+        return response()->json([
+            'ok' => true,
+            'progress' => $progress,
+            'percent' => RutubeBulkTrailerProgress::percent($progress),
+            'stopped' => ($progress['status'] ?? '') === 'stopped',
+        ]);
+    }
+
     public function syncCdnVideoHubAll(CdnVideoHubPlayerSync $sync)
     {
         $result = $sync->syncAll();
@@ -120,6 +224,28 @@ class AdminPlayersController extends Controller
 
         return response()->json([
             'ok' => true,
+            'players' => $this->serializePlayers($series->refresh()),
+        ]);
+    }
+
+    public function addRutubeTrailer(Request $request, string $kpId, RutubeTrailerService $rutube)
+    {
+        $series = AdminSeriesResolver::byKey($kpId, true);
+
+        $data = $request->validate([
+            'tab_name' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $result = $rutube->addToSeries($series, (string) ($data['tab_name'] ?? 'Трейлер'));
+        if (!$result['ok']) {
+            return response()->json(['ok' => false, 'error' => $result['error'] ?? 'Не удалось добавить трейлер Rutube'], 422);
+        }
+
+        TplCache::forgetSeries($series->id);
+
+        return response()->json([
+            'ok' => true,
+            'trailer' => $result['trailer'] ?? null,
             'players' => $this->serializePlayers($series->refresh()),
         ]);
     }

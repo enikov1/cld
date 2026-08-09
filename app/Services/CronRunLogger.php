@@ -172,6 +172,44 @@ class CronRunLogger
         };
     }
 
+    /**
+     * Latest run for a job, marking stale "running" rows as failed.
+     */
+    public static function latestJob(string $jobKey, int $staleAfterSeconds = 10800): ?CronRun
+    {
+        $run = CronRun::query()
+            ->where('job_key', $jobKey)
+            ->orderByDesc('id')
+            ->first();
+
+        if ($run === null) {
+            return null;
+        }
+
+        if (
+            $run->status === CronRun::STATUS_RUNNING
+            && $run->started_at
+            && $run->started_at->lt(now()->subSeconds($staleAfterSeconds))
+        ) {
+            return self::finish(
+                $run,
+                CronRun::STATUS_FAILED,
+                null,
+                'Превышено время ожидания',
+                'Задача зависла или процесс был прерван.',
+            );
+        }
+
+        return $run;
+    }
+
+    public static function isJobRunning(string $jobKey, int $staleAfterSeconds = 10800): bool
+    {
+        $run = self::latestJob($jobKey, $staleAfterSeconds);
+
+        return $run !== null && $run->status === CronRun::STATUS_RUNNING;
+    }
+
     private static function prune(): void
     {
         // Keep the history readable: last 500 runs.

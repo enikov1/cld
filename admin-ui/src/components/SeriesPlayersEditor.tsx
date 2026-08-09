@@ -1,4 +1,11 @@
-import { MenuOutlined } from '@ant-design/icons'
+import {
+  DeleteOutlined,
+  EyeOutlined,
+  MenuOutlined,
+  SaveOutlined,
+  VideoCameraAddOutlined,
+} from '@ant-design/icons'
+import { AllohaIcon, RutubeIcon } from './brandIcons'
 import {
   closestCenter,
   DndContext,
@@ -18,7 +25,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Button, Input, Space, Spin, Switch, Table, message } from 'antd'
+import { Button, Input, Modal, Space, Spin, Switch, Table, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
   createContext,
@@ -36,12 +43,21 @@ import {
 import { api, isApiNotFound } from '../api/client'
 import { useBusyFavicon } from '../documentMeta/AdminDocumentMeta'
 
+const CDN_VIDEOHUB_SCRIPT = 'https://player.cdnvideohub.com/s2/stable/video-player.umd.js'
+const IFRAME_ALLOW =
+  'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share'
+
 type PlayerRow = {
   key: string
   id?: number | null
   provider: string
   iframe_url: string
   is_active: boolean
+}
+
+type PlayerPreview = {
+  title: string
+  content: string
 }
 
 type DragHandleContextValue = {
@@ -95,6 +111,151 @@ function DragHandle() {
   )
 }
 
+function isHttpUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value.trim())
+}
+
+function isEmbedHtml(value: string): boolean {
+  return /^<(?:video-player|iframe)\b/i.test(value.trim())
+}
+
+/** Mirrors App\Services\RutubeTrailerService::toEmbedUrl for preview. */
+function toRutubeEmbedUrl(input: string): string {
+  const value = input.trim()
+  if (!value) return ''
+
+  if (/^[a-f0-9]{32}$/i.test(value) || /^\d{5,12}$/.test(value)) {
+    return `https://rutube.ru/play/embed/${value}`
+  }
+
+  if (!isHttpUrl(value)) return ''
+
+  try {
+    const url = new URL(value)
+    if (!url.hostname.toLowerCase().endsWith('rutube.ru')) return ''
+
+    const path = url.pathname
+    let id = ''
+    const embedMatch = path.match(/\/(?:play\/)?embed\/([a-zA-Z0-9]+)(?:\/|$)/)
+    const videoMatch = path.match(/\/video\/(?:private\/)?([a-zA-Z0-9]+)(?:\/|$)/)
+    const shortsMatch = path.match(/\/shorts\/([a-zA-Z0-9]+)(?:\/|$)/)
+    if (embedMatch) id = embedMatch[1]
+    else if (videoMatch) id = videoMatch[1]
+    else if (shortsMatch) id = shortsMatch[1]
+
+    if (!id) return ''
+    return `https://rutube.ru/play/embed/${id}`
+  } catch {
+    return ''
+  }
+}
+
+function extractIframeSrc(html: string): string | null {
+  const match = html.match(/\bsrc\s*=\s*(["'])(.*?)\1/i)
+  return match?.[2]?.trim() || null
+}
+
+function ensureVideoPlayerScript(html: string): string {
+  if (!/<video-player\b/i.test(html)) return html
+  if (/<script\b[^>]*\bsrc\s*=/i.test(html)) return html
+  return `${html.trim()}\n<script async src="${CDN_VIDEOHUB_SCRIPT}"></script>`
+}
+
+function createPreviewIframe(src: string): HTMLIFrameElement {
+  const iframe = document.createElement('iframe')
+  iframe.src = src
+  iframe.className = 'player-preview__iframe'
+  iframe.setAttribute('allow', IFRAME_ALLOW)
+  iframe.setAttribute('allowfullscreen', 'true')
+  iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin')
+  return iframe
+}
+
+function mountEmbedHtml(container: HTMLElement, html: string): void {
+  const prepared = ensureVideoPlayerScript(html)
+  const template = document.createElement('template')
+  template.innerHTML = prepared
+
+  const scripts: HTMLScriptElement[] = []
+  template.content.querySelectorAll('script').forEach((oldScript) => {
+    const script = document.createElement('script')
+    for (const attr of Array.from(oldScript.attributes)) {
+      script.setAttribute(attr.name, attr.value)
+    }
+    if (oldScript.textContent) {
+      script.textContent = oldScript.textContent
+    }
+    oldScript.remove()
+    scripts.push(script)
+  })
+
+  const wrap = document.createElement('div')
+  wrap.className = 'player-preview__embed'
+  wrap.appendChild(template.content)
+  container.appendChild(wrap)
+  for (const script of scripts) {
+    wrap.appendChild(script)
+  }
+}
+
+function PlayerPreviewFrame({ content }: { content: string }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    el.innerHTML = ''
+    setError(null)
+
+    const trimmed = content.trim()
+    if (!trimmed) {
+      setError('Укажите URL или embed-код плеера')
+      return
+    }
+
+    try {
+      if (isEmbedHtml(trimmed)) {
+        if (/^<iframe\b/i.test(trimmed)) {
+          const src = extractIframeSrc(trimmed)
+          if (src && isHttpUrl(src)) {
+            el.appendChild(createPreviewIframe(src))
+            return () => {
+              el.innerHTML = ''
+            }
+          }
+        }
+        mountEmbedHtml(el, trimmed)
+        return () => {
+          el.innerHTML = ''
+        }
+      }
+
+      const rutube = toRutubeEmbedUrl(trimmed)
+      const src = rutube || (isHttpUrl(trimmed) ? trimmed.trim() : '')
+      if (!src) {
+        setError('Не удалось разобрать URL / embed-код для предпросмотра')
+        return
+      }
+
+      el.appendChild(createPreviewIframe(src))
+      return () => {
+        el.innerHTML = ''
+      }
+    } catch {
+      setError('Ошибка при сборке предпросмотра')
+    }
+  }, [content])
+
+  return (
+    <div className="player-preview">
+      {error ? <p className="admin-empty-hint">{error}</p> : null}
+      <div ref={containerRef} className="player-preview__frame" />
+    </div>
+  )
+}
+
 export type SeriesPlayersEditorHandle = {
   save: (options?: { silent?: boolean; kpId?: string }) => Promise<boolean>
   isDirty: () => boolean
@@ -126,13 +287,15 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [addingAlloha, setAddingAlloha] = useState(false)
+  const [addingRutube, setAddingRutube] = useState(false)
+  const [preview, setPreview] = useState<PlayerPreview | null>(null)
   const baselineRef = useRef('')
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
-  useBusyFavicon(saving || addingAlloha)
+  useBusyFavicon(saving || addingAlloha || addingRutube)
 
   const applyRows = useCallback((nextRows: PlayerRow[], asBaseline = false) => {
     setRows(nextRows)
@@ -172,6 +335,7 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
   useEffect(() => {
     if (!drawerOpen || !kpId) {
       applyRows([], true)
+      setPreview(null)
       return
     }
     load()
@@ -261,12 +425,48 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
     }
   }
 
+  async function addRutubeTrailer() {
+    if (!kpId) return
+
+    setAddingRutube(true)
+    try {
+      const res = await api<{
+        players: Array<Omit<PlayerRow, 'key'>>
+        trailer?: { title?: string }
+      }>(`/api/admin/series/${kpId}/players/add-rutube-trailer`, {
+        method: 'POST',
+        body: JSON.stringify({ tab_name: 'Трейлер' }),
+      })
+      applyRows(mapApiPlayers(res.players ?? []), true)
+      const trailerTitle = res.trailer?.title?.trim()
+      message.success(
+        trailerTitle ? `Трейлер Rutube добавлен: ${trailerTitle}` : 'Трейлер Rutube добавлен в конец списка',
+      )
+    } catch (e) {
+      message.error(String((e as Error).message))
+    } finally {
+      setAddingRutube(false)
+    }
+  }
+
   function updateRow(key: string, patch: Partial<PlayerRow>) {
     setRows(rows.map((row) => (row.key === key ? { ...row, ...patch } : row)))
   }
 
   function removeRow(key: string) {
     setRows(rows.filter((row) => row.key !== key))
+  }
+
+  function openPreview(row: PlayerRow) {
+    const content = row.iframe_url.trim()
+    if (!content) {
+      message.warning('Сначала укажите URL или embed-код')
+      return
+    }
+    setPreview({
+      title: row.provider.trim() || 'Плеер',
+      content,
+    })
   }
 
   function handleDragEnd({ active, over }: DragEndEvent) {
@@ -321,11 +521,26 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
     {
       title: '',
       key: 'actions',
-      width: 90,
+      width: 148,
       render: (_, row) => (
-        <Button danger size="small" onClick={() => removeRow(row.key)}>
-          Удалить
-        </Button>
+        <Space size={4} wrap={false}>
+          <Button
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => openPreview(row)}
+            disabled={!row.iframe_url.trim()}
+            title="Предпросмотр"
+            aria-label="Предпросмотр плеера"
+          />
+          <Button
+            danger
+            size="small"
+            icon={<DeleteOutlined />}
+            onClick={() => removeRow(row.key)}
+            title="Удалить"
+            aria-label="Удалить плеер"
+          />
+        </Space>
       ),
     },
   ]
@@ -339,14 +554,21 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
         <p className="admin-empty-hint">
           Добавьте один или несколько embed-плееров. Перетаскивайте строки за маркер слева: верхний плеер отображается
-          первой вкладкой. Изменения сохраняются кнопкой «Сохранить» в шапке редактора.
+          первой вкладкой. «Добавить трейлер Rutube» ищет трейлер по названию сериала и ставит embed в конец списка.
+          Ссылки вида rutube.ru/video/... при сохранении превращаются в play/embed. Кнопка с глазом открывает
+          предпросмотр во всплывающем окне. Изменения также сохраняются кнопкой «Сохранить» в шапке редактора.
         </p>
         <Space wrap>
-          <Button onClick={addPlayer}>Добавить плеер</Button>
-          <Button loading={addingAlloha} onClick={addAllohaPlayer}>
+          <Button icon={<VideoCameraAddOutlined />} onClick={addPlayer}>
+            Добавить плеер
+          </Button>
+          <Button icon={<AllohaIcon />} loading={addingAlloha} onClick={addAllohaPlayer}>
             Добавить плеер Alloha
           </Button>
-          <Button loading={saving} onClick={() => savePlayers()}>
+          <Button icon={<RutubeIcon />} loading={addingRutube} onClick={addRutubeTrailer}>
+            Добавить трейлер Rutube
+          </Button>
+          <Button icon={<SaveOutlined />} type="primary" loading={saving} onClick={() => savePlayers()}>
             Сохранить только плееры
           </Button>
         </Space>
@@ -357,12 +579,25 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
               columns={columns}
               dataSource={rows}
               pagination={false}
-              scroll={{ x: 900 }}
+              scroll={{ x: 960 }}
               components={{ body: { row: SortableRow } }}
             />
           </SortableContext>
         </DndContext>
       </Space>
+
+      <Modal
+        title={preview ? `Предпросмотр: ${preview.title}` : 'Предпросмотр плеера'}
+        open={Boolean(preview)}
+        onCancel={() => setPreview(null)}
+        footer={null}
+        width={920}
+        destroyOnHidden
+        centered
+        styles={{ body: { paddingTop: 12 } }}
+      >
+        {preview ? <PlayerPreviewFrame content={preview.content} /> : null}
+      </Modal>
     </Spin>
   )
 })

@@ -34,6 +34,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api, apiUpload } from '../api/client'
 import SiteConfigFields from '../components/SiteConfigFields'
 import { useBusyFavicon, useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
@@ -86,6 +87,7 @@ function sectionFromHash(): SettingsSection {
 }
 
 export default function SettingsPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [settings, setSettings] = useState<SettingItem[]>([])
   const [themes, setThemes] = useState<ThemeItem[]>([])
   const [activeTheme, setActiveTheme] = useState('')
@@ -110,6 +112,7 @@ export default function SettingsPage() {
   const [section, setSection] = useState<SettingsSection>(sectionFromHash)
   const [tabPosition, setTabPosition] = useState<'left' | 'top'>('left')
   const [form] = Form.useForm()
+  const highlightField = searchParams.get('highlight')?.trim() || ''
 
   useDocumentTitle(`Настройки — ${SECTION_LABELS[section]}`)
   useBusyFavicon(loading || tmdbSyncing || cdnSyncing || sitemapGenerating)
@@ -246,6 +249,43 @@ export default function SettingsPage() {
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
+
+  useEffect(() => {
+    if (!highlightField || loading) {
+      return
+    }
+
+    let clearHighlight: number | undefined
+    const timer = window.setTimeout(() => {
+      const target =
+        document.querySelector<HTMLElement>(`[data-settings-field="${CSS.escape(highlightField)}"]`)
+        ?? document.getElementById(`settings-field-${highlightField}`)
+        ?? document.getElementById(highlightField)
+
+      if (!target) {
+        return
+      }
+
+      const focusNode = (target.closest('.ant-form-item') as HTMLElement | null) ?? target
+      focusNode.classList.add('settings-field--highlight')
+      focusNode.scrollIntoView({ behavior: 'smooth', block: 'center' })
+
+      clearHighlight = window.setTimeout(() => {
+        focusNode.classList.remove('settings-field--highlight')
+      }, 3200)
+
+      const next = new URLSearchParams(searchParams)
+      next.delete('highlight')
+      setSearchParams(next, { replace: true })
+    }, 120)
+
+    return () => {
+      window.clearTimeout(timer)
+      if (clearHighlight) {
+        window.clearTimeout(clearHighlight)
+      }
+    }
+  }, [highlightField, loading, section, searchParams, setSearchParams])
 
   function changeSection(key: string) {
     const next = key as SettingsSection
@@ -920,7 +960,7 @@ export default function SettingsPage() {
         <>
         <Card title={configSchema.integrations?.title ?? 'Импорт метаданных'} loading={loading} bordered={false}>
           <Typography.Paragraph type="secondary">
-            Ограничение числа актёров при импорте через кнопки «Импорт КР», «Импорт Alloha» и «Импорт TMDB».
+            Ограничение числа актёров и режиссёров при импорте через кнопки «Импорт КР», «Импорт Alloha» и «Импорт TMDB».
             Большие списки часто зависают из‑за скачивания фотографий.
           </Typography.Paragraph>
           <SiteConfigFields fields={configSchema.integrations?.fields ?? []} />

@@ -15,6 +15,7 @@ class KinoPoiskStaffMapper
         $actors = [];
         $directors = [];
         $maxActors = SiteConfig::int('import_max_actors');
+        $maxDirectors = SiteConfig::int('import_max_directors');
 
         foreach ($staff as $member) {
             if (!is_array($member)) {
@@ -39,6 +40,9 @@ class KinoPoiskStaffMapper
                 }
                 $actors[] = $entry;
             } elseif ($profession === 'DIRECTOR') {
+                if ($maxDirectors > 0 && count($directors) >= $maxDirectors) {
+                    continue;
+                }
                 $directors[] = $entry;
             }
         }

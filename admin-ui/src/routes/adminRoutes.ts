@@ -14,11 +14,13 @@ export const ADMIN_ROUTES: Record<AdminPageKey, string> = {
   'cron-runs': '/cron-runs',
   users: '/users',
   'search-stats': '/search-stats',
+  'views-stats': '/views-stats',
   redirects: '/redirects',
   settings: '/settings',
   templates: '/templates',
   sync: '/sync',
   'alloha-sync': '/alloha-sync',
+  'rutube-sync': '/rutube-sync',
   backup: '/backup',
 }
 
@@ -36,12 +38,14 @@ export const pageMeta: Record<AdminPageKey, { title: string; subtitle?: string }
   'cron-runs': { title: 'История задач', subtitle: 'Лог автоматических и ручных синхронизаций' },
   users: { title: 'Пользователи', subtitle: 'Аккаунты, роли, IP и блокировка' },
   'search-stats': { title: 'Поиск', subtitle: 'Статистика поисковых запросов' },
+  'views-stats': { title: 'Просмотры', subtitle: 'Динамика и топ сериалов по дням, неделям и месяцам' },
   redirects: { title: 'Редиректы', subtitle: 'Перенаправления URL и страниц сериалов' },
   settings: { title: 'Настройки', subtitle: 'Брендинг, авторизация, комментарии, SEO и шаблон' },
   templates: { title: 'Шаблоны', subtitle: 'Редактор .tpl, справка по тегам и подсказки' },
   sync: { title: 'KinoPoisk', subtitle: 'Импорт сериалов через kp:sync' },
   'alloha-sync': { title: 'Alloha', subtitle: 'Автообновление, latest и синхронизация' },
-  backup: { title: 'Бэкапы', subtitle: 'Автоматическое резервное копирование БД и файлов' },
+  'rutube-sync': { title: 'Rutube', subtitle: 'Массовая простановка трейлеров' },
+  backup: { title: 'Бэкапы', subtitle: 'Готовые архивы и настройки резервного копирования' },
 }
 
 export function pageKeyFromPath(pathname: string): AdminPageKey {

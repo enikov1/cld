@@ -230,6 +230,15 @@ class SiteConfig
                 'min' => 1,
                 'max' => 200,
             ],
+            'import_max_directors' => [
+                'type' => 'int',
+                'default' => '10',
+                'group' => 'integrations',
+                'label' => 'Макс. режиссёров при импорте',
+                'description' => 'Лимит режиссёров при импорте из KinoPoisk, Alloha и TMDB. Большие списки сильно замедляют парсинг (скачивание фото).',
+                'min' => 1,
+                'max' => 200,
+            ],
 
             // Catalog & navigation
             'catalog_per_page' => ['type' => 'int', 'default' => '18', 'group' => 'catalog', 'label' => 'Сериалов на странице каталога', 'min' => 6, 'max' => 60],
