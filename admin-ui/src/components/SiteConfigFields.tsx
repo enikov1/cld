@@ -58,6 +58,7 @@ export default function SiteConfigFields({ fields, prefix }: SiteConfigFieldsPro
         }
 
         if (field.type === 'html') {
+          const isAiPrompt = field.key.includes('ai_prompt')
           return (
             <Form.Item
               key={field.key}
@@ -66,10 +67,11 @@ export default function SiteConfigFields({ fields, prefix }: SiteConfigFieldsPro
               extra={field.description ?? undefined}
             >
               <Input.TextArea
-                rows={10}
+                rows={isAiPrompt ? 16 : 10}
                 spellCheck={false}
                 className="settings-counters-editor"
-                placeholder="<script>...</script>"
+                placeholder={isAiPrompt ? 'Шаблон промпта…' : '<script>...</script>'}
+                style={isAiPrompt ? { fontFamily: 'monospace', fontSize: 12 } : undefined}
               />
             </Form.Item>
           )

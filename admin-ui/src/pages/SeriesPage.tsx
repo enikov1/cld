@@ -7,6 +7,7 @@ import {
   Form,
   Input,
   InputNumber,
+  Modal,
   Popconfirm,
   Row,
   Select,
@@ -16,6 +17,7 @@ import {
   Tabs,
   Tag,
   Tooltip,
+  Typography,
   Upload,
   message,
 } from 'antd'
@@ -57,6 +59,59 @@ function seriesPublicPath(item: SeriesItem): string {
   if (!year) year = '0000'
   const slug = (item.slug || '').trim() || 'series'
   return `/${item.id}-${slug}-${year}.html`
+}
+
+type PosterMeta = {
+  width?: number | null
+  height?: number | null
+  bytes?: number | null
+  mime?: string | null
+  format?: string | null
+}
+
+function formatPosterBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} Б`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} КБ`
+  return `${(bytes / (1024 * 1024)).toFixed(2)} МБ`
+}
+
+function formatPosterMeta(meta: PosterMeta | null | undefined): string[] {
+  if (!meta) return []
+  const parts: string[] = []
+  if (meta.width && meta.height) {
+    parts.push(`${meta.width} × ${meta.height} px`)
+  }
+  if (meta.bytes != null && meta.bytes > 0) {
+    parts.push(formatPosterBytes(meta.bytes))
+  }
+  const format = (meta.format || meta.mime || '').toString().trim()
+  if (format) {
+    const short = format.includes('/') ? format.split('/').pop() : format
+    if (short) parts.push(short.toUpperCase())
+  }
+  return parts
+}
+
+async function readLocalImageMeta(file: File): Promise<PosterMeta> {
+  const objectUrl = URL.createObjectURL(file)
+  try {
+    const dims = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight })
+      img.onerror = () => reject(new Error('Не удалось прочитать изображение'))
+      img.src = objectUrl
+    })
+    const ext = file.name.includes('.') ? file.name.split('.').pop()?.toLowerCase() : undefined
+    return {
+      width: dims.width,
+      height: dims.height,
+      bytes: file.size,
+      mime: file.type || null,
+      format: ext || null,
+    }
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
 }
 
 type SelectOption = { value: number; label: string }
@@ -303,7 +358,10 @@ export default function SeriesPage() {
   const [playersCount, setPlayersCount] = useState(0)
   const [hasSchedule, setHasSchedule] = useState(false)
   const [posterCacheBust, setPosterCacheBust] = useState<number | undefined>(undefined)
+  const [posterMeta, setPosterMeta] = useState<PosterMeta | null>(null)
+  const [posterMetaLoading, setPosterMetaLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [formDirty, setFormDirty] = useState(false)
   const playersEditorRef = useRef<SeriesPlayersEditorHandle>(null)
   const scheduleEditorRef = useRef<SeriesScheduleEditorHandle>(null)
   const [form] = Form.useForm()
@@ -353,6 +411,51 @@ export default function SeriesPage() {
     void refreshPlayersCount(editorRouteKey)
     void refreshSchedulePresence(editorRouteKey)
   }, [drawerOpen, editorRouteKey, playersRefreshKey, refreshPlayersCount, refreshSchedulePresence])
+
+  useEffect(() => {
+    if (!drawerOpen) {
+      setPosterMeta(null)
+      setPosterMetaLoading(false)
+      return
+    }
+
+    const url = String(posterUrl ?? '').trim()
+    if (!url) {
+      setPosterMeta(null)
+      setPosterMetaLoading(false)
+      return
+    }
+
+    if (!url.startsWith('/storage/') || !editorRouteKey) {
+      setPosterMetaLoading(false)
+      if (!url.startsWith('/storage/')) {
+        setPosterMeta((prev) =>
+          prev?.width && prev?.height
+            ? { width: prev.width, height: prev.height }
+            : null,
+        )
+      }
+      return
+    }
+
+    let cancelled = false
+    setPosterMetaLoading(true)
+    const params = new URLSearchParams({ url })
+    api<{ meta: PosterMeta | null }>(`/api/admin/series/${editorRouteKey}/poster-meta?${params}`)
+      .then((res) => {
+        if (!cancelled) setPosterMeta(res.meta ?? null)
+      })
+      .catch(() => {
+        if (!cancelled) setPosterMeta(null)
+      })
+      .finally(() => {
+        if (!cancelled) setPosterMetaLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [drawerOpen, posterUrl, posterCacheBust, editorRouteKey])
 
   const hasKpIdValue = Boolean(String(watchedKpId ?? '').trim())
   const hasImdbIdValue = Boolean(String(watchedImdbId ?? '').trim())
@@ -487,6 +590,8 @@ export default function SeriesPage() {
       content_type: 'series',
       broadcast_status: 'ongoing',
     })
+    setFormDirty(false)
+    setPosterMeta(null)
     setDrawerTab('main')
     setMainSubTab('basic')
     setDrawerOpen(true)
@@ -497,11 +602,43 @@ export default function SeriesPage() {
     setDrawerTab('main')
     setMainSubTab('basic')
     form.setFieldsValue(seriesToFormValues(row))
+    setFormDirty(false)
+    setPosterMeta(null)
     setDrawerOpen(true)
     void loadStudios()
   }, [form, loadStudios])
 
   useSeriesDeepLink({ searchParams, setSearchParams, openEdit })
+
+  function resetDrawer() {
+    setDrawerOpen(false)
+    setEditing(null)
+    setPlayersCount(0)
+    setHasSchedule(false)
+    setFormDirty(false)
+    form.resetFields()
+  }
+
+  function closeDrawer() {
+    const hasUnsavedChanges =
+      formDirty ||
+      Boolean(playersEditorRef.current?.isDirty()) ||
+      Boolean(scheduleEditorRef.current?.isDirty())
+
+    if (!hasUnsavedChanges) {
+      resetDrawer()
+      return
+    }
+
+    Modal.confirm({
+      title: 'Несохранённые изменения',
+      content: 'Закрыть панель без сохранения? Все изменения будут потеряны.',
+      okText: 'Закрыть без сохранения',
+      okType: 'danger',
+      cancelText: 'Отмена',
+      onOk: () => resetDrawer(),
+    })
+  }
 
   async function applyImportedItem(item: SeriesItem) {
     const currentDescription = String(form.getFieldValue('description') ?? '').trim()
@@ -512,6 +649,7 @@ export default function SeriesPage() {
       values.description = currentDescription
     }
     form.setFieldsValue(values)
+    setFormDirty(true)
   }
 
   function buildSeriesPayload(values: Record<string, unknown>): Record<string, unknown> {
@@ -571,6 +709,7 @@ export default function SeriesPage() {
       }
 
       message.success(editing ? 'Сохранено' : 'Создано')
+      setFormDirty(false)
       setDrawerOpen(false)
       await loadSeries()
     } catch (e) {
@@ -761,12 +900,24 @@ export default function SeriesPage() {
       message.warning('Укажите KP ID или TMDB ID перед загрузкой постера')
       return false
     }
+    try {
+      const localMeta = await readLocalImageMeta(file)
+      setPosterMeta(localMeta)
+    } catch {
+      // ignore local preview meta errors
+    }
     const fd = new FormData()
     fd.append('poster', file)
     try {
-      const res = await apiUpload<{ poster_url: string }>(`/api/admin/series/${routeKey}/poster`, fd)
+      const res = await apiUpload<{ poster_url: string; meta?: PosterMeta | null }>(
+        `/api/admin/series/${routeKey}/poster`,
+        fd,
+      )
       form.setFieldValue('poster_url', res.poster_url)
       setPosterCacheBust(Date.now())
+      if (res.meta) {
+        setPosterMeta(res.meta)
+      }
       message.success('Постер загружен')
       await loadSeries()
     } catch (e) {
@@ -1231,13 +1382,7 @@ export default function SeriesPage() {
       <Drawer
         title={editing ? `Редактирование: ${editing.title}` : 'Новый сериал / фильм'}
         open={drawerOpen}
-        onClose={() => {
-          setDrawerOpen(false)
-          setEditing(null)
-          setPlayersCount(0)
-          setHasSchedule(false)
-          form.resetFields()
-        }}
+        onClose={closeDrawer}
         width={820}
         extra={
           <Space>
@@ -1248,7 +1393,13 @@ export default function SeriesPage() {
           </Space>
         }
       >
-        <Form form={form} layout="vertical" onFinish={() => void saveAll()} preserve>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={() => void saveAll()}
+          onValuesChange={() => setFormDirty(true)}
+          preserve
+        >
         <Tabs
           activeKey={drawerTab}
           onChange={setDrawerTab}
@@ -1506,17 +1657,43 @@ export default function SeriesPage() {
                 children: (
                   <>
                     <Form.Item label="URL постера" name="poster_url"><Input placeholder="/storage/posters/... или https://..." /></Form.Item>
-                    {posterUrl ? (
-                      <img
-                        key={posterCacheBust ?? posterUrl}
-                        src={resolveMediaUrl(posterUrl, posterCacheBust)}
-                        alt="Превью постера"
-                        style={{ width: 120, height: 172, objectFit: 'cover', borderRadius: 6, marginBottom: 16 }}
-                      />
-                    ) : null}
-                    <Upload beforeUpload={uploadPoster} showUploadList={false} accept="image/*">
-                      <Button>Загрузить постер на сервер</Button>
-                    </Upload>
+                    <Space align="start" size={16} wrap style={{ marginBottom: 16 }}>
+                      {posterUrl ? (
+                        <img
+                          key={posterCacheBust ?? posterUrl}
+                          src={resolveMediaUrl(posterUrl, posterCacheBust)}
+                          alt="Превью постера"
+                          style={{ width: 120, height: 172, objectFit: 'cover', borderRadius: 6, display: 'block', background: '#f5f5f5' }}
+                          onLoad={(e) => {
+                            const img = e.currentTarget
+                            if (!img.naturalWidth || !img.naturalHeight) return
+                            setPosterMeta((prev) => ({
+                              ...(prev ?? {}),
+                              width: img.naturalWidth,
+                              height: img.naturalHeight,
+                            }))
+                          }}
+                        />
+                      ) : null}
+                      <Space direction="vertical" size={8}>
+                        <Upload beforeUpload={uploadPoster} showUploadList={false} accept="image/*">
+                          <Button>Загрузить постер на сервер</Button>
+                        </Upload>
+                        {posterUrl ? (
+                          posterMetaLoading && !formatPosterMeta(posterMeta).length ? (
+                            <Typography.Text type="secondary">Загрузка сведений о файле…</Typography.Text>
+                          ) : formatPosterMeta(posterMeta).length ? (
+                            <Typography.Text type="secondary">
+                              {formatPosterMeta(posterMeta).join(' · ')}
+                            </Typography.Text>
+                          ) : (
+                            <Typography.Text type="secondary">Сведения о файле недоступны</Typography.Text>
+                          )
+                        ) : (
+                          <Typography.Text type="secondary">Постер ещё не задан</Typography.Text>
+                        )}
+                      </Space>
+                    </Space>
                   </>
                 ),
               },

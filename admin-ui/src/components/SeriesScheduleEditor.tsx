@@ -1,6 +1,6 @@
 import { Alert, Button, Collapse, Dropdown, Input, InputNumber, Select, Space, Spin, Typography, message } from 'antd'
 import type { MenuProps } from 'antd'
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { api } from '../api/client'
 
 type ScheduleEpisode = {
@@ -20,6 +20,23 @@ type ScheduleSeason = {
 
 export type SeriesScheduleEditorHandle = {
   save: (options?: { silent?: boolean; kpId?: string }) => Promise<boolean>
+  isDirty: () => boolean
+}
+
+function serializeSchedule(seasons: ScheduleSeason[]): string {
+  return JSON.stringify(
+    seasons.map((season) => ({
+      season_number: season.season_number,
+      title: season.title ?? null,
+      episodes: season.episodes.map((episode) => ({
+        episode_number: episode.episode_number,
+        title: episode.title ?? null,
+        release_at: episode.release_at_iso || episode.release_at || null,
+        status: episode.status,
+        voice: episode.voice || null,
+      })),
+    })),
+  )
 }
 
 type Props = {
@@ -41,6 +58,14 @@ const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(funct
   const [importing, setImporting] = useState(false)
   const [tmdbConfigured, setTmdbConfigured] = useState(true)
   const [resolvedTmdbId, setResolvedTmdbId] = useState<string | null>(null)
+  const baselineRef = useRef('')
+
+  const applySeasons = useCallback((nextSeasons: ScheduleSeason[], asBaseline = false) => {
+    setSeasons(nextSeasons)
+    if (asBaseline) {
+      baselineRef.current = serializeSchedule(nextSeasons)
+    }
+  }, [])
 
   const load = useCallback(async () => {
     if (!kpId || !drawerOpen) return
@@ -51,7 +76,7 @@ const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(funct
         tmdb_id?: string | null
         tmdb_api_key_set?: boolean
       }>(`/api/admin/series/${kpId}/schedule`)
-      setSeasons(data.seasons ?? [])
+      applySeasons(data.seasons ?? [], true)
       setResolvedTmdbId(data.tmdb_id ?? null)
       setTmdbConfigured(data.tmdb_api_key_set !== false)
     } catch (e) {
@@ -59,12 +84,15 @@ const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(funct
     } finally {
       setLoading(false)
     }
-  }, [kpId, drawerOpen])
+  }, [kpId, drawerOpen, applySeasons])
 
   useEffect(() => {
-    if (!drawerOpen || !kpId) return
+    if (!drawerOpen || !kpId) {
+      applySeasons([], true)
+      return
+    }
     load()
-  }, [kpId, drawerOpen, load, refreshKey])
+  }, [kpId, drawerOpen, load, refreshKey, applySeasons])
 
   useEffect(() => {
     if (tmdbId !== undefined) {
@@ -100,7 +128,7 @@ const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(funct
           method: 'POST',
           body: JSON.stringify(payload),
         })
-        setSeasons(res.seasons ?? [])
+        applySeasons(res.seasons ?? [], true)
         if (!options?.silent) {
           message.success('Расписание сохранено')
         }
@@ -114,10 +142,17 @@ const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(funct
         setSaving(false)
       }
     },
-    [kpId, seasons],
+    [kpId, seasons, applySeasons],
   )
 
-  useImperativeHandle(ref, () => ({ save: saveSchedule }), [saveSchedule])
+  useImperativeHandle(
+    ref,
+    () => ({
+      save: saveSchedule,
+      isDirty: () => serializeSchedule(seasons) !== baselineRef.current,
+    }),
+    [saveSchedule, seasons],
+  )
 
   const importFromTmdb = useCallback(
     async (mode: 'replace' | 'merge') => {

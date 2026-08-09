@@ -203,6 +203,7 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
     Route::post('/series/{kp_id}/import-kp', [AdminSeriesController::class, 'importFromKp']);
     Route::post('/series/{kp_id}/import-alloha', [AdminSeriesController::class, 'importFromAllohaByKey']);
     Route::post('/series/{kp_id}/poster', [AdminSeriesController::class, 'uploadPoster']);
+    Route::get('/series/{kp_id}/poster-meta', [AdminSeriesController::class, 'posterMeta']);
     Route::post('/series/{kp_id}/pin', [AdminSeriesController::class, 'pin']);
     Route::post('/series/{kp_id}/visibility', [AdminSeriesController::class, 'visibility']);
     Route::delete('/series/{kp_id}', [AdminSeriesController::class, 'destroy']);
@@ -527,8 +528,18 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
             'settings.*.value' => ['nullable', 'string'],
         ]);
 
+        $brandingTextKeys = [
+            'site_name',
+            'site_tagline',
+            'footer_text',
+            'home_heading',
+            'home_lead',
+            'home_seo_html',
+        ];
+
         $allowedKeys = array_values(array_unique(array_merge(
             SiteConfig::managedKeys(),
+            $brandingTextKeys,
             [
                 'active_theme',
                 'site_background_header_offset',
@@ -616,6 +627,11 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
 
             if ($key === 'site_background_hide_mobile') {
                 $value = ($value === '1' || $value === true || $value === 'true') ? '1' : '0';
+                $configChanged = true;
+            }
+
+            if (in_array($key, $brandingTextKeys, true)) {
+                $value = is_string($value) ? $value : (string) ($value ?? '');
                 $configChanged = true;
             }
 

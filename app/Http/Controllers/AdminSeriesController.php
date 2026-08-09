@@ -720,7 +720,8 @@ class AdminSeriesController extends Controller
         ]);
 
         $series = AdminSeriesResolver::byKey($kp_id);
-        $url = app(PosterStorage::class)->storeFromUpload(
+        $storage = app(PosterStorage::class);
+        $url = $storage->storeFromUpload(
             $request->file('poster'),
             PosterContext::forSeries($series),
         );
@@ -728,7 +729,26 @@ class AdminSeriesController extends Controller
         $series->save();
         TplCache::forgetSeries($series->id);
 
-        return response()->json(['ok' => true, 'poster_url' => $url, 'item' => $this->serializeSeries($series)]);
+        return response()->json([
+            'ok' => true,
+            'poster_url' => $url,
+            'meta' => $storage->inspectPublicUrl($url),
+            'item' => $this->serializeSeries($series),
+        ]);
+    }
+
+    public function posterMeta(Request $request, string $kp_id)
+    {
+        $series = AdminSeriesResolver::byKey($kp_id);
+        $url = trim((string) $request->query('url', $series->poster_url ?? ''));
+        if ($url === '') {
+            return response()->json(['ok' => true, 'meta' => null]);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'meta' => app(PosterStorage::class)->inspectPublicUrl($url),
+        ]);
     }
 
     public function pin(Request $request, string $kp_id)

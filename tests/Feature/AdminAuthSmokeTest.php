@@ -79,6 +79,29 @@ class AdminAuthSmokeTest extends TestCase
         ]);
     }
 
+    public function test_settings_saves_branding_and_home_text_keys(): void
+    {
+        $this->withHeader('X-ADMIN-TOKEN', 'smoke-admin-token')
+            ->postJson('/api/admin/settings', [
+                'settings' => [
+                    ['key' => 'site_name', 'value' => 'Test Site'],
+                    ['key' => 'site_tagline', 'value' => 'Test tagline'],
+                    ['key' => 'footer_text', 'value' => 'Test footer'],
+                    ['key' => 'home_heading', 'value' => 'Home heading'],
+                    ['key' => 'home_lead', 'value' => 'Home lead'],
+                    ['key' => 'home_seo_html', 'value' => '<p>SEO</p>'],
+                ],
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('site_settings', ['key' => 'site_name', 'value' => 'Test Site']);
+        $this->assertDatabaseHas('site_settings', ['key' => 'site_tagline', 'value' => 'Test tagline']);
+        $this->assertDatabaseHas('site_settings', ['key' => 'footer_text', 'value' => 'Test footer']);
+        $this->assertDatabaseHas('site_settings', ['key' => 'home_heading', 'value' => 'Home heading']);
+        $this->assertDatabaseHas('site_settings', ['key' => 'home_lead', 'value' => 'Home lead']);
+        $this->assertDatabaseHas('site_settings', ['key' => 'home_seo_html', 'value' => '<p>SEO</p>']);
+    }
+
     public function test_settings_save_keeps_admin_session_after_cache_flush(): void
     {
         $login = $this->withHeader('X-ADMIN-TOKEN', 'smoke-admin-token')

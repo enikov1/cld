@@ -20,6 +20,56 @@ class PosterStorage
         return '/storage/' . ltrim($relativePath, '/');
     }
 
+    /**
+     * @return array{width: ?int, height: ?int, bytes: ?int, mime: ?string, format: ?string}|null
+     */
+    public function inspectPublicUrl(?string $url): ?array
+    {
+        $url = trim((string) $url);
+        if ($url === '' || !str_starts_with($url, '/storage/')) {
+            return null;
+        }
+
+        $path = ltrim(substr($url, strlen('/storage/')), '/');
+        if ($path === '' || str_contains($path, '..')) {
+            return null;
+        }
+
+        $disk = Storage::disk('public');
+        if (!$disk->exists($path)) {
+            return null;
+        }
+
+        $bytes = $disk->size($path);
+        $format = strtolower(pathinfo($path, PATHINFO_EXTENSION) ?: '');
+        if ($format === 'jpeg') {
+            $format = 'jpg';
+        }
+
+        $width = null;
+        $height = null;
+        $mime = null;
+        try {
+            $fullPath = $disk->path($path);
+            $info = @getimagesize($fullPath);
+            if (is_array($info)) {
+                $width = isset($info[0]) ? (int) $info[0] : null;
+                $height = isset($info[1]) ? (int) $info[1] : null;
+                $mime = isset($info['mime']) ? (string) $info['mime'] : null;
+            }
+        } catch (\Throwable) {
+            // ignore — still return size/format when available
+        }
+
+        return [
+            'width' => $width,
+            'height' => $height,
+            'bytes' => $bytes > 0 ? $bytes : null,
+            'mime' => $mime,
+            'format' => $format !== '' ? $format : null,
+        ];
+    }
+
     public function storeFromUpload(UploadedFile $file, PosterContext $context): string
     {
         $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');

@@ -623,6 +623,15 @@ export default function SettingsPage() {
               <SiteConfigFields fields={configSeoFields.seo_content.fields} />
             </Card>
           ) : null}
+          {configSeoFields.seo_ai ? (
+            <Card title={configSeoFields.seo_ai.title} size="small" style={{ marginTop: 16 }}>
+              <Typography.Paragraph type="secondary">
+                Шаблоны промптов для копирования в ChatGPT/Claude из админки. Плейсхолдеры подставляются
+                автоматически при генерации промпта на странице справочника.
+              </Typography.Paragraph>
+              <SiteConfigFields fields={configSeoFields.seo_ai.fields} />
+            </Card>
+          ) : null}
           <Card title="sitemap.xml" size="small" style={{ marginTop: 16 }} loading={loading}>
             <Typography.Paragraph type="secondary">
               Карта сайта для поисковых систем. Автоматически обновляется по расписанию и при изменении

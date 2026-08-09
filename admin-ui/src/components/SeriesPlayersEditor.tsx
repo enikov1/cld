@@ -28,6 +28,7 @@ import {
   useEffect,
   useImperativeHandle,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type HTMLAttributes,
@@ -95,6 +96,18 @@ function DragHandle() {
 
 export type SeriesPlayersEditorHandle = {
   save: (options?: { silent?: boolean; kpId?: string }) => Promise<boolean>
+  isDirty: () => boolean
+}
+
+function serializePlayers(rows: PlayerRow[]): string {
+  return JSON.stringify(
+    rows.map((row) => ({
+      id: row.id ?? null,
+      provider: row.provider,
+      iframe_url: row.iframe_url,
+      is_active: row.is_active,
+    })),
+  )
 }
 
 type Props = {
@@ -112,36 +125,49 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [addingAlloha, setAddingAlloha] = useState(false)
+  const baselineRef = useRef('')
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
+
+  const applyRows = useCallback((nextRows: PlayerRow[], asBaseline = false) => {
+    setRows(nextRows)
+    if (asBaseline) {
+      baselineRef.current = serializePlayers(nextRows)
+    }
+  }, [])
+
+  const mapApiPlayers = useCallback((players: Array<Omit<PlayerRow, 'key'>>): PlayerRow[] => {
+    return (players ?? []).map((item, index) => ({
+      ...item,
+      key: String(item.id ?? `new-${index}`),
+      provider: item.provider ?? '',
+      iframe_url: item.iframe_url ?? '',
+      is_active: item.is_active ?? true,
+    }))
+  }, [])
 
   const load = useCallback(async () => {
     if (!kpId || !drawerOpen) return
     setLoading(true)
     try {
       const data = await api<{ players: Array<Omit<PlayerRow, 'key'>> }>(`/api/admin/series/${kpId}/players`)
-      setRows(
-        (data.players ?? []).map((item, index) => ({
-          ...item,
-          key: String(item.id ?? `new-${index}`),
-          provider: item.provider ?? '',
-          iframe_url: item.iframe_url ?? '',
-          is_active: item.is_active ?? true,
-        })),
-      )
+      applyRows(mapApiPlayers(data.players ?? []), true)
     } catch (e) {
       message.error(String((e as Error).message))
     } finally {
       setLoading(false)
     }
-  }, [kpId, drawerOpen])
+  }, [kpId, drawerOpen, applyRows, mapApiPlayers])
 
   useEffect(() => {
-    if (!drawerOpen || !kpId) return
+    if (!drawerOpen || !kpId) {
+      applyRows([], true)
+      return
+    }
     load()
-  }, [kpId, drawerOpen, refreshKey, load])
+  }, [kpId, drawerOpen, refreshKey, load, applyRows])
 
   useEffect(() => {
     onCountChange?.(rows.length)
@@ -168,15 +194,7 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
           method: 'POST',
           body: JSON.stringify({ players }),
         })
-        setRows(
-          (res.players ?? []).map((item, index) => ({
-            ...item,
-            key: String(item.id ?? `new-${index}`),
-            provider: item.provider ?? '',
-            iframe_url: item.iframe_url ?? '',
-            is_active: item.is_active ?? true,
-          })),
-        )
+        applyRows(mapApiPlayers(res.players ?? []), true)
         if (!options?.silent) {
           message.success('Плееры сохранены')
         }
@@ -190,10 +208,17 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
         setSaving(false)
       }
     },
-    [kpId, rows],
+    [kpId, rows, applyRows, mapApiPlayers],
   )
 
-  useImperativeHandle(ref, () => ({ save: savePlayers }), [savePlayers])
+  useImperativeHandle(
+    ref,
+    () => ({
+      save: savePlayers,
+      isDirty: () => serializePlayers(rows) !== baselineRef.current,
+    }),
+    [savePlayers, rows],
+  )
 
   function addPlayer() {
     setRows([
@@ -219,15 +244,7 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
           body: JSON.stringify({ tab_name: `Плеер ${rows.length + 1}` }),
         },
       )
-      setRows(
-        (res.players ?? []).map((item, index) => ({
-          ...item,
-          key: String(item.id ?? `new-${index}`),
-          provider: item.provider ?? '',
-          iframe_url: item.iframe_url ?? '',
-          is_active: item.is_active ?? true,
-        })),
-      )
+      applyRows(mapApiPlayers(res.players ?? []), true)
       message.success('Плеер Alloha добавлен в конец списка')
     } catch (e) {
       message.error(String((e as Error).message))
