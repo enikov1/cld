@@ -2,6 +2,7 @@ import { ClearOutlined, ReloadOutlined } from '@ant-design/icons'
 import { Button, Popconfirm, Popover, Space, Spin, Typography, message } from 'antd'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { api } from '../api/client'
+import { useBusyFavicon } from '../documentMeta/AdminDocumentMeta'
 
 type CacheDirInfo = {
   path?: string
@@ -53,6 +54,8 @@ export default function AdminCacheControl() {
   const [clearing, setClearing] = useState(false)
   const [info, setInfo] = useState<CacheInfo | null>(null)
   const loadInFlight = useRef<Promise<void> | null>(null)
+
+  useBusyFavicon(clearing)
 
   const load = useCallback(async () => {
     if (loadInFlight.current) {

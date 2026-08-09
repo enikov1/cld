@@ -3,7 +3,9 @@ import { Button, Col, Empty, Form, Input, InputNumber, Modal, Popconfirm, Row, S
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, apiUpload } from '../api/client'
+import EntitySeoAiControls from '../components/EntitySeoAiControls'
 import TemplateCodeEditor from '../components/TemplateCodeEditor'
+import { useBusyFavicon, useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
 import { useAdminTheme } from '../theme/useAdminTheme'
 import type { CollectionItem, CollectionSeriesItem, SeriesItem, StudioItem } from '../types'
 import {
@@ -13,6 +15,10 @@ import {
   type AiImportPreview,
   type AiPromptResponse,
 } from '../utils/collectionAiPrompt'
+import {
+  COLLECTION_SEO_AI_PROMPT_KEY,
+  DEFAULT_COLLECTION_SEO_AI_PROMPT,
+} from '../utils/entitySeoAiPrompt'
 import { siteOrigin } from '../utils/mediaUrl'
 
 function collectionPublicPath(slug: string): string {
@@ -73,6 +79,21 @@ export default function CollectionsPage() {
   const watchedSeriesIds = (Form.useWatch('series_ids', form) as number[] | undefined) ?? []
   const watchedSlug = String(Form.useWatch('slug', form) ?? '').trim()
   const watchedTitle = String(Form.useWatch('title', form) ?? '').trim()
+
+  useDocumentTitle(
+    importModalOpen
+      ? 'Импорт подборок из ИИ'
+      : promptModalOpen
+        ? 'Промпт для ИИ'
+        : addModalOpen
+          ? 'Добавить сериалы в подборку'
+          : modalOpen
+            ? editing
+              ? `Редактируем подборку — ${editing.title}`
+              : 'Новая подборка'
+            : null,
+  )
+  useBusyFavicon(autoSyncing || promptLoading || importLoading || importCreating)
 
   const seriesOptions = useMemo(
     () => mergeSeriesOptions(
@@ -739,6 +760,22 @@ export default function CollectionsPage() {
               open={false}
             />
           </Form.Item>
+          <EntitySeoAiControls
+            form={form}
+            settingKey={COLLECTION_SEO_AI_PROMPT_KEY}
+            defaultTemplate={DEFAULT_COLLECTION_SEO_AI_PROMPT}
+            entityLabel="подборки"
+            buildVars={() => {
+              const name = String(form.getFieldValue('title') || '').trim()
+              if (!name) return null
+              const slug = String(form.getFieldValue('slug') || editing?.slug || '').trim()
+              return {
+                name,
+                slug,
+                url: `/collections/${slug || '{slug}'}/`,
+              }
+            }}
+          />
           <Form.Item label="Meta title" name="meta_title" extra="Если пусто — «{название} — подборка сериалов»">
             <Input />
           </Form.Item>

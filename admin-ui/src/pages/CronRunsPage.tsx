@@ -2,6 +2,7 @@ import { Button, Drawer, Popconfirm, Select, Space, Table, Tag, Typography, mess
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api/client'
+import { useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
 import type { CronRunItem, CronRunJobOption } from '../types'
 
 const STATUS_OPTIONS = [
@@ -85,6 +86,14 @@ export default function CronRunsPage() {
   const [jobOptions, setJobOptions] = useState<CronRunJobOption[]>([])
   const [detail, setDetail] = useState<CronRunItem | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
+
+  useDocumentTitle(
+    detail || detailLoading
+      ? detail
+        ? `Запуск — ${detail.job_label || detail.job_key} #${detail.id}`
+        : 'Запуск'
+      : null,
+  )
 
   const load = useCallback(async (
     nextPage = page,

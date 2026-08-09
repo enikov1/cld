@@ -17,6 +17,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api/client'
 import SeriesSearchSelect, { type SeriesSearchOption } from '../components/SeriesSearchSelect'
+import { useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
 import { siteOrigin } from '../utils/mediaUrl'
 
 type RedirectItem = {
@@ -74,6 +75,14 @@ export default function RedirectsPage() {
 	const [selectedSeries, setSelectedSeries] = useState<SeriesSearchOption | null>(null)
 	const [form] = Form.useForm()
 	const watchedToType = Form.useWatch('to_type', form) as 'url' | 'series' | undefined
+
+	useDocumentTitle(
+		modalOpen
+			? editing
+				? `Редактируем редирект — ${editing.from_path}`
+				: 'Новый редирект'
+			: null,
+	)
 
 	const load = useCallback(async (nextPage = page, nextPerPage = perPage, q = query) => {
 		setLoading(true)

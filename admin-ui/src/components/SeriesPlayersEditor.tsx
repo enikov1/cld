@@ -34,6 +34,7 @@ import {
   type HTMLAttributes,
 } from 'react'
 import { api } from '../api/client'
+import { useBusyFavicon } from '../documentMeta/AdminDocumentMeta'
 
 type PlayerRow = {
   key: string
@@ -130,6 +131,8 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
+
+  useBusyFavicon(saving || addingAlloha)
 
   const applyRows = useCallback((nextRows: PlayerRow[], asBaseline = false) => {
     setRows(nextRows)

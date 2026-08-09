@@ -2,6 +2,7 @@ import { Alert, Button, Card, Checkbox, Divider, Form, Input, InputNumber, Modal
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
+import { useBusyFavicon, useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
 
 type IntervalOption = { value: number; label: string }
 
@@ -62,6 +63,9 @@ export default function BackupPage() {
   const [restoreFiles, setRestoreFiles] = useState(true)
   const [restoreConfirmToken, setRestoreConfirmToken] = useState('')
   const [form] = Form.useForm()
+
+  useDocumentTitle(restoreTarget ? `Восстановление — ${restoreTarget.name}` : null)
+  useBusyFavicon(saving || testing || running || restoring)
 
   const load = useCallback(async () => {
     setLoading(true)

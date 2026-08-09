@@ -31,6 +31,7 @@ import { useAuth } from '../auth/AuthContext'
 import AdminCacheControl from '../components/AdminCacheControl'
 import AdminCronControl from '../components/AdminCronControl'
 import AdminSystemControl from '../components/AdminSystemControl'
+import { useBaseDocumentTitle } from '../documentMeta/AdminDocumentMeta'
 import { ADMIN_ROUTES, pageKeyFromPath, pageMeta } from '../routes/adminRoutes'
 import type { AdminPageKey, AdminStats } from '../types'
 import { siteOrigin } from '../utils/mediaUrl'
@@ -122,6 +123,8 @@ export default function AdminLayout({ isDark, onToggleTheme }: AdminLayoutProps)
   const page = pageKeyFromPath(location.pathname)
   const meta = pageMeta[page]
   const menuItems = useMemo(() => buildMenuItems(stats), [stats])
+
+  useBaseDocumentTitle(meta.title)
 
   useEffect(() => {
     let cancelled = false

@@ -4,6 +4,7 @@ import { Suspense, lazy } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthContext'
 import AdminErrorBoundary from './components/AdminErrorBoundary'
+import { AdminDocumentMetaProvider } from './documentMeta/AdminDocumentMeta'
 import AdminLayout from './layout/AdminLayout'
 import LoginPage from './pages/LoginPage'
 import { useAdminTheme } from './theme/useAdminTheme'
@@ -105,9 +106,11 @@ export default function App({ basename }: AppProps) {
     >
       <BrowserRouter basename={basename}>
         <AuthProvider>
-          <AdminErrorBoundary>
-            <AppRoutes isDark={isDark} onToggleTheme={toggle} />
-          </AdminErrorBoundary>
+          <AdminDocumentMetaProvider>
+            <AdminErrorBoundary>
+              <AppRoutes isDark={isDark} onToggleTheme={toggle} />
+            </AdminErrorBoundary>
+          </AdminDocumentMetaProvider>
         </AuthProvider>
       </BrowserRouter>
     </ConfigProvider>

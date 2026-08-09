@@ -20,6 +20,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api/client'
+import { useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
 
 type ReactionItem = {
   id: number
@@ -38,6 +39,14 @@ export default function ReactionsPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<ReactionItem | null>(null)
   const [form] = Form.useForm()
+
+  useDocumentTitle(
+    modalOpen
+      ? editing
+        ? `Редактируем реакцию — ${editing.label || editing.emoji}`
+        : 'Новая реакция'
+      : null,
+  )
 
   const load = useCallback(async () => {
     setLoading(true)

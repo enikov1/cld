@@ -23,6 +23,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api/client'
+import { useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
 import type { TaxonomyOption, TaxonomyType } from '../types'
 
 type NavLinkType = 'home' | 'taxonomy' | 'collections' | 'studios' | 'catalog' | 'coming_soon' | 'custom'
@@ -129,6 +130,30 @@ export default function NavMenuPage() {
   const [buttonForm] = Form.useForm()
   const [sectionForm] = Form.useForm()
   const [linkForm] = Form.useForm()
+
+  useDocumentTitle(
+    linkModalOpen
+      ? editingLink
+        ? 'Редактируем ссылку в колонке'
+        : 'Новая ссылка'
+      : sectionModalOpen
+        ? editingSection
+          ? 'Редактируем колонку mega-menu'
+          : 'Новая колонка'
+        : buttonModalOpen
+          ? editingButton
+            ? 'Редактируем кнопку mega-menu'
+            : 'Новая кнопка'
+          : itemModalOpen
+            ? editingItem
+              ? `Редактируем пункт меню — ${editingItem.title}`
+              : 'Новый пункт меню'
+            : megaDrawerOpen
+              ? megaItem
+                ? `Mega-menu — ${megaItem.title}`
+                : 'Mega-menu'
+              : null,
+  )
 
   const taxonomyItemOptions = useCallback(
     (type?: TaxonomyType | null) => {

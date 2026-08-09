@@ -2,6 +2,7 @@ import { LockOutlined } from '@ant-design/icons'
 import { Alert, Button, Card, Form, Input, Typography } from 'antd'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { useBaseDocumentTitle, useBusyFavicon } from '../documentMeta/AdminDocumentMeta'
 import { useState } from 'react'
 
 export default function LoginPage() {
@@ -9,6 +10,9 @@ export default function LoginPage() {
   const location = useLocation()
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  useBaseDocumentTitle('Вход')
+  useBusyFavicon(loading)
 
   if (status === 'authenticated') {
     const from = (location.state as { from?: string } | null)?.from ?? '/'

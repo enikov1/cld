@@ -1,6 +1,7 @@
 import { Alert, Button, Card, Form, Input, InputNumber, Switch, Typography, message } from 'antd'
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api/client'
+import { useBusyFavicon } from '../documentMeta/AdminDocumentMeta'
 
 export default function KinoPoiskSyncPage() {
   const [kinopoiskConfigured, setKinopoiskConfigured] = useState<boolean | null>(null)
@@ -8,6 +9,7 @@ export default function KinoPoiskSyncPage() {
   const [output, setOutput] = useState('')
   const [form] = Form.useForm()
 
+  useBusyFavicon(loading)
   const loadSettings = useCallback(async () => {
     const settingsData = await api<{ kinopoisk_api_key_set?: boolean }>('/api/admin/settings')
     setKinopoiskConfigured(Boolean(settingsData.kinopoisk_api_key_set))

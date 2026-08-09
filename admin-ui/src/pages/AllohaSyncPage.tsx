@@ -1,6 +1,7 @@
 import { Alert, Button, Card, Checkbox, Divider, Form, Input, InputNumber, Popconfirm, Progress, Select, Space, Switch, Tabs, Typography, message } from 'antd'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
+import { useBusyFavicon } from '../documentMeta/AdminDocumentMeta'
 
 type IntervalOption = { value: number; label: string }
 
@@ -51,6 +52,13 @@ export default function AllohaSyncPage() {
   const [playerPercent, setPlayerPercent] = useState(0)
   const playerSyncAbortRef = useRef(false)
   const playerResumeCheckedRef = useRef(false)
+
+  useBusyFavicon(
+    loading ||
+      autoLoading ||
+      playerSyncing ||
+      playerProgress?.status === 'running',
+  )
 
   const loadSettings = useCallback(async () => {
     const [settingsData, autoData] = await Promise.all([

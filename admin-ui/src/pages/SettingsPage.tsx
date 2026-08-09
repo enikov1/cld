@@ -36,6 +36,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, apiUpload } from '../api/client'
 import SiteConfigFields from '../components/SiteConfigFields'
+import { useBusyFavicon, useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
 import type { SettingItem, ThemeItem } from '../types'
 import type { SiteConfigSchema } from '../types/siteConfig'
 
@@ -109,6 +110,9 @@ export default function SettingsPage() {
   const [section, setSection] = useState<SettingsSection>(sectionFromHash)
   const [tabPosition, setTabPosition] = useState<'left' | 'top'>('left')
   const [form] = Form.useForm()
+
+  useDocumentTitle(`Настройки — ${SECTION_LABELS[section]}`)
+  useBusyFavicon(loading || tmdbSyncing || cdnSyncing || sitemapGenerating)
 
   const settingsMap = useMemo(() => {
     const m: Record<string, string> = {}

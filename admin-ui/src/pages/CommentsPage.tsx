@@ -3,6 +3,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
+import { useBusyFavicon, useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
 import type { AdminStats, CommentItem } from '../types'
 import { ADMIN_ROUTES } from '../routes/adminRoutes'
 import { siteOrigin } from '../utils/mediaUrl'
@@ -43,6 +44,15 @@ export default function CommentsPage() {
   const [editing, setEditing] = useState<CommentItem | null>(null)
   const [saving, setSaving] = useState(false)
   const [form] = Form.useForm<{ body: string }>()
+
+  useDocumentTitle(
+    editOpen
+      ? editing
+        ? `Редактируем комментарий #${editing.id}`
+        : 'Редактируем комментарий'
+      : null,
+  )
+  useBusyFavicon(saving)
 
   const load = useCallback(async (nextStatus: string) => {
     setLoading(true)

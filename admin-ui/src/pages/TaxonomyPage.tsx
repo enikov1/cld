@@ -4,6 +4,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useState } from 'react'
 import { api, apiUpload } from '../api/client'
 import TemplateCodeEditor from '../components/TemplateCodeEditor'
+import { useBusyFavicon, useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
 import { useAdminTheme } from '../theme/useAdminTheme'
 import type { TaxonomyItem, TaxonomyType } from '../types'
 import { resolveMediaUrl } from '../utils/mediaUrl'
@@ -58,6 +59,21 @@ function TaxonomyTab({ type, label, urlPrefix }: { type: TaxonomyType; label: st
   const [importText, setImportText] = useState('')
   const [importPreview, setImportPreview] = useState<ReturnType<typeof parseTaxonomySeoAiResult>>(null)
   const [importError, setImportError] = useState('')
+
+  useDocumentTitle(
+    importModalOpen
+      ? 'Импорт SEO из ИИ'
+      : templateModalOpen
+        ? 'Шаблон промпта для SEO справочников'
+        : promptModalOpen
+          ? 'Промпт для ИИ — SEO справочника'
+          : modalOpen
+            ? editing
+              ? `Редактируем: ${editing.name}`
+              : `Новый: ${label}`
+            : null,
+  )
+  useBusyFavicon(promptLoading || templateLoading || templateSaving)
 
   const load = useCallback(async () => {
     setLoading(true)

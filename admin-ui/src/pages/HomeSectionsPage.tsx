@@ -23,6 +23,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../api/client'
+import { useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
 import type { StudioItem, TaxonomyOption } from '../types'
 import { BROADCAST_STATUSES, CONTENT_TYPES } from '../types'
 
@@ -151,6 +152,14 @@ export default function HomeSectionsPage() {
   const [previewLoading, setPreviewLoading] = useState(false)
   const [contentTypeOptions, setContentTypeOptions] = useState<ContentTypeOption[]>(DEFAULT_CONTENT_TYPE_OPTIONS)
   const [form] = Form.useForm()
+
+  useDocumentTitle(
+    modalOpen
+      ? editing
+        ? `Редактируем секцию — ${editing.title}`
+        : 'Новая секция главной'
+      : null,
+  )
 
   const genreOptions = useMemo<SelectOption[]>(
     () => taxonomy.genres.map((g) => ({ value: g.id, label: g.name })),

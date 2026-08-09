@@ -2,6 +2,7 @@ import { Alert, Button, Collapse, Dropdown, Input, InputNumber, Select, Space, S
 import type { MenuProps } from 'antd'
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { api } from '../api/client'
+import { useBusyFavicon } from '../documentMeta/AdminDocumentMeta'
 
 type ScheduleEpisode = {
   episode_number: number
@@ -59,6 +60,8 @@ const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(funct
   const [tmdbConfigured, setTmdbConfigured] = useState(true)
   const [resolvedTmdbId, setResolvedTmdbId] = useState<string | null>(null)
   const baselineRef = useRef('')
+
+  useBusyFavicon(saving || importing)
 
   const applySeasons = useCallback((nextSeasons: ScheduleSeason[], asBaseline = false) => {
     setSeasons(nextSeasons)

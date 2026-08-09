@@ -40,6 +40,7 @@ import dayjs from 'dayjs'
 import { api, apiUpload } from '../api/client'
 import SeriesPlayersEditor, { type SeriesPlayersEditorHandle } from '../components/SeriesPlayersEditor'
 import SeriesLookupSearch from '../components/SeriesLookupSearch'
+import { useBusyFavicon, useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
 import { useSeriesDeepLink } from '../hooks/useSeriesDeepLink'
 import SeriesScheduleEditor, { type SeriesScheduleEditorHandle } from '../components/SeriesScheduleEditor'
 import type { CollectionItem, SeriesItem, StudioItem, TaxonomyOption } from '../types'
@@ -367,6 +368,15 @@ export default function SeriesPage() {
   const [form] = Form.useForm()
   const [filterForm] = Form.useForm<SeriesListFilters>()
   const posterUrl = Form.useWatch('poster_url', form)
+
+  useDocumentTitle(
+    drawerOpen
+      ? editing
+        ? `Редактируем сериал — ${editing.title}`
+        : 'Новый сериал / фильм'
+      : null,
+  )
+  useBusyFavicon(importing || importingAlloha || importingTmdb || saving)
   const watchedDescription = Form.useWatch('description', form)
   const descriptionCharCount = useMemo(
     () => countCharsWithoutSpaces(String(watchedDescription ?? '')),

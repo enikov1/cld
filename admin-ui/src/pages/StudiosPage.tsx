@@ -3,9 +3,15 @@ import { Button, Col, Empty, Form, Input, InputNumber, Modal, Popconfirm, Row, S
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, apiUpload } from '../api/client'
+import EntitySeoAiControls from '../components/EntitySeoAiControls'
 import TemplateCodeEditor from '../components/TemplateCodeEditor'
+import { useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
 import { useAdminTheme } from '../theme/useAdminTheme'
 import type { SeriesItem, StudioItem, StudioSeriesItem } from '../types'
+import {
+  DEFAULT_STUDIO_SEO_AI_PROMPT,
+  STUDIO_SEO_AI_PROMPT_KEY,
+} from '../utils/entitySeoAiPrompt'
 import { resolveMediaUrl, siteOrigin } from '../utils/mediaUrl'
 
 function studioPublicPath(slug: string): string {
@@ -80,6 +86,17 @@ export default function StudiosPage() {
   const [form] = Form.useForm()
   const [addForm] = Form.useForm()
   const logoUrl = Form.useWatch('logo_url', form)
+
+  useDocumentTitle(
+    addModalOpen
+      ? 'Добавить сериалы в студию'
+      : modalOpen
+        ? editing
+          ? `Редактируем студию — ${editing.title}`
+          : 'Новая студия'
+        : null,
+  )
+
   const seriesOptions = useMemo(
     () =>
       series.map((s) => ({
@@ -448,6 +465,22 @@ export default function StudiosPage() {
           <Form.Item label="Название" name="title" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
+          <EntitySeoAiControls
+            form={form}
+            settingKey={STUDIO_SEO_AI_PROMPT_KEY}
+            defaultTemplate={DEFAULT_STUDIO_SEO_AI_PROMPT}
+            entityLabel="студии"
+            buildVars={() => {
+              const name = String(form.getFieldValue('title') || '').trim()
+              if (!name) return null
+              const slug = String(form.getFieldValue('slug') || editing?.slug || '').trim()
+              return {
+                name,
+                slug,
+                url: `/studios/${slug || '{slug}'}/`,
+              }
+            }}
+          />
           <Form.Item label="Meta title" name="meta_title" extra="Если пусто — «{название} — студия»">
             <Input />
           </Form.Item>

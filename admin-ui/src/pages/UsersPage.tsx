@@ -22,6 +22,7 @@ import dayjs, { type Dayjs } from 'dayjs'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
+import { useBusyFavicon, useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
 import type { UserItem } from '../types'
 
 const { RangePicker } = DatePicker
@@ -129,6 +130,15 @@ export default function UsersPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<UserItem | null>(null)
   const [form] = Form.useForm<UserFormValues>()
+
+  useDocumentTitle(
+    modalOpen
+      ? editing
+        ? `Редактируем пользователя — ${editing.name}`
+        : 'Добавить пользователя'
+      : null,
+  )
+  useBusyFavicon(saving)
 
   const registeredRange = useMemo((): [Dayjs | null, Dayjs | null] | null => {
     if (!draft.registeredFrom && !draft.registeredTo) return null

@@ -33,6 +33,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, apiUpload } from '../api/client'
 import TplDocsPanel from '../components/TplDocsPanel'
 import TemplateCodeEditor from '../components/TemplateCodeEditor'
+import { useBusyFavicon, useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
 import {
   isImageFile,
   isSvgFile,
@@ -187,6 +188,7 @@ export default function TemplatesPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [createFolderOpen, setCreateFolderOpen] = useState(false)
   const [renameOpen, setRenameOpen] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [createForm] = Form.useForm<{ path: string }>()
   const [createFolderForm] = Form.useForm<{ path: string }>()
   const [renameForm] = Form.useForm<{ to: string }>()
@@ -198,6 +200,19 @@ export default function TemplatesPage() {
   const uploadInputRef = useRef<HTMLInputElement | null>(null)
   const uploadTargetDirRef = useRef('')
   const { isDark } = useAdminTheme()
+
+  useDocumentTitle(
+    renameOpen
+      ? `Переименовать — ${renameFrom || 'файл'}`
+      : createFolderOpen
+        ? 'Новая папка'
+        : createOpen
+          ? 'Новый файл'
+          : selectedPath
+            ? `Шаблон — ${selectedPath}`
+            : null,
+  )
+  useBusyFavicon(saving || uploading || fileLoading)
 
   const isDirty = selectedPath !== null && content !== savedContent
   const isTplFile = selectedPath?.endsWith('.tpl') ?? false
@@ -479,6 +494,7 @@ export default function TemplatesPage() {
       formData.append('theme', theme)
       formData.append('path', path)
       formData.append('file', file)
+      setUploading(true)
       try {
         const res = await apiUpload<{ ok: boolean; path: string }>('/api/admin/templates/file/upload', formData)
         message.success(`Файл загружен: ${res.path}`)
@@ -495,6 +511,8 @@ export default function TemplatesPage() {
         }
       } catch (err) {
         message.error(err instanceof Error ? err.message : 'Ошибка загрузки')
+      } finally {
+        setUploading(false)
       }
     },
     [loadFile, loadTree, theme],
