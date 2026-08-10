@@ -15,6 +15,7 @@ const ADMIN_SECTIONS = new Set([
   'search-stats',
   'settings',
   'templates',
+  'tpl-docs',
   'sync',
   'alloha-sync',
   'rutube-sync',

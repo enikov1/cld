@@ -141,7 +141,7 @@ class TaxonomyController extends TplController
             'robots' => $this->robotsMeta($item, $page),
         ];
 
-        return $this->renderTplPage('home.tpl', $vars, $meta);
+        return $this->renderTplPage('catalog.tpl', $vars, $meta);
     }
 
     private function browseTaxonomy(Request $request, string $type, string $slug)

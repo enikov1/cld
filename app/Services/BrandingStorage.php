@@ -18,6 +18,11 @@ class BrandingStorage
 
     private const BACKGROUND_EXTENSIONS = ['png', 'jpg', 'jpeg'];
 
+    public function __construct(
+        private readonly ImageOptimizer $optimizer,
+    ) {
+    }
+
     public function publicUrl(string $relativePath): string
     {
         return '/storage/' . ltrim($relativePath, '/');
@@ -28,7 +33,7 @@ class BrandingStorage
         $ext = $this->validateExtension($file, self::LOGO_EXTENSIONS);
         $this->validateSize($file);
 
-        return $this->store($file, 'logo', $ext, 'site_logo_url');
+        return $this->store($file, 'logo', $ext, 'site_logo_url', optimize: true, maxWidth: 800, maxHeight: 800);
     }
 
     public function storeFavicon(UploadedFile $file): string
@@ -36,7 +41,10 @@ class BrandingStorage
         $ext = $this->validateExtension($file, self::FAVICON_EXTENSIONS);
         $this->validateSize($file);
 
-        return $this->store($file, 'favicon', $ext, 'site_favicon_url');
+        // Keep ICO as-is; raster favicons still get compressed.
+        $optimize = !in_array($ext, ['ico'], true);
+
+        return $this->store($file, 'favicon', $ext, 'site_favicon_url', optimize: $optimize, maxWidth: 256, maxHeight: 256);
     }
 
     public function storeBackground(UploadedFile $file): string
@@ -44,7 +52,7 @@ class BrandingStorage
         $ext = $this->validateExtension($file, self::BACKGROUND_EXTENSIONS);
         $this->validateSize($file);
 
-        return $this->store($file, 'background', $ext, 'site_background_url');
+        return $this->store($file, 'background', $ext, 'site_background_url', optimize: true, maxWidth: 1600, maxHeight: 0);
     }
 
     public function deleteLogo(): void
@@ -62,7 +70,7 @@ class BrandingStorage
         $this->delete('background', 'site_background_url');
     }
 
-  /**
+    /**
      * @param list<string> $allowed
      */
     private function validateExtension(UploadedFile $file, array $allowed): string
@@ -84,12 +92,28 @@ class BrandingStorage
         }
     }
 
-    private function store(UploadedFile $file, string $basename, string $ext, string $settingKey): string
-    {
+    private function store(
+        UploadedFile $file,
+        string $basename,
+        string $ext,
+        string $settingKey,
+        bool $optimize = false,
+        ?int $maxWidth = null,
+        ?int $maxHeight = null,
+    ): string {
         $this->deleteExistingFiles($basename);
 
+        $binary = (string) file_get_contents($file->getRealPath());
+        if ($optimize) {
+            $processed = $this->optimizer->process($binary, $ext, $maxWidth, $maxHeight);
+            if ($processed !== null) {
+                $binary = $processed['body'];
+                $ext = $processed['ext'] === 'jpeg' ? 'jpg' : $processed['ext'];
+            }
+        }
+
         $path = self::DIR . '/' . $basename . '.' . $ext;
-        Storage::disk('public')->put($path, (string)file_get_contents($file->getRealPath()));
+        Storage::disk('public')->put($path, $binary);
 
         $url = $this->publicUrl($path);
         SiteSetting::set($settingKey, $url);

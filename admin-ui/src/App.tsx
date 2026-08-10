@@ -15,6 +15,7 @@ const HomeSectionsPage = lazy(() => import('./pages/HomeSectionsPage'))
 const ReactionsPage = lazy(() => import('./pages/ReactionsPage'))
 const TaxonomyPage = lazy(() => import('./pages/TaxonomyPage'))
 const SeriesPage = lazy(() => import('./pages/SeriesPage'))
+const MediaLibraryPage = lazy(() => import('./pages/MediaLibraryPage'))
 const CollectionsPage = lazy(() => import('./pages/CollectionsPage'))
 const StudiosPage = lazy(() => import('./pages/StudiosPage'))
 const CommentsPage = lazy(() => import('./pages/CommentsPage'))
@@ -26,10 +27,13 @@ const ViewsStatsPage = lazy(() => import('./pages/ViewsStatsPage'))
 const RedirectsPage = lazy(() => import('./pages/RedirectsPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const TemplatesPage = lazy(() => import('./pages/TemplatesPage'))
+const TplGuidePage = lazy(() => import('./pages/TplGuidePage'))
 const KinoPoiskSyncPage = lazy(() => import('./pages/KinoPoiskSyncPage'))
 const AllohaSyncPage = lazy(() => import('./pages/AllohaSyncPage'))
 const RutubeSyncPage = lazy(() => import('./pages/RutubeSyncPage'))
 const BackupPage = lazy(() => import('./pages/BackupPage'))
+const AdminAccessPage = lazy(() => import('./pages/AdminAccessPage'))
+const AuditLogPage = lazy(() => import('./pages/AuditLogPage'))
 
 type AppProps = {
   basename: string
@@ -72,6 +76,7 @@ function AppRoutes({ isDark, onToggleTheme }: AppRoutesProps) {
           <Route path="reactions" element={<ReactionsPage />} />
           <Route path="taxonomy" element={<TaxonomyPage />} />
           <Route path="series" element={<SeriesPage />} />
+          <Route path="media" element={<MediaLibraryPage />} />
           <Route path="collections" element={<CollectionsPage />} />
           <Route path="studios" element={<StudiosPage />} />
           <Route path="comments" element={<CommentsPage />} />
@@ -83,10 +88,14 @@ function AppRoutes({ isDark, onToggleTheme }: AppRoutesProps) {
           <Route path="redirects" element={<RedirectsPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="templates" element={<TemplatesPage />} />
+          <Route path="tpl-docs" element={<TplGuidePage />} />
+          <Route path="tpl-docs/:articleId" element={<TplGuidePage />} />
           <Route path="sync" element={<KinoPoiskSyncPage />} />
           <Route path="alloha-sync" element={<AllohaSyncPage />} />
           <Route path="rutube-sync" element={<RutubeSyncPage />} />
           <Route path="backup" element={<BackupPage />} />
+          <Route path="admin-access" element={<AdminAccessPage />} />
+          <Route path="audit-log" element={<AuditLogPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

@@ -1,0 +1,1 @@
+function e(e){let t=Number(e.year||e.start_year||0),n=t>=1900&&t<=2100?String(t):``;if(!n&&e.premiere_date){let t=Number(String(e.premiere_date).slice(0,4));t>=1900&&t<=2100&&(n=String(t))}n||=`0000`;let r=(e.slug||``).trim()||`series`;return`/${e.id??``}-${r}-${n}.html`}export{e as t};

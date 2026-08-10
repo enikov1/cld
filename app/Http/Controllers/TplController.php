@@ -222,7 +222,7 @@ abstract class TplController extends Controller
             // Flash/auth UI is session-specific — do not store in shared HTML cache.
             $html = $render();
         } else {
-            $homeVersion = $bodyTpl === 'home.tpl' ? TplCache::homeVersion() : 0;
+            $homeVersion = in_array($bodyTpl, ['home.tpl', 'catalog.tpl'], true) ? TplCache::homeVersion() : 0;
             // Key must NOT include serialize($vars): csrf/session flash made every
             // guest hit unique and bloated the database cache with dead HTML rows.
             $cacheKey = 'tpl:' . md5(implode('|', [

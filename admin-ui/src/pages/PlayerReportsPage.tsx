@@ -3,6 +3,7 @@ import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
+import { useBusyFavicon } from '../documentMeta/AdminDocumentMeta'
 import type { PlayerReportItem } from '../types'
 import { siteOrigin } from '../utils/mediaUrl'
 import { seriesPublicPath } from '../utils/seriesPublicPath'
@@ -13,6 +14,8 @@ export default function PlayerReportsPage() {
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(50)
   const [total, setTotal] = useState(0)
+
+  useBusyFavicon(loading)
 
   const load = useCallback(async (nextPage = page, nextPerPage = perPage) => {
     setLoading(true)

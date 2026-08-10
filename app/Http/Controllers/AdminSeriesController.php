@@ -18,6 +18,7 @@ use App\Services\SeriesViewService;
 use App\Services\TaxonomyService;
 use App\Services\TmdbImportService;
 use App\Services\TmdbPopularitySyncService;
+use App\Support\AdminAudit;
 use App\Support\AdminSeriesFilter;
 use App\Support\AdminSeriesResolver;
 use App\Support\SlugHelper;
@@ -494,9 +495,24 @@ class AdminSeriesController extends Controller
         \App\Services\EpisodeNotifier::fromSeriesProgress($series, $oldSeason, $oldEpisode);
         TplCache::forgetSeries($series->id);
 
+        $fresh = $series->fresh()->load(['genres', 'countries', 'actors', 'directors', 'studio', 'studios', 'collections']);
+        AdminAudit::log(
+            $isNew ? 'series.create' : 'series.update',
+            'series',
+            $fresh->id,
+            ($isNew ? 'Создан' : 'Обновлён') . ' сериал «' . $fresh->title . '»'
+                . ($fresh->kp_id ? ' (kp:' . $fresh->kp_id . ')' : ''),
+            [
+                'title' => $fresh->title,
+                'kp_id' => $fresh->kp_id,
+                'tmdb_id' => $fresh->tmdb_id,
+            ],
+            $request,
+        );
+
         return response()->json([
             'ok' => true,
-            'item' => $this->serializeSeries($series->fresh()->load(['genres', 'countries', 'actors', 'directors', 'studio', 'studios', 'collections'])),
+            'item' => $this->serializeSeries($fresh),
         ]);
     }
 
@@ -727,15 +743,30 @@ class AdminSeriesController extends Controller
         $maxKb = (int)ceil(app(ImageOptimizer::class)->maxUploadBytes() / 1024);
 
         $request->validate([
-            'poster' => ['required', 'file', 'image', 'max:' . $maxKb],
+            'poster' => ['required_without:url', 'file', 'image', 'max:' . $maxKb],
+            'url' => ['required_without:poster', 'nullable', 'string', 'max:2048'],
         ]);
 
         $series = AdminSeriesResolver::byKey($kp_id);
         $storage = app(PosterStorage::class);
-        $url = $storage->storeFromUpload(
-            $request->file('poster'),
-            PosterContext::forSeries($series),
-        );
+        $context = PosterContext::forSeries($series);
+
+        if ($request->hasFile('poster')) {
+            $url = $storage->storeFromUpload($request->file('poster'), $context);
+        } else {
+            $sourceUrl = trim((string) $request->input('url', ''));
+            if ($sourceUrl === '' || !preg_match('#^https?://#i', $sourceUrl)) {
+                return response()->json(['error' => 'Укажите http(s) URL изображения'], 422);
+            }
+
+            $url = $storage->storeFromUrl($sourceUrl, $context);
+            if (!$url) {
+                return response()->json([
+                    'error' => 'Не удалось скачать изображение по URL. Проверьте ссылку и размер файла.',
+                ], 422);
+            }
+        }
+
         $series->poster_url = $url;
         $series->save();
         TplCache::forgetSeries($series->id);
@@ -795,9 +826,19 @@ class AdminSeriesController extends Controller
     {
         $series = AdminSeriesResolver::byKey($kp_id);
         $seriesId = $series->id;
+        $title = (string) $series->title;
+        $kp = $series->kp_id;
         $series->delete();
         TplCache::forgetSeries($seriesId);
         TplCache::bumpGlobalVersion();
+
+        AdminAudit::log(
+            'series.delete',
+            'series',
+            $seriesId,
+            'Удалён сериал «' . $title . '»' . ($kp ? ' (kp:' . $kp . ')' : ''),
+            ['title' => $title, 'kp_id' => $kp],
+        );
 
         return response()->json(['ok' => true]);
     }

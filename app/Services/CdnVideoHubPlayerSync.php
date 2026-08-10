@@ -68,6 +68,209 @@ class CdnVideoHubPlayerSync
         ];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function runProgressiveBatch(bool $restart, int $batchSize = 100): array
+    {
+        if (!SiteConfig::bool('player_cdnvideohub_auto_enabled')) {
+            return array_merge(CdnVideoHubBulkProgress::get(), [
+                'status' => 'failed',
+                'message' => 'Автодобавление CDN VideoHub выключено. Включите его и сохраните настройки.',
+            ]);
+        }
+
+        @set_time_limit(120);
+
+        $batchSize = max(1, min(200, $batchSize));
+        $progress = CdnVideoHubBulkProgress::get();
+
+        if (!$restart && in_array($progress['status'], ['paused', 'stopped'], true)) {
+            return $progress;
+        }
+
+        $baseQuery = Series::query()
+            ->whereNotNull('kp_id')
+            ->where('kp_id', '!=', '');
+
+        if ($restart || !in_array($progress['status'], ['running', 'paused'], true)) {
+            $progress = CdnVideoHubBulkProgress::normalize([
+                'status' => 'running',
+                'after_id' => 0,
+                'total' => (clone $baseQuery)->count(),
+                'processed' => 0,
+                'synced' => 0,
+                'skipped' => 0,
+                'failed' => 0,
+                'batch_size' => $batchSize,
+                'message' => 'Простановка CDN VideoHub запущена',
+                'started_at' => time(),
+                'finished_at' => null,
+            ]);
+            CdnVideoHubBulkProgress::save($progress);
+        } else {
+            $progress['status'] = 'running';
+            $batchSize = $progress['batch_size'];
+            CdnVideoHubBulkProgress::save($progress);
+        }
+
+        $out = [
+            'last_id' => (int) $progress['after_id'],
+            'processed' => 0,
+            'synced' => 0,
+            'skipped' => 0,
+            'failed' => 0,
+        ];
+
+        $seriesList = (clone $baseQuery)
+            ->where('id', '>', (int) $progress['after_id'])
+            ->orderBy('id')
+            ->limit($batchSize)
+            ->get();
+
+        foreach ($seriesList as $series) {
+            $control = CdnVideoHubBulkProgress::get();
+            if (in_array($control['status'], ['paused', 'stopped'], true)) {
+                break;
+            }
+
+            $out['last_id'] = (int) $series->id;
+            $out['processed']++;
+
+            $kpId = trim((string) $series->kp_id);
+            if ($kpId === '' || !preg_match('/^\d+$/', $kpId)) {
+                $out['skipped']++;
+                continue;
+            }
+
+            try {
+                $this->syncSeries($series);
+                $out['synced']++;
+            } catch (\Throwable) {
+                $out['failed']++;
+            }
+        }
+
+        $latest = CdnVideoHubBulkProgress::get();
+        if (in_array($latest['status'], ['paused', 'stopped'], true)) {
+            $latest['after_id'] = $out['last_id'];
+            $latest['processed'] = (int) $progress['processed'] + $out['processed'];
+            $latest['synced'] = (int) $progress['synced'] + $out['synced'];
+            $latest['skipped'] = (int) $progress['skipped'] + $out['skipped'];
+            $latest['failed'] = (int) $progress['failed'] + $out['failed'];
+            if ($latest['status'] === 'paused') {
+                $latest['message'] = sprintf(
+                    'Пауза: обработано %d из %d',
+                    $latest['processed'],
+                    max($latest['total'], $latest['processed']),
+                );
+            } else {
+                $latest['finished_at'] = time();
+                $latest['message'] = sprintf(
+                    'Остановлено: проставлено %d, пропущено %d, ошибок %d',
+                    $latest['synced'],
+                    $latest['skipped'],
+                    $latest['failed'],
+                );
+            }
+            CdnVideoHubBulkProgress::save($latest);
+
+            return $latest;
+        }
+
+        $progress['after_id'] = $out['last_id'];
+        $progress['processed'] += $out['processed'];
+        $progress['synced'] += $out['synced'];
+        $progress['skipped'] += $out['skipped'];
+        $progress['failed'] += $out['failed'];
+        $progress['message'] = sprintf(
+            'Обработано %d из %d',
+            $progress['processed'],
+            max($progress['total'], $progress['processed']),
+        );
+
+        $remaining = (clone $baseQuery)
+            ->where('id', '>', $progress['after_id'])
+            ->count();
+
+        if ($remaining === 0) {
+            if ($progress['synced'] > 0) {
+                TplCache::bumpGlobalVersion();
+            }
+
+            $progress['status'] = 'done';
+            $progress['finished_at'] = time();
+            $progress['message'] = sprintf(
+                'Готово: проставлено %d, пропущено %d, ошибок %d',
+                $progress['synced'],
+                $progress['skipped'],
+                $progress['failed'],
+            );
+        } else {
+            $progress['status'] = 'running';
+        }
+
+        CdnVideoHubBulkProgress::save($progress);
+
+        return $progress;
+    }
+
+    public function pause(): array
+    {
+        $progress = CdnVideoHubBulkProgress::get();
+        if ($progress['status'] !== 'running') {
+            return $progress;
+        }
+
+        $progress['status'] = 'paused';
+        $progress['message'] = sprintf(
+            'Пауза: обработано %d из %d',
+            $progress['processed'],
+            max($progress['total'], $progress['processed']),
+        );
+        CdnVideoHubBulkProgress::save($progress);
+
+        return $progress;
+    }
+
+    public function resume(): array
+    {
+        $progress = CdnVideoHubBulkProgress::get();
+        if ($progress['status'] !== 'paused') {
+            return $progress;
+        }
+
+        $progress['status'] = 'running';
+        $progress['message'] = sprintf(
+            'Продолжение: обработано %d из %d',
+            $progress['processed'],
+            max($progress['total'], $progress['processed']),
+        );
+        CdnVideoHubBulkProgress::save($progress);
+
+        return $progress;
+    }
+
+    public function stop(): array
+    {
+        $progress = CdnVideoHubBulkProgress::get();
+        if (!in_array($progress['status'], ['running', 'paused'], true)) {
+            return $progress;
+        }
+
+        $progress['status'] = 'stopped';
+        $progress['finished_at'] = time();
+        $progress['message'] = sprintf(
+            'Остановлено: проставлено %d, пропущено %d, ошибок %d',
+            $progress['synced'],
+            $progress['skipped'],
+            $progress['failed'],
+        );
+        CdnVideoHubBulkProgress::save($progress);
+
+        return $progress;
+    }
+
     public function syncSeries(Series $series): void
     {
         $kpId = trim((string) $series->kp_id);

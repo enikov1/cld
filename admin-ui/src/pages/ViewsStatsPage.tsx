@@ -21,6 +21,7 @@ import dayjs, { type Dayjs } from 'dayjs'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
+import { useBusyFavicon } from '../documentMeta/AdminDocumentMeta'
 import { ADMIN_ROUTES } from '../routes/adminRoutes'
 import type { ViewsStatsResponse, ViewsStatsTopSeries } from '../types'
 import { resolveMediaUrl, siteOrigin } from '../utils/mediaUrl'
@@ -95,6 +96,8 @@ export default function ViewsStatsPage() {
   const [range, setRange] = useState<[Dayjs, Dayjs] | null>(null)
   const [data, setData] = useState<ViewsStatsResponse | null>(null)
   const [loading, setLoading] = useState(true)
+
+  useBusyFavicon(loading)
 
   const load = useCallback(async () => {
     setLoading(true)

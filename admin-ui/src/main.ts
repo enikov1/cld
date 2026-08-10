@@ -21,5 +21,10 @@ resolveAdminBase()
     )
   })
   .catch((error: unknown) => {
-    rootEl.innerHTML = `<div style="padding:24px;font-family:sans-serif;color:#cf1322">${String((error as Error).message)}</div>`
+    const msg = document.createElement('div')
+    msg.style.padding = '24px'
+    msg.style.fontFamily = 'sans-serif'
+    msg.style.color = '#cf1322'
+    msg.textContent = String((error as Error).message)
+    rootEl.replaceChildren(msg)
   })

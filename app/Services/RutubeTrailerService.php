@@ -77,8 +77,13 @@ class RutubeTrailerService
      * @param 'skip'|'update' $existingMode
      * @return array{ok: bool, skipped?: bool, error?: string, trailer?: array{id: string, title: string, embed_url: string, video_url: string}}
      */
-    public function addToSeries(Series $series, string $tabName = 'Трейлер', string $existingMode = 'update'): array
-    {
+    public function addToSeries(
+        Series $series,
+        string $tabName = 'Трейлер',
+        string $existingMode = 'update',
+        ?string $embedOrVideoId = null,
+        ?string $trailerTitle = null,
+    ): array {
         $tabName = trim($tabName) !== '' ? trim($tabName) : 'Трейлер';
         $existingMode = $existingMode === 'skip' ? 'skip' : 'update';
 
@@ -91,9 +96,20 @@ class RutubeTrailerService
             return ['ok' => true, 'skipped' => true];
         }
 
-        $found = $this->findBestTrailer($series);
+        $manual = trim((string) $embedOrVideoId);
+        if ($manual !== '') {
+            $found = $this->trailerFromInput($manual, $trailerTitle);
+        } else {
+            $found = $this->findBestTrailer($series);
+        }
+
         if ($found === null) {
-            return ['ok' => false, 'error' => 'Трейлер на Rutube не найден по названию сериала'];
+            return [
+                'ok' => false,
+                'error' => $manual !== ''
+                    ? 'Некорректный URL или ID видео Rutube'
+                    : 'Трейлер на Rutube не найден по названию сериала',
+            ];
         }
 
         $embed = PlayerUrlHelper::normalizePlayerContent($found['embed_url']);
@@ -140,13 +156,89 @@ class RutubeTrailerService
     }
 
     /**
+     * @return array{
+     *   query: string,
+     *   default_query: string,
+     *   series_title: string,
+     *   candidates: list<array{
+     *     id: string,
+     *     title: string,
+     *     embed_url: string,
+     *     video_url: string,
+     *     thumbnail_url: string,
+     *     duration: int,
+     *     hits: int,
+     *     author: string,
+     *     score: int,
+     *     is_recommended: bool
+     *   }>
+     * }
+     */
+    public function searchCandidates(Series $series, ?string $query = null, int $limit = 12): array
+    {
+        $defaultQuery = $this->defaultSearchQuery($series);
+        $searchQuery = trim((string) $query);
+        if ($searchQuery === '') {
+            $searchQuery = $defaultQuery;
+        }
+
+        $title = trim((string) $series->title);
+        $year = (int) ($series->year ?: $series->start_year ?: 0);
+        $yearOrNull = ($year >= 1900 && $year <= 2100) ? $year : null;
+
+        $results = $this->search($searchQuery, $limit);
+        if ($results === [] && $searchQuery === $defaultQuery && $title !== '') {
+            $results = $this->search($title . ' трейлер', $limit);
+        }
+
+        $candidates = [];
+        foreach ($results as $item) {
+            $normalized = $this->normalizeSearchItem($item, $title, $yearOrNull);
+            if ($normalized === null) {
+                continue;
+            }
+            $candidates[] = $normalized;
+        }
+
+        usort($candidates, static fn (array $a, array $b): int => $b['score'] <=> $a['score']);
+
+        $bestScore = $candidates[0]['score'] ?? PHP_INT_MIN;
+        foreach ($candidates as $index => $candidate) {
+            $candidates[$index]['is_recommended'] = $index === 0 && $bestScore >= 40;
+        }
+
+        return [
+            'query' => $searchQuery,
+            'default_query' => $defaultQuery,
+            'series_title' => $title,
+            'candidates' => array_values($candidates),
+        ];
+    }
+
+    /**
      * @return array{id: string, title: string, embed_url: string, video_url: string}|null
      */
     public function findBestTrailer(Series $series): ?array
     {
+        $payload = $this->searchCandidates($series);
+        $best = $payload['candidates'][0] ?? null;
+        if ($best === null || (int) ($best['score'] ?? 0) < 40) {
+            return null;
+        }
+
+        return [
+            'id' => (string) $best['id'],
+            'title' => (string) $best['title'],
+            'embed_url' => (string) $best['embed_url'],
+            'video_url' => (string) $best['video_url'],
+        ];
+    }
+
+    public function defaultSearchQuery(Series $series): string
+    {
         $title = trim((string) $series->title);
         if ($title === '') {
-            return null;
+            return 'трейлер';
         }
 
         $year = (int) ($series->year ?: $series->start_year ?: 0);
@@ -155,40 +247,75 @@ class RutubeTrailerService
             $query .= ' ' . $year;
         }
 
-        $results = $this->search($query, 12);
-        if ($results === []) {
-            $results = $this->search($title . ' трейлер', 12);
-        }
+        return $query;
+    }
 
-        if ($results === []) {
-            return null;
-        }
-
-        $best = null;
-        $bestScore = PHP_INT_MIN;
-
-        foreach ($results as $item) {
-            $score = $this->scoreResult($item, $title, $year > 0 ? $year : null);
-            if ($score > $bestScore) {
-                $bestScore = $score;
-                $best = $item;
-            }
-        }
-
-        if ($best === null || $bestScore < 40) {
-            return null;
-        }
-
-        $embed = self::toEmbedUrl((string) ($best['embed_url'] ?? $best['id'] ?? ''));
+    /**
+     * @return array{id: string, title: string, embed_url: string, video_url: string}|null
+     */
+    public function trailerFromInput(string $embedOrVideoId, ?string $trailerTitle = null): ?array
+    {
+        $embed = self::toEmbedUrl($embedOrVideoId);
         if ($embed === '') {
             return null;
         }
 
+        $id = '';
+        if (preg_match('#/embed/([a-zA-Z0-9]+)#', $embed, $m)) {
+            $id = $m[1];
+        }
+
+        $title = trim((string) $trailerTitle);
+
         return [
-            'id' => (string) ($best['id'] ?? ''),
-            'title' => (string) ($best['title'] ?? ''),
+            'id' => $id,
+            'title' => $title !== '' ? $title : ($id !== '' ? 'Rutube ' . $id : 'Трейлер Rutube'),
             'embed_url' => $embed,
-            'video_url' => (string) ($best['video_url'] ?? ''),
+            'video_url' => $id !== '' ? 'https://rutube.ru/video/' . $id . '/' : '',
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $item
+     * @return array{
+     *   id: string,
+     *   title: string,
+     *   embed_url: string,
+     *   video_url: string,
+     *   thumbnail_url: string,
+     *   duration: int,
+     *   hits: int,
+     *   author: string,
+     *   score: int,
+     *   is_recommended: bool
+     * }|null
+     */
+    private function normalizeSearchItem(array $item, string $seriesTitle, ?int $year): ?array
+    {
+        $embed = self::toEmbedUrl((string) ($item['embed_url'] ?? $item['id'] ?? ''));
+        if ($embed === '') {
+            return null;
+        }
+
+        $author = '';
+        if (isset($item['author']) && is_array($item['author'])) {
+            $author = trim((string) ($item['author']['name'] ?? ''));
+        }
+        if ($author === '') {
+            $author = trim((string) ($item['feed_name'] ?? ''));
+        }
+
+        return [
+            'id' => (string) ($item['id'] ?? ''),
+            'title' => (string) ($item['title'] ?? ''),
+            'embed_url' => $embed,
+            'video_url' => (string) ($item['video_url'] ?? ''),
+            'thumbnail_url' => (string) ($item['thumbnail_url'] ?? ''),
+            'duration' => (int) ($item['duration'] ?? 0),
+            'hits' => (int) ($item['hits'] ?? 0),
+            'author' => $author,
+            'score' => $this->scoreResult($item, $seriesTitle, $year),
+            'is_recommended' => false,
         ];
     }
 

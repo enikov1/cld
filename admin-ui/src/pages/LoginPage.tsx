@@ -49,9 +49,10 @@ export default function LoginPage() {
           <Form.Item
             label="Токен"
             name="token"
-            rules={[{ required: true, message: 'Укажите токен из .env (ADMIN_TOKEN)' }]}
+            extra="ADMIN_TOKEN из .env или секрет из «Токены доступа» (64 символа, только при создании/перевыпуске)."
+            rules={[{ required: true, message: 'Укажите токен доступа' }]}
           >
-            <Input.Password prefix={<LockOutlined />} placeholder="ADMIN_TOKEN" autoComplete="off" />
+            <Input.Password prefix={<LockOutlined />} placeholder="Токен админки" autoComplete="off" />
           </Form.Item>
           <Button type="primary" htmlType="submit" block loading={loading}>
             Войти

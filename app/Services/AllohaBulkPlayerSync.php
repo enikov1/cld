@@ -44,7 +44,11 @@ class AllohaBulkPlayerSync
 
         $progress = AllohaBulkPlayerProgress::get();
 
-        if ($restart || $progress['status'] !== 'running') {
+        if (!$restart && in_array($progress['status'], ['paused', 'stopped'], true)) {
+            return $progress;
+        }
+
+        if ($restart || !in_array($progress['status'], ['running', 'paused'], true)) {
             $progress = AllohaBulkPlayerProgress::normalize([
                 'status' => 'running',
                 'after_id' => 0,
@@ -63,10 +67,12 @@ class AllohaBulkPlayerSync
             ]);
             AllohaBulkPlayerProgress::save($progress);
         } else {
+            $progress['status'] = 'running';
             $tabName = $progress['tab_name'];
             $position = $progress['position'];
             $kpId = $progress['kp_id'];
             $sleep = $progress['sleep'];
+            AllohaBulkPlayerProgress::save($progress);
         }
 
         $batch = $this->syncBatch(
@@ -77,6 +83,34 @@ class AllohaBulkPlayerSync
             kpId: $kpId,
             sleep: $sleep,
         );
+
+        // Re-read in case pause/stop was requested mid-batch.
+        $latest = AllohaBulkPlayerProgress::get();
+        if (in_array($latest['status'], ['paused', 'stopped'], true)) {
+            $latest['after_id'] = $batch['last_id'];
+            $latest['processed'] = (int) $progress['processed'] + $batch['processed'];
+            $latest['synced'] = (int) $progress['synced'] + $batch['synced'];
+            $latest['skipped'] = (int) $progress['skipped'] + $batch['skipped'];
+            $latest['failed'] = (int) $progress['failed'] + $batch['failed'];
+            if ($latest['status'] === 'paused') {
+                $latest['message'] = sprintf(
+                    'Пауза: обработано %d из %d',
+                    $latest['processed'],
+                    max($latest['total'], $latest['processed']),
+                );
+            } else {
+                $latest['finished_at'] = time();
+                $latest['message'] = sprintf(
+                    'Остановлено: проставлено %d, пропущено %d, ошибок %d',
+                    $latest['synced'],
+                    $latest['skipped'],
+                    $latest['failed'],
+                );
+            }
+            AllohaBulkPlayerProgress::save($latest);
+
+            return $latest;
+        }
 
         $progress['after_id'] = $batch['last_id'];
         $progress['processed'] += $batch['processed'];
@@ -147,6 +181,11 @@ class AllohaBulkPlayerSync
             ->get();
 
         foreach ($seriesList as $series) {
+            $control = AllohaBulkPlayerProgress::get();
+            if (in_array($control['status'], ['paused', 'stopped'], true)) {
+                break;
+            }
+
             $out['last_id'] = (int) $series->id;
             $out['processed']++;
 
@@ -190,9 +229,66 @@ class AllohaBulkPlayerSync
         $out['remaining'] = $this->baseQuery($kpId)
             ->where('id', '>', $out['last_id'])
             ->count();
-        $out['done'] = $out['remaining'] === 0;
+        $out['done'] = $out['remaining'] === 0
+            && !in_array(AllohaBulkPlayerProgress::get()['status'], ['paused', 'stopped'], true);
 
         return $out;
+    }
+
+    public function pause(): array
+    {
+        $progress = AllohaBulkPlayerProgress::get();
+        if ($progress['status'] !== 'running') {
+            return $progress;
+        }
+
+        $progress['status'] = 'paused';
+        $progress['message'] = sprintf(
+            'Пауза: обработано %d из %d',
+            $progress['processed'],
+            max($progress['total'], $progress['processed']),
+        );
+        AllohaBulkPlayerProgress::save($progress);
+
+        return $progress;
+    }
+
+    public function resume(): array
+    {
+        $progress = AllohaBulkPlayerProgress::get();
+        if ($progress['status'] !== 'paused') {
+            return $progress;
+        }
+
+        $progress['status'] = 'running';
+        $progress['message'] = sprintf(
+            'Продолжение: обработано %d из %d',
+            $progress['processed'],
+            max($progress['total'], $progress['processed']),
+        );
+        AllohaBulkPlayerProgress::save($progress);
+
+        return $progress;
+    }
+
+    public function stop(): array
+    {
+        $progress = AllohaBulkPlayerProgress::get();
+        if (!in_array($progress['status'], ['running', 'paused'], true)) {
+            return $progress;
+        }
+
+        $progress['status'] = 'stopped';
+        $progress['finished_at'] = time();
+        $progress['message'] = sprintf(
+            'Остановлено: проставлено %d, пропущено %d, ошибок %d',
+            $progress['synced'],
+            $progress['skipped'],
+            $progress['failed'],
+        );
+        AllohaBulkPlayerProgress::save($progress);
+
+        return $progress;
     }
 
     /**

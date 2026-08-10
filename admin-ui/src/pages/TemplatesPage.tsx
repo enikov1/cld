@@ -30,6 +30,7 @@ import {
 import type { DataNode } from 'antd/es/tree'
 import type { MenuProps } from 'antd'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api, apiUpload } from '../api/client'
 import TplDocsPanel from '../components/TplDocsPanel'
 import TemplateCodeEditor from '../components/TemplateCodeEditor'
@@ -179,6 +180,7 @@ export default function TemplatesPage() {
   const [treeLoading, setTreeLoading] = useState(false)
   const [fileLoading, setFileLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const loadFileSeqRef = useRef(0)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [activeTreeKey, setActiveTreeKey] = useState<string | null>(null)
   const [content, setContent] = useState('')
@@ -276,11 +278,13 @@ export default function TemplatesPage() {
 
   const loadFile = useCallback(
     async (themeName: string, path: string) => {
+      const seq = ++loadFileSeqRef.current
       setFileLoading(true)
       try {
         const data = await api<TemplateFileResponse>(
           `/api/admin/templates/file?theme=${encodeURIComponent(themeName)}&path=${encodeURIComponent(path)}`,
         )
+        if (seq !== loadFileSeqRef.current) return
         setSelectedPath(data.path)
         setActiveTreeKey(data.path)
         setContent(data.content)
@@ -291,7 +295,7 @@ export default function TemplatesPage() {
           await loadDocs(path)
         }
       } finally {
-        setFileLoading(false)
+        if (seq === loadFileSeqRef.current) setFileLoading(false)
       }
     },
     [loadDocs],
@@ -333,7 +337,7 @@ export default function TemplatesPage() {
   )
 
   const saveFile = useCallback(async () => {
-    if (!selectedPath || !theme || binaryPreviewUrl) return
+    if (!selectedPath || !theme || binaryPreviewUrl || saving) return
     setSaving(true)
     try {
       const res = await api<{ ok: boolean; size: number; modified_at: string }>('/api/admin/templates/file', {
@@ -348,7 +352,7 @@ export default function TemplatesPage() {
     } finally {
       setSaving(false)
     }
-  }, [binaryPreviewUrl, content, selectedPath, theme])
+  }, [binaryPreviewUrl, content, saving, selectedPath, theme])
 
   const deleteEntry = useCallback(
     async (path: string) => {
@@ -925,16 +929,38 @@ export default function TemplatesPage() {
     <Tabs
       activeKey={activeTab}
       onChange={setActiveTab}
+      tabBarExtraContent={
+        <Link to="/tpl-docs">
+          <Button type="link" icon={<BookOutlined />}>
+            Полная справка TPL-DOC
+          </Button>
+        </Link>
+      }
       items={[
         { key: 'editor', label: 'Редактор', children: editorView },
         {
           key: 'docs',
           label: (
             <span>
-              <BookOutlined /> Справка TPL
+              <BookOutlined /> Теги файла
             </span>
           ),
-          children: <TplDocsPanel docs={docs} filePath={selectedPath} onInsert={insertTag} />,
+          children: (
+            <div>
+              <Alert
+                type="info"
+                showIcon
+                style={{ marginBottom: 12 }}
+                message={
+                  <span>
+                    Краткая справка по тегам текущего файла. Полный гайд для верстальщика — в{' '}
+                    <Link to="/tpl-docs">TPL-DOC</Link> (поиск и скачивание HTML).
+                  </span>
+                }
+              />
+              <TplDocsPanel docs={docs} filePath={selectedPath} onInsert={insertTag} />
+            </div>
+          ),
         },
       ]}
     />

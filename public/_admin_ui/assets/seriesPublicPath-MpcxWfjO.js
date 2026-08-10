@@ -1,1 +1,0 @@
-function e(e){let t=Number(e.year||e.start_year||0),n=t>=1900&&t<=2100?String(t):`0000`,r=(e.slug||``).trim()||`series`;return`/${e.id??``}-${r}-${n}.html`}export{e as t};

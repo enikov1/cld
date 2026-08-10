@@ -31,6 +31,7 @@ export default function SeriesLookupSearch({ form, onSelect }: Props) {
   const [warnings, setWarnings] = useState<string[]>([])
   const [open, setOpen] = useState(false)
   const debounceRef = useRef<number | null>(null)
+  const lookupSeqRef = useRef(0)
 
   useEffect(() => {
     if (debounceRef.current) {
@@ -53,6 +54,7 @@ export default function SeriesLookupSearch({ form, onSelect }: Props) {
     }
 
     setLoading(true)
+    const seq = ++lookupSeqRef.current
     debounceRef.current = window.setTimeout(() => {
       void (async () => {
         try {
@@ -60,15 +62,17 @@ export default function SeriesLookupSearch({ form, onSelect }: Props) {
           const res = await api<{ results: SeriesLookupResult[]; warnings?: string[] }>(
             `/api/admin/series/lookup?${params}`,
           )
+          if (seq !== lookupSeqRef.current) return
           setResults(res.results ?? [])
           setWarnings(res.warnings ?? [])
           setOpen(true)
         } catch (e) {
+          if (seq !== lookupSeqRef.current) return
           setResults([])
           setWarnings([String((e as Error).message)])
           setOpen(true)
         } finally {
-          setLoading(false)
+          if (seq === lookupSeqRef.current) setLoading(false)
         }
       })()
     }, 400)

@@ -7,6 +7,7 @@ export const ADMIN_ROUTES: Record<AdminPageKey, string> = {
   reactions: '/reactions',
   taxonomy: '/taxonomy',
   series: '/series',
+  media: '/media',
   collections: '/collections',
   studios: '/studios',
   comments: '/comments',
@@ -18,10 +19,13 @@ export const ADMIN_ROUTES: Record<AdminPageKey, string> = {
   redirects: '/redirects',
   settings: '/settings',
   templates: '/templates',
+  'tpl-docs': '/tpl-docs',
   sync: '/sync',
   'alloha-sync': '/alloha-sync',
   'rutube-sync': '/rutube-sync',
   backup: '/backup',
+  'admin-access': '/admin-access',
+  'audit-log': '/audit-log',
 }
 
 export const pageMeta: Record<AdminPageKey, { title: string; subtitle?: string }> = {
@@ -31,6 +35,7 @@ export const pageMeta: Record<AdminPageKey, { title: string; subtitle?: string }
   reactions: { title: 'Реакции', subtitle: 'Виджет оценок под плеером на странице сериала' },
   taxonomy: { title: 'Справочники', subtitle: 'Жанры, страны, актёры, блоки на главной' },
   series: { title: 'Сериалы', subtitle: 'Карточки контента и плеер на сайте' },
+  media: { title: 'Медиатека', subtitle: 'Постеры и брендинг — загрузка и повторное использование' },
   collections: { title: 'Подборки', subtitle: 'Тематические списки сериалов' },
   studios: { title: 'Студии', subtitle: 'Студии и их каталоги сериалов' },
   comments: { title: 'Комментарии', subtitle: 'Модерация пользовательских отзывов' },
@@ -42,10 +47,16 @@ export const pageMeta: Record<AdminPageKey, { title: string; subtitle?: string }
   redirects: { title: 'Редиректы', subtitle: 'Перенаправления URL и страниц сериалов' },
   settings: { title: 'Настройки', subtitle: 'Брендинг, авторизация, комментарии, SEO и шаблон' },
   templates: { title: 'Шаблоны', subtitle: 'Редактор .tpl, справка по тегам и подсказки' },
-  sync: { title: 'KinoPoisk', subtitle: 'Импорт сериалов через kp:sync' },
+  'tpl-docs': {
+    title: 'TPL-DOC',
+    subtitle: 'Полная справка по шаблонам для верстальщика — с поиском и скачиванием',
+  },
+  sync: { title: 'KinoPoisk', subtitle: 'Импорт сериалов с прогрессом и паузой' },
   'alloha-sync': { title: 'Alloha', subtitle: 'Автообновление, latest и синхронизация' },
   'rutube-sync': { title: 'Rutube', subtitle: 'Массовая простановка трейлеров' },
   backup: { title: 'Бэкапы', subtitle: 'Готовые архивы и настройки резервного копирования' },
+  'admin-access': { title: 'Токены доступа', subtitle: 'Создание, права по разделам, перевыпуск и отзыв' },
+  'audit-log': { title: 'Журнал аудита', subtitle: 'История действий администраторов' },
 }
 
 export function pageKeyFromPath(pathname: string): AdminPageKey {
@@ -53,6 +64,10 @@ export function pageKeyFromPath(pathname: string): AdminPageKey {
 
   if (path === '/') {
     return 'dashboard'
+  }
+
+  if (path === '/tpl-docs' || path.startsWith('/tpl-docs/')) {
+    return 'tpl-docs'
   }
 
   const entry = Object.entries(ADMIN_ROUTES).find(([, route]) => route !== '/' && path === route)

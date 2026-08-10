@@ -13,6 +13,7 @@ class AdminAccessTest extends TestCase
         parent::setUp();
         config(['admin.token' => 'test-admin-token-value']);
         cache()->store('admin')->flush();
+        AdminAccess::clearResolvedActor();
     }
 
     public function test_header_token_is_accepted(): void
@@ -21,23 +22,33 @@ class AdminAccessTest extends TestCase
         $request->headers->set('X-ADMIN-TOKEN', 'test-admin-token-value');
 
         $this->assertTrue(AdminAccess::hasValidToken($request));
+        $this->assertSame('full', AdminAccess::role($request));
+        $this->assertTrue(AdminAccess::can('admin.settings', $request));
     }
 
     public function test_opaque_session_cookie_is_accepted(): void
     {
-        $cookie = AdminAccess::makeCookie();
+        $login = Request::create('/api/admin/site-access', 'POST');
+        $login->headers->set('X-ADMIN-TOKEN', 'test-admin-token-value');
+        $this->app->instance('request', $login);
+
+        $cookie = AdminAccess::makeCookie($login);
         $this->assertNotNull($cookie);
 
         $request = Request::create('/api/admin/stats', 'GET');
         $request->cookies->set(AdminAccess::COOKIE_NAME, $cookie->getValue());
 
         $this->assertTrue(AdminAccess::hasValidToken($request));
+        $this->assertSame('full', AdminAccess::role($request));
         $this->assertNotSame('test-admin-token-value', $cookie->getValue());
     }
 
     public function test_logout_invalidates_session_cookie(): void
     {
-        $cookie = AdminAccess::makeCookie();
+        $login = Request::create('/api/admin/site-access', 'POST');
+        $login->headers->set('X-ADMIN-TOKEN', 'test-admin-token-value');
+
+        $cookie = AdminAccess::makeCookie($login);
         $this->assertNotNull($cookie);
 
         $request = Request::create('/api/admin/site-access', 'DELETE');

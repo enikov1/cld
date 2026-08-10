@@ -59,6 +59,9 @@
         <div class="block center fx-col">
             {header|raw}
             {notifications_dropdown|raw}
+            [ad_header_code]
+            <div class="ad-header">{ad_header_code|raw}</div>
+            [/ad_header_code]
 
             [popular_list]
             <div class="karusel">

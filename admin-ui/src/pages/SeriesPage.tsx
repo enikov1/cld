@@ -25,6 +25,7 @@ import {
 import {
   CheckOutlined,
   ClearOutlined,
+  CloudDownloadOutlined,
   CopyOutlined,
   DeleteOutlined,
   EditOutlined,
@@ -32,6 +33,7 @@ import {
   EyeOutlined,
   ExportOutlined,
   FilterOutlined,
+  PictureOutlined,
   PlusOutlined,
   PushpinFilled,
   PushpinOutlined,
@@ -47,27 +49,15 @@ import dayjs from 'dayjs'
 import { api, apiUpload } from '../api/client'
 import SeriesPlayersEditor, { type SeriesPlayersEditorHandle } from '../components/SeriesPlayersEditor'
 import SeriesLookupSearch from '../components/SeriesLookupSearch'
+import MediaPickerModal from '../components/MediaPickerModal'
 import { useBusyFavicon, useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
 import { useSeriesDeepLink } from '../hooks/useSeriesDeepLink'
 import SeriesScheduleEditor, { type SeriesScheduleEditorHandle } from '../components/SeriesScheduleEditor'
 import type { CollectionItem, SeriesItem, StudioItem, TaxonomyOption } from '../types'
 import { BROADCAST_STATUSES, CONTENT_TYPES } from '../types'
 import { resolveMediaUrl, siteOrigin } from '../utils/mediaUrl'
+import { seriesPublicPath } from '../utils/seriesPublicPath'
 import { buildDescriptionAiPrompt } from '../utils/descriptionAiPrompt'
-
-function seriesPublicPath(item: SeriesItem): string {
-  const yearNum = Number(item.year || item.start_year || 0)
-  let year = yearNum >= 1900 && yearNum <= 2100 ? String(yearNum) : ''
-  if (!year && item.premiere_date) {
-    const premiereYear = Number(String(item.premiere_date).slice(0, 4))
-    if (premiereYear >= 1900 && premiereYear <= 2100) {
-      year = String(premiereYear)
-    }
-  }
-  if (!year) year = '0000'
-  const slug = (item.slug || '').trim() || 'series'
-  return `/${item.id}-${slug}-${year}.html`
-}
 
 type PosterMeta = {
   width?: number | null
@@ -368,10 +358,15 @@ export default function SeriesPage() {
   const [posterCacheBust, setPosterCacheBust] = useState<number | undefined>(undefined)
   const [posterMeta, setPosterMeta] = useState<PosterMeta | null>(null)
   const [posterMetaLoading, setPosterMetaLoading] = useState(false)
+  const [uploadingPosterFromUrl, setUploadingPosterFromUrl] = useState(false)
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [formDirty, setFormDirty] = useState(false)
   const playersEditorRef = useRef<SeriesPlayersEditorHandle>(null)
   const scheduleEditorRef = useRef<SeriesScheduleEditorHandle>(null)
+  const savingRef = useRef(false)
+  const openEditSeqRef = useRef(0)
+  const loadSeriesSeqRef = useRef(0)
   const [form] = Form.useForm()
   const [filterForm] = Form.useForm<SeriesListFilters>()
   const posterUrl = Form.useWatch('poster_url', form)
@@ -383,8 +378,9 @@ export default function SeriesPage() {
         : 'Новый сериал / фильм'
       : null,
   )
-  useBusyFavicon(importing || importingAlloha || importingTmdb || saving)
+  useBusyFavicon(importing || importingAlloha || importingTmdb || saving || uploadingPosterFromUrl)
   const watchedDescription = Form.useWatch('description', form)
+  const posterUrlIsRemote = /^https?:\/\//i.test(String(posterUrl ?? '').trim())
   const descriptionCharCount = useMemo(
     () => countCharsWithoutSpaces(String(watchedDescription ?? '')),
     [watchedDescription],
@@ -397,36 +393,42 @@ export default function SeriesPage() {
     [editing, watchedKpId, watchedTmdbId],
   )
 
-  const refreshPlayersCount = useCallback(async (routeKey: string | null | undefined) => {
+  const refreshPlayersCount = useCallback(async (routeKey: string | null | undefined, signal?: { cancelled: boolean }) => {
     if (!routeKey) {
-      setPlayersCount(0)
+      if (!signal?.cancelled) setPlayersCount(0)
       return
     }
     try {
       const data = await api<{ players: unknown[] }>(`/api/admin/series/${routeKey}/players`)
+      if (signal?.cancelled) return
       setPlayersCount(data.players?.length ?? 0)
     } catch {
-      setPlayersCount(0)
+      if (!signal?.cancelled) setPlayersCount(0)
     }
   }, [])
 
-  const refreshSchedulePresence = useCallback(async (routeKey: string | null | undefined) => {
+  const refreshSchedulePresence = useCallback(async (routeKey: string | null | undefined, signal?: { cancelled: boolean }) => {
     if (!routeKey) {
-      setHasSchedule(false)
+      if (!signal?.cancelled) setHasSchedule(false)
       return
     }
     try {
       const data = await api<{ seasons: Array<{ episodes?: unknown[] }> }>(`/api/admin/series/${routeKey}/schedule`)
+      if (signal?.cancelled) return
       setHasSchedule((data.seasons ?? []).some((season) => (season.episodes?.length ?? 0) > 0))
     } catch {
-      setHasSchedule(false)
+      if (!signal?.cancelled) setHasSchedule(false)
     }
   }, [])
 
   useEffect(() => {
     if (!drawerOpen) return
-    void refreshPlayersCount(editorRouteKey)
-    void refreshSchedulePresence(editorRouteKey)
+    const signal = { cancelled: false }
+    void refreshPlayersCount(editorRouteKey, signal)
+    void refreshSchedulePresence(editorRouteKey, signal)
+    return () => {
+      signal.cancelled = true
+    }
   }, [drawerOpen, editorRouteKey, playersRefreshKey, refreshPlayersCount, refreshSchedulePresence])
 
   useEffect(() => {
@@ -548,6 +550,7 @@ export default function SeriesPage() {
   )
 
   const loadSeries = useCallback(async (nextPage = page, nextPerPage = perPage, filters?: SeriesListFilters) => {
+    const seq = ++loadSeriesSeqRef.current
     setLoading(true)
     try {
       const values = filters ?? filterForm.getFieldsValue()
@@ -562,14 +565,16 @@ export default function SeriesPage() {
         per_page: number
         last_page: number
       }>(`/api/admin/series?${params}`)
+      if (seq !== loadSeriesSeqRef.current) return
       setItems(data.items)
       setTotal(data.total)
       setPage(data.page)
       setPerPage(data.per_page)
     } catch (e) {
+      if (seq !== loadSeriesSeqRef.current) return
       message.error(String((e as Error).message))
     } finally {
-      setLoading(false)
+      if (seq === loadSeriesSeqRef.current) setLoading(false)
     }
   }, [filterForm, page, perPage])
 
@@ -630,6 +635,7 @@ export default function SeriesPage() {
   }
 
   const openEdit = useCallback(async (row: SeriesItem) => {
+    const seq = ++openEditSeqRef.current
     setEditing(row)
     setDrawerTab('main')
     setMainSubTab('basic')
@@ -641,9 +647,11 @@ export default function SeriesPage() {
     form.setFieldsValue(seriesToFormValues(row))
     try {
       const item = await fetchFullSeries(row)
+      if (seq !== openEditSeqRef.current) return
       setEditing(item)
       form.setFieldsValue(seriesToFormValues(item))
     } catch (e) {
+      if (seq !== openEditSeqRef.current) return
       message.error(String((e as Error).message))
     }
   }, [fetchFullSeries, form, loadStudios])
@@ -710,6 +718,8 @@ export default function SeriesPage() {
   }
 
   async function saveAll() {
+    if (savingRef.current) return
+    savingRef.current = true
     setSaving(true)
     try {
       const values = await form.validateFields()
@@ -759,6 +769,7 @@ export default function SeriesPage() {
       }
       message.error(String((e as Error).message))
     } finally {
+      savingRef.current = false
       setSaving(false)
     }
   }
@@ -964,6 +975,40 @@ export default function SeriesPage() {
       message.error(String((e as Error).message))
     }
     return false
+  }
+
+  async function uploadPosterFromUrl() {
+    const routeKey = seriesRouteKey(editing, form.getFieldsValue(true) as Record<string, unknown>)
+    if (!routeKey) {
+      message.warning('Укажите KP ID или TMDB ID перед загрузкой постера')
+      return
+    }
+    const sourceUrl = String(form.getFieldValue('poster_url') ?? '').trim()
+    if (!/^https?:\/\//i.test(sourceUrl)) {
+      message.warning('Укажите http(s) URL постера')
+      return
+    }
+    setUploadingPosterFromUrl(true)
+    try {
+      const res = await api<{ poster_url: string; meta?: PosterMeta | null }>(
+        `/api/admin/series/${routeKey}/poster`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ url: sourceUrl }),
+        },
+      )
+      form.setFieldValue('poster_url', res.poster_url)
+      setPosterCacheBust(Date.now())
+      if (res.meta) {
+        setPosterMeta(res.meta)
+      }
+      message.success('Постер скачан на сервер')
+      await loadSeries()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    } finally {
+      setUploadingPosterFromUrl(false)
+    }
   }
 
   async function togglePin(row: SeriesItem) {
@@ -1713,7 +1758,13 @@ export default function SeriesPage() {
                 label: 'Постер',
                 children: (
                   <>
-                    <Form.Item label="URL постера" name="poster_url"><Input placeholder="/storage/posters/... или https://..." /></Form.Item>
+                    <Form.Item
+                      label="URL постера"
+                      name="poster_url"
+                      extra="Можно вставить https://… и скачать файл на сервер кнопкой ниже"
+                    >
+                      <Input placeholder="/storage/posters/... или https://..." />
+                    </Form.Item>
                     <Space align="start" size={16} wrap style={{ marginBottom: 16 }}>
                       {posterUrl ? (
                         <img
@@ -1733,9 +1784,22 @@ export default function SeriesPage() {
                         />
                       ) : null}
                       <Space direction="vertical" size={8}>
-                        <Upload beforeUpload={uploadPoster} showUploadList={false} accept="image/*">
-                          <Button icon={<UploadOutlined />}>Загрузить постер на сервер</Button>
-                        </Upload>
+                        <Space wrap size={8}>
+                          <Upload beforeUpload={uploadPoster} showUploadList={false} accept="image/*">
+                            <Button icon={<UploadOutlined />}>Загрузить с компьютера</Button>
+                          </Upload>
+                          <Button icon={<PictureOutlined />} onClick={() => setMediaPickerOpen(true)}>
+                            Выбрать из медиатеки
+                          </Button>
+                          <Button
+                            icon={<CloudDownloadOutlined />}
+                            loading={uploadingPosterFromUrl}
+                            disabled={!posterUrlIsRemote}
+                            onClick={uploadPosterFromUrl}
+                          >
+                            Скачать по URL
+                          </Button>
+                        </Space>
                         {posterUrl ? (
                           posterMetaLoading && !formatPosterMeta(posterMeta).length ? (
                             <Typography.Text type="secondary">Загрузка сведений о файле…</Typography.Text>
@@ -1747,7 +1811,9 @@ export default function SeriesPage() {
                             <Typography.Text type="secondary">Сведения о файле недоступны</Typography.Text>
                           )
                         ) : (
-                          <Typography.Text type="secondary">Постер ещё не задан</Typography.Text>
+                          <Typography.Text type="secondary">
+                            Постер ещё не задан. Вставьте https://… и нажмите «Скачать по URL».
+                          </Typography.Text>
                         )}
                       </Space>
                     </Space>
@@ -1832,6 +1898,17 @@ export default function SeriesPage() {
         />
         </Form>
       </Drawer>
+      <MediaPickerModal
+        open={mediaPickerOpen}
+        onClose={() => setMediaPickerOpen(false)}
+        typeFilter="poster"
+        onSelect={(url) => {
+          form.setFieldValue('poster_url', url)
+          setPosterCacheBust(Date.now())
+          setPosterMeta(null)
+          message.success('Постер выбран из медиатеки')
+        }}
+      />
     </div>
   )
 }

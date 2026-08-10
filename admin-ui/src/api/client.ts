@@ -1,11 +1,23 @@
 import { adminAuthHeaders } from '../auth/tokenStorage'
 import { notifyUnauthorized } from '../auth/unauthorized'
+import { compressFormDataImages } from '../utils/compressImage'
 
 const knownValidationMessages: Record<string, string> = {
   'The email field must be a valid email address.': 'Укажите корректный адрес email.',
   'The email field is required.': 'Укажите email.',
   'The password field is required.': 'Укажите пароль.',
   'The name field is required.': 'Укажите имя.',
+}
+
+/** Bumped by AuthProvider; stamped on each request to ignore stale 401s. */
+let currentAuthEpoch = 0
+
+export function setApiAuthEpoch(epoch: number): void {
+  currentAuthEpoch = epoch
+}
+
+export function getApiAuthEpoch(): number {
+  return currentAuthEpoch
 }
 
 export class ApiError extends Error {
@@ -47,30 +59,55 @@ function throwApiError(res: Response, message: string): never {
   throw new ApiError(message, res.status)
 }
 
+async function parseJsonBody<T>(res: Response): Promise<T> {
+  const text = await res.text()
+  if (!text) {
+    return undefined as T
+  }
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    throw new ApiError('Сервер вернул некорректный JSON', res.status)
+  }
+}
+
+function defaultHeaders(hasJsonBody: boolean): Record<string, string> {
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
+    ...adminAuthHeaders(),
+  }
+  if (hasJsonBody) {
+    headers['Content-Type'] = 'application/json'
+  }
+  return headers
+}
+
 export async function api<T>(url: string, opts?: RequestInit): Promise<T> {
-  const { headers: optHeaders, ...restOpts } = opts ?? {}
+  const requestEpoch = currentAuthEpoch
+  const { headers: optHeaders, body, ...restOpts } = opts ?? {}
+  const hasJsonBody = typeof body === 'string'
   const res = await fetch(url, {
     credentials: 'same-origin',
     ...restOpts,
+    body,
     headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      ...adminAuthHeaders(),
+      ...defaultHeaders(hasJsonBody),
       ...(optHeaders ?? {}),
     },
   })
 
   if (res.status === 401) {
-    notifyUnauthorized()
+    notifyUnauthorized(requestEpoch)
   }
 
   if (!res.ok) {
     let message = `Ошибка ${res.status}`
     try {
-      const data = await res.json()
+      const data = (await parseJsonBody<Record<string, unknown>>(res)) ?? {}
       message = formatApiErrorMessage(data, message)
-    } catch {
-      // Body already consumed by res.json() — do not call res.text().
+    } catch (e) {
+      if (e instanceof ApiError) throw e
     }
     throwApiError(res, message)
   }
@@ -79,34 +116,37 @@ export async function api<T>(url: string, opts?: RequestInit): Promise<T> {
     return undefined as T
   }
 
-  return (await res.json()) as T
+  return parseJsonBody<T>(res)
 }
 
 export async function apiUpload<T>(url: string, formData: FormData): Promise<T> {
+  const requestEpoch = currentAuthEpoch
+  const body = await compressFormDataImages(formData)
   const res = await fetch(url, {
     method: 'POST',
     credentials: 'same-origin',
     headers: {
       Accept: 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
       ...adminAuthHeaders(),
     },
-    body: formData,
+    body,
   })
 
   if (res.status === 401) {
-    notifyUnauthorized()
+    notifyUnauthorized(requestEpoch)
   }
 
   if (!res.ok) {
     let message = `Ошибка ${res.status}`
     try {
-      const data = await res.json()
+      const data = (await parseJsonBody<Record<string, unknown>>(res)) ?? {}
       message = formatApiErrorMessage(data, message)
-    } catch {
-      // Body already consumed.
+    } catch (e) {
+      if (e instanceof ApiError) throw e
     }
     throwApiError(res, message)
   }
 
-  return (await res.json()) as T
+  return parseJsonBody<T>(res)
 }

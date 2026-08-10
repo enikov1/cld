@@ -11,9 +11,12 @@ use App\Http\Controllers\AdminPlayersController;
 use App\Http\Controllers\AdminScheduleController;
 use App\Http\Controllers\AdminSearchController;
 use App\Http\Controllers\AdminGlobalSearchController;
+use App\Http\Controllers\AdminMediaController;
 use App\Http\Controllers\AdminSeriesController;
 use App\Http\Controllers\AdminTaxonomyController;
 use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\AdminTokensController;
+use App\Http\Controllers\AdminAuditLogController;
 use App\Http\Controllers\AdminCacheController;
 use App\Http\Controllers\AdminSystemController;
 use App\Http\Controllers\AdminViewsStatsController;
@@ -21,6 +24,8 @@ use App\Models\Collection;
 use App\Models\CronRun;
 use App\Models\Series;
 use App\Models\Studio;
+use App\Services\KinoPoiskBulkProgress;
+use App\Services\KinoPoiskBulkSync;
 use App\Services\KinoPoiskConfig;
 use App\Services\AllohaConfig;
 use App\Services\AllohaAutoSyncSettings;
@@ -33,6 +38,7 @@ use App\Services\TmdbPopularitySyncService;
 use App\Services\TmdbStudioSyncService;
 use App\Services\TmdbSyncProgress;
 use App\Support\AdminAccess;
+use App\Support\AdminAudit;
 use App\Support\AdminPath;
 use App\Support\CommentBody;
 use App\Support\CommentModeration;
@@ -67,9 +73,12 @@ Route::get('/site/admin-path', function () {
 });
 
 Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group(function () {
-    Route::post('/site-access', function () {
+    Route::post('/site-access', function (Request $request) {
         $cookie = AdminAccess::makeCookie();
         $response = response()->json(['ok' => true]);
+        if ($cookie) {
+            AdminAudit::log('admin.login', 'session', null, 'Вход в админку (сессия)', null, $request);
+        }
 
         return $cookie ? $response->withCookie($cookie) : $response;
     })->middleware('throttle:admin-auth');
@@ -77,6 +86,18 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
     Route::delete('/site-access', function () {
         return response()->json(['ok' => true])->withCookie(AdminAccess::forgetCookie());
     })->middleware('throttle:admin-auth');
+
+    Route::get('/me', [AdminTokensController::class, 'me']);
+
+    Route::get('/admin-tokens/meta', [AdminTokensController::class, 'meta']);
+    Route::get('/admin-tokens', [AdminTokensController::class, 'index']);
+    Route::post('/admin-tokens', [AdminTokensController::class, 'store']);
+    Route::get('/admin-tokens/{id}', [AdminTokensController::class, 'show'])->whereNumber('id');
+    Route::put('/admin-tokens/{id}', [AdminTokensController::class, 'update'])->whereNumber('id');
+    Route::post('/admin-tokens/{id}/regenerate', [AdminTokensController::class, 'regenerate'])->whereNumber('id');
+    Route::delete('/admin-tokens/{id}', [AdminTokensController::class, 'destroy'])->whereNumber('id');
+
+    Route::get('/audit-logs', [AdminAuditLogController::class, 'index']);
 
     Route::get('/stats', function () {
         return response()->json(Cache::remember('admin_inventory_stats', 60, function () {
@@ -94,8 +115,16 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
                 'users_total' => \App\Models\User::query()->count(),
                 'users_blocked' => \App\Models\User::query()->where('is_blocked', true)->count(),
                 'series_with_player' => Series::query()
-                    ->whereNotNull('player_url')
-                    ->where('player_url', '!=', '')
+                    ->where(function ($q) {
+                        $q->whereExists(function ($sub) {
+                            $sub->selectRaw('1')
+                                ->from('player_sources')
+                                ->whereColumn('player_sources.series_id', 'series.id')
+                                ->where('player_sources.is_active', true);
+                        })->orWhere(function ($legacy) {
+                            $legacy->whereNotNull('player_url')->where('player_url', '!=', '');
+                        });
+                    })
                     ->count(),
                 'active_theme' => ThemeManager::activeName(),
                 'views' => AdminViewsStatsService::dashboardSnapshot(),
@@ -214,6 +243,10 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
     Route::post('/series/{kp_id}/import-alloha', [AdminSeriesController::class, 'importFromAllohaByKey']);
     Route::post('/series/{kp_id}/poster', [AdminSeriesController::class, 'uploadPoster']);
     Route::get('/series/{kp_id}/poster-meta', [AdminSeriesController::class, 'posterMeta']);
+
+    Route::get('/media', [AdminMediaController::class, 'index']);
+    Route::post('/media/upload', [AdminMediaController::class, 'upload']);
+    Route::delete('/media', [AdminMediaController::class, 'destroy']);
     Route::post('/series/{kp_id}/pin', [AdminSeriesController::class, 'pin']);
     Route::post('/series/{kp_id}/visibility', [AdminSeriesController::class, 'visibility']);
     Route::delete('/series/{kp_id}', [AdminSeriesController::class, 'destroy']);
@@ -223,16 +256,24 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
     Route::post('/series/{kp_id}/schedule/import-tmdb', [AdminScheduleController::class, 'importFromTmdb']);
     Route::get('/series/{kp_id}/players', [AdminPlayersController::class, 'show']);
     Route::post('/series/{kp_id}/players/add-alloha', [AdminPlayersController::class, 'addAllohaPlayer']);
+    Route::get('/series/{kp_id}/players/rutube-trailer/search', [AdminPlayersController::class, 'searchRutubeTrailers']);
     Route::post('/series/{kp_id}/players/add-rutube-trailer', [AdminPlayersController::class, 'addRutubeTrailer']);
     Route::post('/series/{kp_id}/players', [AdminPlayersController::class, 'save']);
     Route::post('/players/alloha/sync-all', [AdminPlayersController::class, 'syncAllohaAll']);
     Route::get('/players/alloha/sync-progress', [AdminPlayersController::class, 'allohaSyncProgress']);
+    Route::post('/players/alloha/sync-pause', [AdminPlayersController::class, 'pauseAllohaSync']);
+    Route::post('/players/alloha/sync-resume', [AdminPlayersController::class, 'resumeAllohaSync']);
+    Route::post('/players/alloha/sync-stop', [AdminPlayersController::class, 'stopAllohaSync']);
     Route::post('/players/rutube-trailer/sync-all', [AdminPlayersController::class, 'syncRutubeTrailersAll']);
     Route::get('/players/rutube-trailer/sync-progress', [AdminPlayersController::class, 'rutubeTrailerSyncProgress']);
     Route::post('/players/rutube-trailer/sync-pause', [AdminPlayersController::class, 'pauseRutubeTrailerSync']);
     Route::post('/players/rutube-trailer/sync-resume', [AdminPlayersController::class, 'resumeRutubeTrailerSync']);
     Route::post('/players/rutube-trailer/sync-stop', [AdminPlayersController::class, 'stopRutubeTrailerSync']);
     Route::post('/players/cdnvideohub/sync-all', [AdminPlayersController::class, 'syncCdnVideoHubAll']);
+    Route::get('/players/cdnvideohub/sync-progress', [AdminPlayersController::class, 'cdnVideoHubSyncProgress']);
+    Route::post('/players/cdnvideohub/sync-pause', [AdminPlayersController::class, 'pauseCdnVideoHubSync']);
+    Route::post('/players/cdnvideohub/sync-resume', [AdminPlayersController::class, 'resumeCdnVideoHubSync']);
+    Route::post('/players/cdnvideohub/sync-stop', [AdminPlayersController::class, 'stopCdnVideoHubSync']);
 
     Route::get('/users', [AdminUserController::class, 'index']);
     Route::post('/users', [AdminUserController::class, 'store']);
@@ -288,6 +329,8 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
     Route::post('/templates/file/upload', [AdminTemplateController::class, 'upload']);
     Route::delete('/templates/file', [AdminTemplateController::class, 'destroy']);
     Route::get('/templates/docs', [AdminTemplateController::class, 'docs']);
+    Route::get('/templates/guide', [AdminTemplateController::class, 'guide']);
+    Route::get('/templates/guide/download', [AdminTemplateController::class, 'guideDownload']);
     Route::get('/templates/css-classes', [AdminTemplateController::class, 'cssClasses']);
 
     Route::get('/redirects', [AdminRedirectController::class, 'index']);
@@ -680,6 +723,20 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
             }
         }
 
+        $savedKeys = array_values(array_unique(array_map(
+            static fn ($row) => (string) ($row['key'] ?? ''),
+            $data['settings'],
+        )));
+
+        AdminAudit::log(
+            'settings.save',
+            'settings',
+            null,
+            'Сохранены настройки (' . count($savedKeys) . ' ключей)',
+            ['keys' => $savedKeys],
+            $request,
+        );
+
         return response()->json([
             'ok' => true,
             'active_theme' => ThemeManager::activeName(),
@@ -688,45 +745,100 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
         ]);
     });
 
-    Route::post('/sync/kp', function (Request $request) {
+    Route::post('/sync/kp', function (Request $request, KinoPoiskBulkSync $sync) {
         $data = $request->validate([
-            'keyword' => ['required', 'string'],
-            'limit' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'keyword' => ['nullable', 'string'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:250'],
+            'sleep' => ['nullable', 'numeric', 'min:0', 'max:30'],
             'download_poster' => ['nullable', 'boolean'],
+            'batch_size' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'restart' => ['nullable', 'boolean'],
+            'continue' => ['nullable', 'boolean'],
         ]);
 
-        $limit = $data['limit'] ?? 20;
-        $args = [
-            'keyword' => $data['keyword'],
-            '--limit' => $limit,
-        ];
-        if (!empty($data['download_poster'])) {
-            $args['--download-poster'] = true;
+        $restart = (bool) ($data['restart'] ?? false);
+        $continue = (bool) ($data['continue'] ?? false);
+
+        $progress = $sync->runProgressiveBatch(
+            $restart || !$continue,
+            (string) ($data['keyword'] ?? ''),
+            (int) ($data['limit'] ?? 20),
+            (float) ($data['sleep'] ?? 0),
+            (bool) ($data['download_poster'] ?? false),
+            (int) ($data['batch_size'] ?? 5),
+        );
+
+        if (($progress['status'] ?? '') === 'failed') {
+            return response()->json([
+                'ok' => false,
+                'error' => (string) ($progress['message'] ?? 'Не удалось выполнить импорт KinoPoisk'),
+                'progress' => $progress,
+                'percent' => KinoPoiskBulkProgress::percent($progress),
+                'done' => false,
+            ], 422);
         }
 
-        $run = CronRunLogger::run(
-            CronRunLogger::JOB_KP_SYNC,
-            'kp:sync',
-            CronRun::TRIGGER_ADMIN,
-            function () use ($args) {
-                \Illuminate\Support\Facades\Artisan::call('kp:sync', $args);
-                $output = trim(\Illuminate\Support\Facades\Artisan::output());
-
-                return [
-                    'status' => CronRun::STATUS_SUCCESS,
-                    'message' => 'KinoPoisk sync завершён',
-                    'log' => $output,
-                    'counts' => ['limit' => (int)($args['--limit'] ?? 0)],
-                ];
-            },
-            ['keyword' => $data['keyword'], 'limit' => $limit],
-            'Импорт KinoPoisk',
-        );
+        $status = (string) ($progress['status'] ?? '');
 
         return response()->json([
             'ok' => true,
-            'output' => (string)($run->log ?: $run->message),
-            'cron_run_id' => $run->id,
+            'progress' => $progress,
+            'percent' => KinoPoiskBulkProgress::percent($progress),
+            'done' => $status === 'done',
+            'paused' => $status === 'paused',
+            'stopped' => $status === 'stopped',
+            'message' => (string) ($progress['message'] ?? ''),
+            'synced' => (int) ($progress['synced'] ?? 0),
+            'skipped' => (int) ($progress['skipped'] ?? 0),
+            'failed' => (int) ($progress['failed'] ?? 0),
+            'output' => (string) ($progress['message'] ?? ''),
+        ]);
+    });
+
+    Route::get('/sync/kp/progress', function () {
+        $progress = KinoPoiskBulkProgress::get();
+        $status = (string) ($progress['status'] ?? '');
+
+        return response()->json([
+            'ok' => true,
+            'progress' => $progress,
+            'percent' => KinoPoiskBulkProgress::percent($progress),
+            'done' => $status === 'done',
+            'paused' => $status === 'paused',
+            'stopped' => $status === 'stopped',
+        ]);
+    });
+
+    Route::post('/sync/kp/pause', function (KinoPoiskBulkSync $sync) {
+        $progress = $sync->pause();
+
+        return response()->json([
+            'ok' => true,
+            'progress' => $progress,
+            'percent' => KinoPoiskBulkProgress::percent($progress),
+            'paused' => ($progress['status'] ?? '') === 'paused',
+        ]);
+    });
+
+    Route::post('/sync/kp/resume', function (KinoPoiskBulkSync $sync) {
+        $progress = $sync->resume();
+
+        return response()->json([
+            'ok' => true,
+            'progress' => $progress,
+            'percent' => KinoPoiskBulkProgress::percent($progress),
+            'paused' => ($progress['status'] ?? '') === 'paused',
+        ]);
+    });
+
+    Route::post('/sync/kp/stop', function (KinoPoiskBulkSync $sync) {
+        $progress = $sync->stop();
+
+        return response()->json([
+            'ok' => true,
+            'progress' => $progress,
+            'percent' => KinoPoiskBulkProgress::percent($progress),
+            'stopped' => ($progress['status'] ?? '') === 'stopped',
         ]);
     });
 
@@ -1139,7 +1251,7 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
         }
     })->middleware('throttle:admin-destructive');
 
-    Route::post('/backup/run', function () {
+    Route::post('/backup/run', function (Request $request) {
         try {
             if (CronRunLogger::isJobRunning(CronRunLogger::JOB_BACKUP)) {
                 $run = CronRunLogger::latestJob(CronRunLogger::JOB_BACKUP);
@@ -1159,6 +1271,8 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
                 '--force',
                 '--trigger=admin',
             ]);
+
+            AdminAudit::log('backup.run', 'backup', null, 'Запущен ручной бэкап', null, $request);
 
             return response()->json([
                 'ok' => true,
@@ -1224,6 +1338,19 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
             }
 
             ArtisanDetached::spawn($args);
+
+            AdminAudit::log(
+                'backup.restore',
+                'backup',
+                $data['name'],
+                'Запущено восстановление из «' . $data['name'] . '»',
+                [
+                    'source' => $data['source'],
+                    'restore_database' => $restoreDatabase,
+                    'restore_files' => $restoreFiles,
+                ],
+                $request,
+            );
 
             return response()->json([
                 'ok' => true,

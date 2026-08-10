@@ -201,17 +201,31 @@ class HomeController extends TplController
 
         $pagination = CatalogFilterService::buildPaginationMeta($paginator, '/', [], false);
 
+        $filterVars = CatalogFilterService::buildFilterVars(
+            [],
+            fn (string $tpl, array $vars) => $this->renderPartial($tpl, $vars),
+        );
+        $filterVars['browse_api_path'] = '/api/catalog/browse';
+
+        $seriesList = PaginationHelper::mapSeries($paginator->items());
+
         $vars = [
             'is_home_first' => false,
             'browse_api_path' => '/api/catalog/browse',
             'page' => [
                 'heading' => \App\Models\SiteSetting::get('home_heading', 'Сериалы онлайн'),
             ],
-            'series_list' => PaginationHelper::mapSeries($paginator->items()),
+            'series_list' => $seriesList,
             'pagination' => $pagination,
             'pagination_block' => $pagination['has_pages']
                 ? $this->renderPartial('partials/pagination.tpl', ['pagination' => $pagination])
                 : '',
+            'catalog_filters' => $filterVars,
+            'catalog_filters_block' => $this->renderPartial('partials/catalog_filters.tpl', $filterVars),
+            'catalog_series_grid' => $this->renderPartial('partials/catalog_series_grid.tpl', [
+                'series_list' => $seriesList,
+            ]),
+            'catalog_total' => $paginator->total(),
         ];
 
         $this->applySpeedbar(Speedbar::forHome($page), $vars);
@@ -224,7 +238,7 @@ class HomeController extends TplController
             'next' => $pagination['next_url'] ? url($pagination['next_url']) : '',
         ];
 
-        return $this->renderTplPage('home.tpl', $vars, $meta);
+        return $this->renderTplPage('catalog.tpl', $vars, $meta);
     }
 
     private function defaultSeoHtml(): string

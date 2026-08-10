@@ -3,6 +3,7 @@ import { Card, Col, Row, Statistic, Typography, message } from 'antd'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
+import { useBusyFavicon } from '../documentMeta/AdminDocumentMeta'
 import { ADMIN_ROUTES } from '../routes/adminRoutes'
 import type { AdminStats } from '../types'
 
@@ -10,6 +11,8 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
+
+  useBusyFavicon(loading)
 
   useEffect(() => {
     api<AdminStats>('/api/admin/stats')
@@ -168,10 +171,10 @@ export default function DashboardPage() {
         </Col>
         <Col xs={24} md={12}>
           <Card title="Порядок наполнения">
-            <Typography.Paragraph>1. Создайте категории с URL-slug.</Typography.Paragraph>
-            <Typography.Paragraph>2. Импортируйте сериалы через KinoPoisk или добавьте вручную.</Typography.Paragraph>
-            <Typography.Paragraph>3. Укажите URL плеера в карточке сериала или фильма.</Typography.Paragraph>
-            <Typography.Paragraph style={{ marginBottom: 0 }}>4. Соберите подборки и проверьте настройки шаблона.</Typography.Paragraph>
+            <Typography.Paragraph>1. Настройте справочники (жанры, страны) и студии.</Typography.Paragraph>
+            <Typography.Paragraph>2. Импортируйте сериалы через KinoPoisk / Alloha или добавьте вручную.</Typography.Paragraph>
+            <Typography.Paragraph>3. Проставьте вкладки плееров (Alloha, CDN VideoHub, Rutube) в карточке или массово.</Typography.Paragraph>
+            <Typography.Paragraph style={{ marginBottom: 0 }}>4. Соберите подборки, меню и проверьте шаблон.</Typography.Paragraph>
           </Card>
         </Col>
       </Row>

@@ -33,7 +33,6 @@ export default function RutubeSyncPage() {
   const [progress, setProgress] = useState<TrailerSyncProgress | null>(null)
   const [percent, setPercent] = useState(0)
   const abortRef = useRef(false)
-  const resumeCheckedRef = useRef(false)
   const loopActiveRef = useRef(false)
 
   useBusyFavicon(syncing || progress?.status === 'running')
@@ -121,28 +120,13 @@ export default function RutubeSyncPage() {
   }, [loadProgress])
 
   useEffect(() => {
-    if (resumeCheckedRef.current) return
-    resumeCheckedRef.current = true
-
-    loadProgress()
-      .then((res) => {
-        if (res.progress.status === 'running') {
-          void runLoop(
-            {
-              tab_name: res.progress.tab_name,
-              existing_mode: res.progress.existing_mode,
-              kp_id: res.progress.kp_id ? Number(res.progress.kp_id) : undefined,
-              sleep: res.progress.sleep,
-              batch_size: res.progress.batch_size,
-            },
-            false,
-          )
-        }
-      })
-      .catch(() => {
-        /* no running job to resume */
-      })
-  }, [loadProgress, runLoop])
+    loadProgress().catch(() => {
+      /* no running job to resume */
+    })
+    return () => {
+      abortRef.current = true
+    }
+  }, [loadProgress])
 
   async function startSync(values: SyncFormValues) {
     await runLoop(values, true)
@@ -186,6 +170,20 @@ export default function RutubeSyncPage() {
     }
   }
 
+  async function continueRunningSync() {
+    if (!progress || progress.status !== 'running') return
+    await runLoop(
+      {
+        tab_name: progress.tab_name,
+        existing_mode: progress.existing_mode,
+        kp_id: progress.kp_id ? Number(progress.kp_id) : undefined,
+        sleep: progress.sleep,
+        batch_size: progress.batch_size,
+      },
+      false,
+    )
+  }
+
   async function stopSync() {
     abortRef.current = true
     try {
@@ -201,10 +199,18 @@ export default function RutubeSyncPage() {
     }
   }
 
-  const isRunning = syncing || progress?.status === 'running'
+  const serverRunning = progress?.status === 'running'
   const isPaused = progress?.status === 'paused'
+  const needsClientContinue = serverRunning && !syncing
+  const isRunning = syncing
+  const formLocked = syncing || serverRunning || isPaused
   const showProgress =
-    isRunning || isPaused || progress?.status === 'done' || progress?.status === 'stopped' || progress?.status === 'failed'
+    syncing ||
+    serverRunning ||
+    isPaused ||
+    progress?.status === 'done' ||
+    progress?.status === 'stopped' ||
+    progress?.status === 'failed'
 
   return (
     <div>
@@ -215,6 +221,15 @@ export default function RutubeSyncPage() {
           style={{ marginBottom: 16 }}
           message="Ищет трейлер на Rutube по названию сериала и добавляет вкладку плеера в конец списка. Обработка идёт пакетами, чтобы не повесить сайт на большом каталоге."
         />
+
+        {needsClientContinue ? (
+          <Alert
+            type="warning"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message="На сервере есть незавершённая задача. Нажмите «Продолжить», чтобы возобновить пакеты в этой вкладке."
+          />
+        ) : null}
 
         {showProgress ? (
           <div style={{ marginBottom: 16 }}>
@@ -227,7 +242,7 @@ export default function RutubeSyncPage() {
                     ? 'success'
                     : progress?.status === 'stopped'
                       ? 'exception'
-                      : progress?.status === 'paused'
+                      : progress?.status === 'paused' || needsClientContinue
                         ? 'normal'
                         : 'active'
               }
@@ -260,7 +275,7 @@ export default function RutubeSyncPage() {
             name="tab_name"
             rules={[{ required: true, message: 'Укажите название вкладки' }]}
           >
-            <Input placeholder="Трейлер" maxLength={120} disabled={isRunning} />
+            <Input placeholder="Трейлер" maxLength={120} disabled={formLocked} />
           </Form.Item>
 
           <Form.Item
@@ -268,22 +283,22 @@ export default function RutubeSyncPage() {
             name="existing_mode"
             rules={[{ required: true, message: 'Выберите режим' }]}
           >
-            <Radio.Group disabled={isRunning}>
+            <Radio.Group disabled={formLocked}>
               <Radio.Button value="skip">Пропускать</Radio.Button>
               <Radio.Button value="update">Обновлять</Radio.Button>
             </Radio.Group>
           </Form.Item>
 
           <Form.Item label="KP ID (опционально)" name="kp_id" extra="Если пусто — обработаются все сериалы с названием">
-            <InputNumber style={{ width: '100%' }} min={1} placeholder="357" disabled={isRunning} />
+            <InputNumber style={{ width: '100%' }} min={1} placeholder="357" disabled={formLocked} />
           </Form.Item>
 
           <Form.Item label="Размер пакета" name="batch_size" extra="Сколько сериалов обрабатывать за один запрос">
-            <InputNumber min={1} max={50} style={{ width: '100%' }} disabled={isRunning} />
+            <InputNumber min={1} max={50} style={{ width: '100%' }} disabled={formLocked} />
           </Form.Item>
 
           <Form.Item label="Пауза между запросами к Rutube (сек)" name="sleep">
-            <InputNumber min={0} max={30} step={0.5} style={{ width: '100%' }} disabled={isRunning} />
+            <InputNumber min={0} max={30} step={0.5} style={{ width: '100%' }} disabled={formLocked} />
           </Form.Item>
 
           <Space wrap>
@@ -293,22 +308,32 @@ export default function RutubeSyncPage() {
               okText="Запустить"
               cancelText="Отмена"
               onConfirm={() => form.submit()}
-              disabled={isRunning || isPaused}
+              disabled={formLocked}
             >
-              <Button type="primary" loading={isRunning} disabled={isRunning || isPaused} icon={<PlayCircleOutlined />}>
+              <Button type="primary" loading={isRunning} disabled={formLocked} icon={<PlayCircleOutlined />}>
                 Запустить
               </Button>
             </Popconfirm>
 
-            <Button icon={<PauseCircleOutlined />} onClick={pauseSync} disabled={!isRunning}>
+            <Button icon={<PauseCircleOutlined />} onClick={() => void pauseSync()} disabled={!isRunning}>
               Пауза
             </Button>
 
-            <Button type="default" icon={<PlayCircleOutlined />} onClick={resumeSync} disabled={!isPaused || syncing}>
+            <Button
+              type="default"
+              icon={<PlayCircleOutlined />}
+              onClick={() => void (isPaused ? resumeSync() : continueRunningSync())}
+              disabled={!(isPaused || needsClientContinue) || syncing}
+            >
               Продолжить
             </Button>
 
-            <Button danger icon={<StopOutlined />} onClick={stopSync} disabled={!isRunning && !isPaused}>
+            <Button
+              danger
+              icon={<StopOutlined />}
+              onClick={() => void stopSync()}
+              disabled={!isRunning && !isPaused && !needsClientContinue}
+            >
               Стоп
             </Button>
           </Space>

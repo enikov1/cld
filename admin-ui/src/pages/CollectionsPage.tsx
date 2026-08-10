@@ -82,6 +82,9 @@ export default function CollectionsPage() {
   const [importLoading, setImportLoading] = useState(false)
   const [importPreview, setImportPreview] = useState<AiImportPreview | null>(null)
   const [importCreating, setImportCreating] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const openEditSeqRef = useRef(0)
+  const savingRef = useRef(false)
   const [form] = Form.useForm()
   const [addForm] = Form.useForm()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -204,6 +207,7 @@ export default function CollectionsPage() {
   }
 
   async function openEdit(row: CollectionItem) {
+    const seq = ++openEditSeqRef.current
     setEditing(row)
     form.setFieldsValue({
       ...row,
@@ -215,8 +219,10 @@ export default function CollectionsPage() {
     setModalOpen(true)
     try {
       const seriesIds = await loadCollectionSeriesIds(row.slug)
+      if (seq !== openEditSeqRef.current) return
       form.setFieldValue('series_ids', seriesIds)
     } catch (e) {
+      if (seq !== openEditSeqRef.current) return
       message.error(String((e as Error).message))
     }
   }
@@ -231,6 +237,7 @@ export default function CollectionsPage() {
       return
     }
     deepLinkHandled.current = true
+    let cancelled = false
 
     ;(async () => {
       try {
@@ -238,6 +245,7 @@ export default function CollectionsPage() {
         if (id) params.set('id', id)
         if (slug) params.set('slug', slug)
         const data = await api<{ items: CollectionItem[] }>(`/api/admin/collections?${params}`)
+        if (cancelled) return
         const row = data.items[0]
         if (!row) {
           message.warning('Подборка не найдена')
@@ -246,17 +254,25 @@ export default function CollectionsPage() {
         setActiveSlug(row.slug)
         await openEdit(row)
       } catch (e) {
-        message.error(String((e as Error).message))
+        if (!cancelled) message.error(String((e as Error).message))
       } finally {
+        if (cancelled) return
         const next = new URLSearchParams(searchParams)
         next.delete('id')
         next.delete('slug')
         setSearchParams(next, { replace: true })
       }
     })()
+
+    return () => {
+      cancelled = true
+    }
   }, [searchParams, setSearchParams]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function saveCollection(values: Record<string, unknown>) {
+    if (savingRef.current) return
+    savingRef.current = true
+    setSaving(true)
     try {
       const payload = editing ? { ...values, id: editing.id } : values
       const res = await api<{ item: CollectionItem; series_ids?: number[]; manual_series_ids?: number[]; auto_sync?: { added: number; removed: number } }>(
@@ -278,6 +294,9 @@ export default function CollectionsPage() {
       await loadItems(res.item.slug)
     } catch (e) {
       message.error(String((e as Error).message))
+    } finally {
+      savingRef.current = false
+      setSaving(false)
     }
   }
 
@@ -742,6 +761,8 @@ export default function CollectionsPage() {
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         onOk={() => form.submit()}
+        confirmLoading={saving}
+        okButtonProps={{ disabled: saving }}
         okText="Сохранить"
         cancelText="Отмена"
         width={920}

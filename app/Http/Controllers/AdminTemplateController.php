@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\AdminAudit;
 use App\Support\ThemeManager;
 use App\Support\ThemeTemplateService;
 use App\Support\TplCache;
 use App\Support\TplDocumentation;
+use App\Support\TplGuide;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
 
@@ -58,6 +60,14 @@ class AdminTemplateController extends Controller
         try {
             $result = ThemeTemplateService::writeFile($data['theme'], $data['path'], (string) ($data['content'] ?? ''));
             TplCache::bumpGlobalVersion();
+            AdminAudit::log(
+                'template.write',
+                'template',
+                $data['theme'] . ':' . $data['path'],
+                'Сохранён шаблон «' . $data['path'] . '»',
+                ['theme' => $data['theme'], 'path' => $data['path']],
+                $request,
+            );
 
             return response()->json(array_merge(['ok' => true], $result));
         } catch (InvalidArgumentException $e) {
@@ -97,6 +107,14 @@ class AdminTemplateController extends Controller
         try {
             ThemeTemplateService::deleteEntry($data['theme'], $data['path']);
             TplCache::bumpGlobalVersion();
+            AdminAudit::log(
+                'template.delete',
+                'template',
+                $data['theme'] . ':' . $data['path'],
+                'Удалён шаблон «' . $data['path'] . '»',
+                ['theme' => $data['theme'], 'path' => $data['path']],
+                $request,
+            );
 
             return response()->json(['ok' => true]);
         } catch (InvalidArgumentException $e) {
@@ -161,6 +179,22 @@ class AdminTemplateController extends Controller
         $path = (string)$request->query('path', '');
 
         return response()->json(TplDocumentation::payloadForAdmin($path));
+    }
+
+    public function guide()
+    {
+        return response()->json(TplGuide::payload());
+    }
+
+    public function guideDownload()
+    {
+        $html = TplGuide::downloadHtml();
+        $filename = 'tpl-doc-v' . TplGuide::VERSION . '.html';
+
+        return response($html, 200, [
+            'Content-Type' => 'text/html; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
     }
 
     public function cssClasses(Request $request)

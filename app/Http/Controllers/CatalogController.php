@@ -65,7 +65,7 @@ class CatalogController extends TplController
             'robots' => $page > 1 ? 'noindex,follow' : '',
         ];
 
-        return $this->renderTplPage('home.tpl', $vars, $meta);
+        return $this->renderTplPage('catalog.tpl', $vars, $meta);
     }
 
     public function browse(Request $request)

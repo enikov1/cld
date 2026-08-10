@@ -144,4 +144,63 @@ class RutubeTrailerServiceTest extends TestCase
             PlayerSource::query()->where('series_id', $series->id)->value('iframe_url'),
         );
     }
+
+    public function test_search_candidates_sorted_and_manual_add(): void
+    {
+        Http::fake([
+            'rutube.ru/api/search/video/*' => Http::response([
+                'results' => [
+                    [
+                        'id' => 'fullmovie000000000000000000000002',
+                        'title' => 'Эль сериал полностью',
+                        'duration' => 3600,
+                        'hits' => 99999,
+                        'thumbnail_url' => 'https://example.com/full.jpg',
+                        'embed_url' => 'https://rutube.ru/play/embed/fullmovie000000000000000000000002',
+                        'video_url' => 'https://rutube.ru/video/fullmovie000000000000000000000002/',
+                        'author' => ['name' => 'Uploader'],
+                    ],
+                    [
+                        'id' => 'trailer00000000000000000000000002',
+                        'title' => 'Эль — Русский трейлер (2026)',
+                        'duration' => 140,
+                        'hits' => 1500,
+                        'thumbnail_url' => 'https://example.com/trailer.jpg',
+                        'embed_url' => 'https://rutube.ru/play/embed/trailer00000000000000000000000002',
+                        'video_url' => 'https://rutube.ru/video/trailer00000000000000000000000002/',
+                        'author' => ['name' => 'Official'],
+                    ],
+                ],
+            ]),
+        ]);
+
+        $series = Series::query()->create([
+            'kp_id' => '800003',
+            'slug' => 'elle-rutube-candidates',
+            'title' => 'Эль',
+            'year' => 2026,
+            'is_active' => true,
+            'is_hidden' => false,
+        ]);
+
+        $payload = app(RutubeTrailerService::class)->searchCandidates($series);
+        $this->assertSame('Эль трейлер 2026', $payload['default_query']);
+        $this->assertSame('trailer00000000000000000000000002', $payload['candidates'][0]['id']);
+        $this->assertTrue($payload['candidates'][0]['is_recommended']);
+        $this->assertSame('https://example.com/trailer.jpg', $payload['candidates'][0]['thumbnail_url']);
+
+        $manual = app(RutubeTrailerService::class)->addToSeries(
+            $series,
+            'Трейлер',
+            'update',
+            'https://rutube.ru/video/manualtrailer0000000000000000001/',
+            'Ручной выбор',
+        );
+        $this->assertTrue($manual['ok']);
+        $this->assertSame('Ручной выбор', $manual['trailer']['title']);
+        $this->assertSame(
+            'https://rutube.ru/play/embed/manualtrailer0000000000000000001',
+            PlayerSource::query()->where('series_id', $series->id)->value('iframe_url'),
+        );
+    }
 }

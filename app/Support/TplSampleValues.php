@@ -27,6 +27,9 @@ class TplSampleValues
         if ($path === 'home.tpl') {
             $values = array_merge($values, self::homeValues());
             $source = 'Главная страница (текущие настройки)';
+        } elseif ($path === 'catalog.tpl') {
+            $values = array_merge($values, self::catalogValues());
+            $source = 'Каталог / таксономия (пример)';
         } elseif (in_array($path, ['partials/series_cards.tpl', 'partials/catalog_series_grid.tpl', 'partials/series_card_overlays.tpl'], true)) {
             $values = array_merge($values, self::seriesCardItemSampleValues());
             $source = 'Пример карточки сериала в сетке';
@@ -131,6 +134,31 @@ class TplSampleValues
             'new_episodes_list' => [],
             'new_episodes_block' => '',
             'schedule_calendar_block' => '',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function catalogValues(): array
+    {
+        return [
+            'is_home_first' => '',
+            'is_taxonomy_page' => '',
+            'page.heading' => SiteSetting::get('catalog_heading', SiteSetting::get('home_heading', 'Сериалы онлайн')),
+            'page.lead' => '',
+            'catalog_total' => '0',
+            'catalog_filters_block' => '',
+            'catalog_series_grid' => '',
+            'browse_api_path' => '/api/catalog/browse',
+            'pagination_block' => '',
+            'category_seo_html' => '',
+            'seo.title' => SiteSetting::get('catalog_meta_title', 'Каталог сериалов'),
+            'seo.description' => SiteSetting::get('catalog_meta_description', ''),
+            'seo.canonical' => url('/catalog/'),
+            'seo.prev' => '',
+            'seo.next' => '',
+            'seo.robots' => '',
         ];
     }
 

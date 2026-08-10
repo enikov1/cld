@@ -25,6 +25,15 @@ export function clearAdminToken(): void {
   }
 }
 
+/** Remove orphan plaintext tokens left by older admin builds. */
+export function purgeLegacyTokenStorage(): void {
+  try {
+    localStorage.removeItem(TOKEN_KEY)
+  } catch {
+    // ignore
+  }
+}
+
 export function adminAuthHeaders(): Record<string, string> {
   const token = getAdminToken()
   return token ? { 'X-ADMIN-TOKEN': token } : {}

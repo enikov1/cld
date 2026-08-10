@@ -345,6 +345,10 @@ HD качестве бесплатно[/meta-title] [meta-description][series.sh
             </button> [/not-series_share_widget_code]
     </section>
 
+    [ad_below_player_code]
+    <div class="ad-below-player">{ad_below_player_code|raw}</div>
+    [/ad_below_player_code]
+
     <div class="light-overlay" data-light-overlay></div>
 
     <div id="ps-overlay-wrap" data-player-report-modal hidden>

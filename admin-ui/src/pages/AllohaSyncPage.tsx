@@ -1,4 +1,5 @@
 import { Alert, Button, Card, Checkbox, Divider, Form, Input, InputNumber, Popconfirm, Progress, Select, Space, Switch, Tabs, Typography, message } from 'antd'
+import { PauseCircleOutlined, PlayCircleOutlined, StopOutlined } from '@ant-design/icons'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 import { useBusyFavicon } from '../documentMeta/AdminDocumentMeta'
@@ -23,7 +24,7 @@ type AutoSyncSettings = {
 }
 
 type PlayerSyncProgress = {
-  status: 'idle' | 'running' | 'done' | 'failed'
+  status: 'idle' | 'running' | 'paused' | 'stopped' | 'done' | 'failed'
   total: number
   processed: number
   synced: number
@@ -33,6 +34,13 @@ type PlayerSyncProgress = {
   tab_name?: string
   position?: number
   kp_id?: string | null
+  sleep?: number
+}
+
+type PlayerSyncFormValues = {
+  tab_name?: string
+  position?: number
+  kp_id?: number
   sleep?: number
 }
 
@@ -51,7 +59,7 @@ export default function AllohaSyncPage() {
   const [playerProgress, setPlayerProgress] = useState<PlayerSyncProgress | null>(null)
   const [playerPercent, setPlayerPercent] = useState(0)
   const playerSyncAbortRef = useRef(false)
-  const playerResumeCheckedRef = useRef(false)
+  const playerLoopActiveRef = useRef(false)
 
   useBusyFavicon(
     loading ||
@@ -85,11 +93,85 @@ export default function AllohaSyncPage() {
       progress: PlayerSyncProgress
       percent: number
       done: boolean
+      paused?: boolean
+      stopped?: boolean
     }>('/api/admin/players/alloha/sync-progress')
     setPlayerProgress(res.progress)
     setPlayerPercent(res.percent ?? 0)
     return res
   }, [])
+
+  const runPlayerLoop = useCallback(async (values: PlayerSyncFormValues, restart: boolean) => {
+    if (playerLoopActiveRef.current) return
+
+    playerLoopActiveRef.current = true
+    setPlayerSyncing(true)
+    setOutput('')
+    playerSyncAbortRef.current = false
+    let nextRestart = restart
+    let lastMessage = ''
+
+    try {
+      while (!playerSyncAbortRef.current) {
+        const res = await api<{
+          ok: boolean
+          done?: boolean
+          paused?: boolean
+          stopped?: boolean
+          percent?: number
+          message?: string
+          progress?: PlayerSyncProgress
+          synced?: number
+          skipped?: number
+          failed?: number
+        }>('/api/admin/players/alloha/sync-all', {
+          method: 'POST',
+          body: JSON.stringify({
+            tab_name: values.tab_name?.trim() || 'Смотреть онлайн',
+            position: values.position ?? 1,
+            kp_id: values.kp_id ? String(values.kp_id) : undefined,
+            sleep: values.sleep ?? 0,
+            restart: nextRestart,
+            continue: !nextRestart,
+          }),
+        })
+
+        nextRestart = false
+        lastMessage = res.message || res.progress?.message || lastMessage
+        if (res.progress) setPlayerProgress(res.progress)
+        setPlayerPercent(res.percent ?? 0)
+        setOutput(lastMessage)
+
+        if (res.paused || res.progress?.status === 'paused') {
+          message.info(lastMessage || 'Задача на паузе')
+          break
+        }
+
+        if (res.stopped || res.progress?.status === 'stopped') {
+          message.warning(lastMessage || 'Задача остановлена')
+          break
+        }
+
+        if (res.done) {
+          message.success(
+            lastMessage ||
+              `Готово: проставлено ${res.synced ?? 0}, пропущено ${res.skipped ?? 0}, ошибок: ${res.failed ?? 0}`,
+          )
+          break
+        }
+      }
+    } catch (e) {
+      message.error(String((e as Error).message))
+    } finally {
+      playerLoopActiveRef.current = false
+      setPlayerSyncing(false)
+      try {
+        await loadPlayerProgress()
+      } catch {
+        /* progress panel is optional after sync */
+      }
+    }
+  }, [loadPlayerProgress])
 
   async function runSync(values: Record<string, unknown>) {
     setLoading(true)
@@ -169,88 +251,96 @@ export default function AllohaSyncPage() {
     }
   }
 
-  async function runPlayerSync(values: { tab_name?: string; position?: number; kp_id?: number; sleep?: number }) {
-    setPlayerSyncing(true)
-    setOutput('')
-    setPlayerPercent(0)
-    playerSyncAbortRef.current = false
+  async function startPlayerSync(values: PlayerSyncFormValues) {
+    await runPlayerLoop(values, true)
+  }
 
-    let restart = true
-    let lastMessage = ''
-
+  async function pausePlayerSync() {
+    playerSyncAbortRef.current = true
     try {
-      while (!playerSyncAbortRef.current) {
-        const res = await api<{
-          ok: boolean
-          done?: boolean
-          percent?: number
-          message?: string
-          progress?: PlayerSyncProgress
-          synced?: number
-          skipped?: number
-          failed?: number
-          error?: string
-        }>('/api/admin/players/alloha/sync-all', {
-          method: 'POST',
-          body: JSON.stringify({
-            tab_name: values.tab_name?.trim() || 'Смотреть онлайн',
-            position: values.position ?? 1,
-            kp_id: values.kp_id ? String(values.kp_id) : undefined,
-            sleep: values.sleep ?? 0,
-            restart,
-            continue: !restart,
-          }),
-        })
-
-        restart = false
-        lastMessage = res.message || res.progress?.message || lastMessage
-
-        if (res.progress) {
-          setPlayerProgress(res.progress)
-        }
-        setPlayerPercent(res.percent ?? 0)
-        setOutput(lastMessage)
-
-        if (res.done) {
-          message.success(
-            lastMessage ||
-              `Готово: проставлено ${res.synced ?? 0}, пропущено ${res.skipped ?? 0}, ошибок: ${res.failed ?? 0}`,
-          )
-          break
-        }
-      }
+      const res = await api<{ progress: PlayerSyncProgress; percent: number }>(
+        '/api/admin/players/alloha/sync-pause',
+        { method: 'POST' },
+      )
+      setPlayerProgress(res.progress)
+      setPlayerPercent(res.percent ?? 0)
+      message.info('Пауза')
     } catch (e) {
       message.error(String((e as Error).message))
-    } finally {
-      setPlayerSyncing(false)
-      try {
-        await loadPlayerProgress()
-      } catch {
-        /* progress panel is optional after sync */
-      }
     }
   }
 
-  useEffect(() => {
-    if (playerResumeCheckedRef.current) return
-    playerResumeCheckedRef.current = true
-
-    loadPlayerProgress()
-      .then((res) => {
-        if (res.progress.status !== 'running') return
-
-        void runPlayerSync({
+  async function resumePlayerSync() {
+    try {
+      const res = await api<{ progress: PlayerSyncProgress; percent: number }>(
+        '/api/admin/players/alloha/sync-resume',
+        { method: 'POST' },
+      )
+      setPlayerProgress(res.progress)
+      setPlayerPercent(res.percent ?? 0)
+      await runPlayerLoop(
+        {
           tab_name: res.progress.tab_name,
           position: res.progress.position,
           kp_id: res.progress.kp_id ? Number(res.progress.kp_id) : undefined,
           sleep: res.progress.sleep,
-        })
-      })
-      .catch(() => {
-        /* no running job to resume */
-      })
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- resume once on mount
-  }, [])
+        },
+        false,
+      )
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
+  }
+
+  async function stopPlayerSync() {
+    playerSyncAbortRef.current = true
+    try {
+      const res = await api<{ progress: PlayerSyncProgress; percent: number }>(
+        '/api/admin/players/alloha/sync-stop',
+        { method: 'POST' },
+      )
+      setPlayerProgress(res.progress)
+      setPlayerPercent(res.percent ?? 0)
+      message.warning('Остановлено')
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
+  }
+
+  async function continuePlayerSync() {
+    if (!playerProgress || playerProgress.status !== 'running') return
+    await runPlayerLoop(
+      {
+        tab_name: playerProgress.tab_name,
+        position: playerProgress.position,
+        kp_id: playerProgress.kp_id ? Number(playerProgress.kp_id) : undefined,
+        sleep: playerProgress.sleep,
+      },
+      false,
+    )
+  }
+
+  useEffect(() => {
+    loadPlayerProgress().catch(() => {
+      /* no running job to resume */
+    })
+    return () => {
+      playerSyncAbortRef.current = true
+    }
+  }, [loadPlayerProgress])
+
+  const playerServerRunning = playerProgress?.status === 'running'
+  const playerIsPaused = playerProgress?.status === 'paused'
+  const playerNeedsContinue = playerServerRunning && !playerSyncing
+  const playerIsRunning = playerSyncing
+  const playerFormLocked = playerSyncing || playerServerRunning || playerIsPaused
+  const showPlayerProgress =
+    playerSyncing ||
+    playerServerRunning ||
+    playerIsPaused ||
+    playerProgress?.status === 'done' ||
+    playerProgress?.status === 'stopped' ||
+    playerProgress?.status === 'failed'
 
   return (
     <div>
@@ -390,7 +480,7 @@ export default function AllohaSyncPage() {
                 <Form
                   form={playerForm}
                   layout="vertical"
-                  onFinish={runPlayerSync}
+                  onFinish={startPlayerSync}
                   style={{ maxWidth: 520 }}
                   initialValues={{ tab_name: 'Смотреть онлайн', position: 1, sleep: 0.5 }}
                 >
@@ -400,7 +490,7 @@ export default function AllohaSyncPage() {
                     вкладок сериала. Пропущенные — нет в каталоге Alloha или нет активных файлов.
                   </Typography.Paragraph>
 
-                  {(playerSyncing || playerProgress?.status === 'running' || playerProgress?.status === 'done') && (
+                  {showPlayerProgress ? (
                     <div style={{ marginBottom: 16 }}>
                       <Progress
                         percent={playerPercent}
@@ -409,7 +499,11 @@ export default function AllohaSyncPage() {
                             ? 'exception'
                             : playerProgress?.status === 'done'
                               ? 'success'
-                              : 'active'
+                              : playerProgress?.status === 'stopped'
+                                ? 'exception'
+                                : playerProgress?.status === 'paused'
+                                  ? 'normal'
+                                  : 'active'
                         }
                       />
                       <Typography.Text type="secondary">
@@ -423,14 +517,14 @@ export default function AllohaSyncPage() {
                         </Typography.Text>
                       ) : null}
                     </div>
-                  )}
+                  ) : null}
 
                   <Form.Item
                     label="Название вкладки"
                     name="tab_name"
                     rules={[{ required: true, message: 'Укажите название вкладки' }]}
                   >
-                    <Input placeholder="Смотреть онлайн" maxLength={120} />
+                    <Input placeholder="Смотреть онлайн" maxLength={120} disabled={playerFormLocked} />
                   </Form.Item>
 
                   <Form.Item
@@ -439,29 +533,52 @@ export default function AllohaSyncPage() {
                     extra="1 — первая (слева), 2 — вторая, 3 — третья и т.д."
                     rules={[{ required: true, message: 'Укажите позицию' }]}
                   >
-                    <InputNumber min={1} max={20} style={{ width: '100%' }} />
+                    <InputNumber min={1} max={20} style={{ width: '100%' }} disabled={playerFormLocked} />
                   </Form.Item>
 
                   <Form.Item label="KP ID (опционально)" name="kp_id" extra="Если пусто — обработаются все сериалы с KP ID">
-                    <InputNumber style={{ width: '100%' }} min={1} placeholder="357" />
+                    <InputNumber style={{ width: '100%' }} min={1} placeholder="357" disabled={playerFormLocked} />
                   </Form.Item>
 
                   <Form.Item label="Пауза между запросами (сек)" name="sleep" extra="Только при обращении к API Alloha">
-                    <InputNumber min={0} max={30} step={0.5} style={{ width: '100%' }} />
+                    <InputNumber min={0} max={30} step={0.5} style={{ width: '100%' }} disabled={playerFormLocked} />
                   </Form.Item>
 
-                  <Popconfirm
-                    title="Проставить плеер Alloha?"
-                    description="Будет создана или обновлена вкладка плеера. Существующие вкладки Alloha у сериала будут перезаписаны."
-                    okText="Проставить"
-                    cancelText="Отмена"
-                    onConfirm={() => playerForm.submit()}
-                    disabled={!allohaConfigured || playerSyncing}
-                  >
-                    <Button type="primary" loading={playerSyncing} disabled={!allohaConfigured || playerSyncing}>
-                      Проставить плеер
-                    </Button>
-                  </Popconfirm>
+                  <Space wrap>
+                    {!playerFormLocked ? (
+                      <Popconfirm
+                        title="Проставить плеер Alloha?"
+                        description="Будет создана или обновлена вкладка плеера. Существующие вкладки Alloha у сериала будут перезаписаны."
+                        okText="Проставить"
+                        cancelText="Отмена"
+                        onConfirm={() => playerForm.submit()}
+                        disabled={!allohaConfigured}
+                      >
+                        <Button type="primary" icon={<PlayCircleOutlined />} disabled={!allohaConfigured}>
+                          Проставить плеер
+                        </Button>
+                      </Popconfirm>
+                    ) : null}
+                    {playerIsRunning ? (
+                      <Button icon={<PauseCircleOutlined />} onClick={() => void pausePlayerSync()}>
+                        Пауза
+                      </Button>
+                    ) : null}
+                    {playerIsPaused || playerNeedsContinue ? (
+                      <Button
+                        type="primary"
+                        icon={<PlayCircleOutlined />}
+                        onClick={() => void (playerIsPaused ? resumePlayerSync() : continuePlayerSync())}
+                      >
+                        Продолжить
+                      </Button>
+                    ) : null}
+                    {playerIsRunning || playerIsPaused || playerNeedsContinue ? (
+                      <Button danger icon={<StopOutlined />} onClick={() => void stopPlayerSync()}>
+                        Стоп
+                      </Button>
+                    ) : null}
+                  </Space>
                 </Form>
               ),
             },

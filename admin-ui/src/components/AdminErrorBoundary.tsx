@@ -7,12 +7,13 @@ type Props = {
 
 type State = {
   error: Error | null
+  resetKey: number
 }
 
 export default class AdminErrorBoundary extends Component<Props, State> {
-  state: State = { error: null }
+  state: State = { error: null, resetKey: 0 }
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return { error }
   }
 
@@ -22,8 +23,10 @@ export default class AdminErrorBoundary extends Component<Props, State> {
 
   render() {
     if (!this.state.error) {
-      return this.props.children
+      return <div key={this.state.resetKey}>{this.props.children}</div>
     }
+
+    const isDev = import.meta.env.DEV
 
     return (
       <Result
@@ -31,12 +34,17 @@ export default class AdminErrorBoundary extends Component<Props, State> {
         title="Ошибка в интерфейсе админки"
         subTitle={this.state.error.message || 'Неизвестная ошибка'}
         extra={
-          <Button type="primary" onClick={() => this.setState({ error: null })}>
+          <Button
+            type="primary"
+            onClick={() => this.setState((s) => ({ error: null, resetKey: s.resetKey + 1 }))}
+          >
             Попробовать снова
           </Button>
         }
       >
-        <Alert type="error" showIcon message={String(this.state.error.stack || this.state.error)} />
+        {isDev ? (
+          <Alert type="error" showIcon message={String(this.state.error.stack || this.state.error)} />
+        ) : null}
       </Result>
     )
   }

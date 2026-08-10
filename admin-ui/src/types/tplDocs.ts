@@ -60,6 +60,7 @@ export function contextsForPath(path: string | null): string[] {
   const map: Record<string, string[]> = {
     'layout.tpl': ['layout', 'global'],
     'home.tpl': ['home', 'global'],
+    'catalog.tpl': ['catalog', 'global'],
     'search.tpl': ['search', 'global'],
     'series/show.tpl': ['series', 'global'],
     'collections/index.tpl': ['collections', 'global'],

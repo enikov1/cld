@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\AdminAudit;
 use App\Support\TplCache;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +17,7 @@ class AdminCacheController extends Controller
         return response()->json(['ok' => true, 'cache' => $this->collectInfo()]);
     }
 
-    public function clear(): JsonResponse
+    public function clear(Request $request): JsonResponse
     {
         Cache::flush();
         Artisan::call('cache:clear');
@@ -23,6 +25,8 @@ class AdminCacheController extends Controller
 
         // Keep template versioning consistent after a full wipe.
         TplCache::bumpGlobalVersion();
+
+        AdminAudit::log('cache.clear', 'cache', null, 'Очищен application/view cache', null, $request);
 
         return response()->json([
             'ok' => true,

@@ -9,12 +9,15 @@ import {
   ControlOutlined,
   DashboardOutlined,
   ExportOutlined,
+  FileSearchOutlined,
   FolderOpenOutlined,
   HistoryOutlined,
+  KeyOutlined,
   LayoutOutlined,
   LogoutOutlined,
   MenuOutlined,
   MoonOutlined,
+  PictureOutlined,
   SwapOutlined,
   SearchOutlined,
   SettingOutlined,
@@ -26,9 +29,9 @@ import {
   VideoCameraOutlined,
   WarningOutlined,
 } from '@ant-design/icons'
-import { Button, Layout, Menu, Space, Tooltip, Typography } from 'antd'
+import { Button, Layout, Menu, Space, Tag, Tooltip, Typography } from 'antd'
 import type { MenuProps } from 'antd'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
@@ -60,6 +63,7 @@ const MENU_GROUPS = {
 
 const PAGE_GROUP: Partial<Record<AdminPageKey, string>> = {
   series: MENU_GROUPS.content,
+  media: MENU_GROUPS.content,
   collections: MENU_GROUPS.content,
   studios: MENU_GROUPS.content,
   taxonomy: MENU_GROUPS.content,
@@ -67,6 +71,7 @@ const PAGE_GROUP: Partial<Record<AdminPageKey, string>> = {
   'home-sections': MENU_GROUPS.site,
   reactions: MENU_GROUPS.site,
   templates: MENU_GROUPS.site,
+  'tpl-docs': MENU_GROUPS.site,
   comments: MENU_GROUPS.moderation,
   'player-reports': MENU_GROUPS.moderation,
   users: MENU_GROUPS.moderation,
@@ -76,6 +81,8 @@ const PAGE_GROUP: Partial<Record<AdminPageKey, string>> = {
   redirects: MENU_GROUPS.system,
   'cron-runs': MENU_GROUPS.system,
   backup: MENU_GROUPS.system,
+  'admin-access': MENU_GROUPS.system,
+  'audit-log': MENU_GROUPS.system,
   sync: MENU_GROUPS.integrations,
   'alloha-sync': MENU_GROUPS.integrations,
   'rutube-sync': MENU_GROUPS.integrations,
@@ -97,103 +104,116 @@ function MenuLabel({ text, count }: { text: string; count?: number | null }) {
   )
 }
 
-function buildMenuItems(stats: AdminStats | null): MenuProps['items'] {
+function buildMenuItems(stats: AdminStats | null, allowedPages: Set<string>): MenuProps['items'] {
   const origin = siteOrigin() || '/'
+  const allow = (key: string) => allowedPages.has(key)
 
-  return [
-    { key: 'dashboard', icon: <DashboardOutlined />, label: 'Обзор' },
+  const filterChildren = (children: NonNullable<MenuProps['items']>) =>
+    children.filter((item) => item && 'key' in item && allow(String(item.key)))
+
+  const contentChildren = filterChildren([
     {
-      key: SITE_MENU_KEY,
-      icon: <ExportOutlined />,
-      label: (
-        <a href={origin} target="_blank" rel="noopener noreferrer">
-          На сайт
-        </a>
-      ),
+      key: 'series',
+      icon: <VideoCameraOutlined />,
+      label: <MenuLabel text="Сериалы" count={stats?.series_total ?? null} />,
+    },
+    { key: 'media', icon: <PictureOutlined />, label: 'Медиатека' },
+    { key: 'collections', icon: <FolderOpenOutlined />, label: 'Подборки' },
+    { key: 'studios', icon: <BankOutlined />, label: 'Студии' },
+    { key: 'taxonomy', icon: <BookOutlined />, label: 'Справочники' },
+  ])
+
+  const siteChildren = filterChildren([
+    { key: 'nav-menu', icon: <MenuOutlined />, label: 'Меню' },
+    { key: 'home-sections', icon: <LayoutOutlined />, label: 'Секции главной' },
+    { key: 'reactions', icon: <SmileOutlined />, label: 'Реакции' },
+    { key: 'templates', icon: <CodeOutlined />, label: 'Шаблоны' },
+    { key: 'tpl-docs', icon: <BookOutlined />, label: 'TPL-DOC' },
+  ])
+
+  const moderationChildren = filterChildren([
+    {
+      key: 'comments',
+      icon: <CommentOutlined />,
+      label: <MenuLabel text="Комментарии" count={stats?.comments_total ?? null} />,
     },
     {
-      key: MENU_GROUPS.content,
-      icon: <AppstoreOutlined />,
-      label: 'Контент',
-      children: [
-        {
-          key: 'series',
-          icon: <VideoCameraOutlined />,
-          label: <MenuLabel text="Сериалы" count={stats?.series_total ?? null} />,
-        },
-        { key: 'collections', icon: <FolderOpenOutlined />, label: 'Подборки' },
-        { key: 'studios', icon: <BankOutlined />, label: 'Студии' },
-        { key: 'taxonomy', icon: <BookOutlined />, label: 'Справочники' },
-      ],
+      key: 'player-reports',
+      icon: <WarningOutlined />,
+      label: <MenuLabel text="Жалобы" count={stats?.player_reports_total ?? null} />,
     },
     {
-      key: MENU_GROUPS.site,
-      icon: <LayoutOutlined />,
-      label: 'Сайт',
-      children: [
-        { key: 'nav-menu', icon: <MenuOutlined />, label: 'Меню' },
-        { key: 'home-sections', icon: <LayoutOutlined />, label: 'Секции главной' },
-        { key: 'reactions', icon: <SmileOutlined />, label: 'Реакции' },
-        { key: 'templates', icon: <CodeOutlined />, label: 'Шаблоны' },
-      ],
-    },
-    {
-      key: MENU_GROUPS.moderation,
+      key: 'users',
       icon: <TeamOutlined />,
-      label: 'Модерация',
-      children: [
-        {
-          key: 'comments',
-          icon: <CommentOutlined />,
-          label: <MenuLabel text="Комментарии" count={stats?.comments_total ?? null} />,
-        },
-        {
-          key: 'player-reports',
-          icon: <WarningOutlined />,
-          label: <MenuLabel text="Жалобы" count={stats?.player_reports_total ?? null} />,
-        },
-        {
-          key: 'users',
-          icon: <TeamOutlined />,
-          label: <MenuLabel text="Пользователи" count={stats?.users_total ?? null} />,
-        },
-        { key: 'search-stats', icon: <SearchOutlined />, label: 'Поиск' },
-        { key: 'views-stats', icon: <EyeOutlined />, label: 'Просмотры' },
-      ],
+      label: <MenuLabel text="Пользователи" count={stats?.users_total ?? null} />,
     },
-    {
-      key: MENU_GROUPS.system,
-      icon: <ControlOutlined />,
-      label: 'Система',
-      children: [
-        { key: 'settings', icon: <SettingOutlined />, label: 'Настройки' },
-        { key: 'redirects', icon: <SwapOutlined />, label: 'Редиректы' },
-        { key: 'cron-runs', icon: <HistoryOutlined />, label: 'История задач' },
-        { key: 'backup', icon: <DatabaseOutlined />, label: 'Бэкапы' },
-      ],
-    },
-    {
-      key: MENU_GROUPS.integrations,
-      icon: <ToolOutlined />,
-      label: 'Интеграции',
-      children: [
-        { key: 'sync', icon: <CloudSyncOutlined />, label: 'KinoPoisk' },
-        { key: 'alloha-sync', icon: <CloudSyncOutlined />, label: 'Alloha' },
-        { key: 'rutube-sync', icon: <CloudSyncOutlined />, label: 'Rutube' },
-      ],
-    },
-  ]
+    { key: 'search-stats', icon: <SearchOutlined />, label: 'Поиск' },
+    { key: 'views-stats', icon: <EyeOutlined />, label: 'Просмотры' },
+  ])
+
+  const systemChildren = filterChildren([
+    { key: 'settings', icon: <SettingOutlined />, label: 'Настройки' },
+    { key: 'redirects', icon: <SwapOutlined />, label: 'Редиректы' },
+    { key: 'cron-runs', icon: <HistoryOutlined />, label: 'История задач' },
+    { key: 'backup', icon: <DatabaseOutlined />, label: 'Бэкапы' },
+    { key: 'admin-access', icon: <KeyOutlined />, label: 'Токены' },
+    { key: 'audit-log', icon: <FileSearchOutlined />, label: 'Аудит' },
+  ])
+
+  const integrationsChildren = filterChildren([
+    { key: 'sync', icon: <CloudSyncOutlined />, label: 'KinoPoisk' },
+    { key: 'alloha-sync', icon: <CloudSyncOutlined />, label: 'Alloha' },
+    { key: 'rutube-sync', icon: <CloudSyncOutlined />, label: 'Rutube' },
+  ])
+
+  const items: NonNullable<MenuProps['items']> = []
+  if (allow('dashboard')) {
+    items.push({ key: 'dashboard', icon: <DashboardOutlined />, label: 'Обзор' })
+  }
+  items.push({
+    key: SITE_MENU_KEY,
+    icon: <ExportOutlined />,
+    label: (
+      <a href={origin} target="_blank" rel="noopener noreferrer">
+        На сайт
+      </a>
+    ),
+  })
+
+  const pushGroup = (key: string, icon: ReactNode, label: string, children: NonNullable<MenuProps['items']>) => {
+    if (children.length === 0) return
+    items.push({ key, icon, label, children })
+  }
+
+  pushGroup(MENU_GROUPS.content, <AppstoreOutlined />, 'Контент', contentChildren)
+  pushGroup(MENU_GROUPS.site, <LayoutOutlined />, 'Сайт', siteChildren)
+  pushGroup(MENU_GROUPS.moderation, <TeamOutlined />, 'Модерация', moderationChildren)
+  pushGroup(MENU_GROUPS.system, <ControlOutlined />, 'Система', systemChildren)
+  pushGroup(MENU_GROUPS.integrations, <ToolOutlined />, 'Интеграции', integrationsChildren)
+
+  return items
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  full: 'Полный',
+  content: 'Контент',
+  moderation: 'Модерация',
+  custom: 'Свой',
 }
 
 export default function AdminLayout({ isDark, onToggleTheme }: AdminLayoutProps) {
   const location = useLocation()
   const navigate = useNavigate()
-  const { logout, tokenRequired } = useAuth()
+  const { logout, tokenRequired, me } = useAuth()
   const [stats, setStats] = useState<AdminStats | null>(null)
 
   const page = pageKeyFromPath(location.pathname)
   const meta = pageMeta[page]
-  const menuItems = useMemo(() => buildMenuItems(stats), [stats])
+  const allowedPages = useMemo(() => new Set(me?.pages ?? []), [me])
+  const abilities = useMemo(() => new Set(me?.abilities ?? []), [me])
+  const canAbility = (key: string) =>
+    me?.actor_type === 'master' || abilities.has('*') || abilities.has(key) || abilities.has(key.split('.')[0] ?? '')
+  const menuItems = useMemo(() => buildMenuItems(stats, allowedPages), [stats, allowedPages])
   const activeGroup = PAGE_GROUP[page]
   const [openKeys, setOpenKeys] = useState<string[]>(activeGroup ? [activeGroup] : [])
 
@@ -205,6 +225,17 @@ export default function AdminLayout({ isDark, onToggleTheme }: AdminLayoutProps)
   }, [activeGroup])
 
   useEffect(() => {
+    if (allowedPages.size === 0) return
+    if (allowedPages.has(page)) return
+    const first = me?.pages?.[0]
+    navigate(first ? ADMIN_ROUTES[first as AdminPageKey] ?? '/' : '/', { replace: true })
+  }, [allowedPages, page, navigate, me])
+
+  useEffect(() => {
+    if (!canAbility('admin.stats')) {
+      setStats(null)
+      return
+    }
     let cancelled = false
     api<AdminStats>('/api/admin/stats')
       .then((data) => {
@@ -216,7 +247,21 @@ export default function AdminLayout({ isDark, onToggleTheme }: AdminLayoutProps)
     return () => {
       cancelled = true
     }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- canAbility derived from me
+  }, [me])
+
+  if ((me?.pages?.length ?? 0) === 0) {
+    return (
+      <div className="admin-auth-loading">
+        <Typography.Paragraph>
+          У этого токена нет доступных разделов. Обратитесь к администратору или выйдите и войдите с другим токеном.
+        </Typography.Paragraph>
+        <Button type="primary" onClick={() => void logout()}>
+          Выйти
+        </Button>
+      </div>
+    )
+  }
 
   return (
     <Layout className="admin-shell">
@@ -261,13 +306,30 @@ export default function AdminLayout({ isDark, onToggleTheme }: AdminLayoutProps)
             ) : null}
           </div>
           <div className="admin-header__search">
-            <AdminGlobalSearch />
+            {canAbility('admin.search') ? <AdminGlobalSearch /> : null}
           </div>
           <div className="admin-header__extra">
             <Space wrap>
-              <AdminCronControl />
-              <AdminSystemControl />
-              <AdminCacheControl />
+              {me?.role ? (
+                <Tooltip title={me.name || 'Текущий доступ'}>
+                  <Tag
+                    color={
+                      me.role === 'full'
+                        ? 'gold'
+                        : me.role === 'content'
+                          ? 'blue'
+                          : me.role === 'moderation'
+                            ? 'purple'
+                            : 'cyan'
+                    }
+                  >
+                    {ROLE_LABELS[me.role] || me.role}
+                  </Tag>
+                </Tooltip>
+              ) : null}
+              {canAbility('admin.cron') ? <AdminCronControl /> : null}
+              {canAbility('admin.system') ? <AdminSystemControl /> : null}
+              {canAbility('admin.cache') ? <AdminCacheControl /> : null}
               <Tooltip title={isDark ? 'Светлая тема' : 'Тёмная тема'}>
                 <Button
                   type="text"
@@ -278,7 +340,7 @@ export default function AdminLayout({ isDark, onToggleTheme }: AdminLayoutProps)
               </Tooltip>
               {tokenRequired ? (
                 <Tooltip title="Выйти">
-                  <Button type="text" icon={<LogoutOutlined />} onClick={logout} aria-label="Выйти" />
+                  <Button type="text" icon={<LogoutOutlined />} onClick={() => void logout()} aria-label="Выйти" />
                 </Tooltip>
               ) : null}
             </Space>

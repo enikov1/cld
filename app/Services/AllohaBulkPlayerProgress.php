@@ -10,7 +10,7 @@ class AllohaBulkPlayerProgress
 
     /**
      * @return array{
-     *     status: 'idle'|'running'|'done'|'failed',
+     *     status: 'idle'|'running'|'paused'|'stopped'|'done'|'failed',
      *     after_id: int,
      *     total: int,
      *     processed: int,
@@ -37,7 +37,7 @@ class AllohaBulkPlayerProgress
     /**
      * @param array<string, mixed> $input
      * @return array{
-     *     status: 'idle'|'running'|'done'|'failed',
+     *     status: 'idle'|'running'|'paused'|'stopped'|'done'|'failed',
      *     after_id: int,
      *     total: int,
      *     processed: int,
@@ -56,7 +56,7 @@ class AllohaBulkPlayerProgress
     public static function normalize(array $input): array
     {
         $status = (string) ($input['status'] ?? 'idle');
-        if (!in_array($status, ['idle', 'running', 'done', 'failed'], true)) {
+        if (!in_array($status, ['idle', 'running', 'paused', 'stopped', 'done', 'failed'], true)) {
             $status = 'idle';
         }
 
@@ -94,7 +94,7 @@ class AllohaBulkPlayerProgress
         $processed = max(0, (int) ($progress['processed'] ?? 0));
 
         if ($total <= 0) {
-            return ($progress['status'] ?? '') === 'done' ? 100 : 0;
+            return in_array(($progress['status'] ?? ''), ['done', 'stopped'], true) ? 100 : 0;
         }
 
         return min(100, (int) round(($processed / $total) * 100));

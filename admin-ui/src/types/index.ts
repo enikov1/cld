@@ -375,6 +375,7 @@ export type AdminPageKey =
   | 'reactions'
   | 'taxonomy'
   | 'series'
+  | 'media'
   | 'collections'
   | 'studios'
   | 'comments'
@@ -386,10 +387,13 @@ export type AdminPageKey =
   | 'redirects'
   | 'settings'
   | 'templates'
+  | 'tpl-docs'
   | 'sync'
   | 'alloha-sync'
   | 'rutube-sync'
   | 'backup'
+  | 'admin-access'
+  | 'audit-log'
 
 export const BROADCAST_STATUSES = [
   { value: 'ongoing', label: 'Идёт' },

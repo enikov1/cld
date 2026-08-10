@@ -62,6 +62,7 @@ const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(funct
   const [tmdbConfigured, setTmdbConfigured] = useState(true)
   const [resolvedTmdbId, setResolvedTmdbId] = useState<string | null>(null)
   const baselineRef = useRef('')
+  const loadSeqRef = useRef(0)
 
   useBusyFavicon(saving || importing)
 
@@ -74,6 +75,7 @@ const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(funct
 
   const load = useCallback(async () => {
     if (!kpId || !drawerOpen) return
+    const seq = ++loadSeqRef.current
     setLoading(true)
     try {
       const data = await api<{
@@ -81,10 +83,12 @@ const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(funct
         tmdb_id?: string | null
         tmdb_api_key_set?: boolean
       }>(`/api/admin/series/${kpId}/schedule`)
+      if (seq !== loadSeqRef.current) return
       applySeasons(data.seasons ?? [], true)
       setResolvedTmdbId(data.tmdb_id ?? null)
       setTmdbConfigured(data.tmdb_api_key_set !== false)
     } catch (e) {
+      if (seq !== loadSeqRef.current) return
       // New series: KP ID already set, but record not saved yet — keep empty schedule without toast.
       if (isApiNotFound(e)) {
         applySeasons([], true)
@@ -92,7 +96,7 @@ const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(funct
         message.error(String((e as Error).message))
       }
     } finally {
-      setLoading(false)
+      if (seq === loadSeqRef.current) setLoading(false)
     }
   }, [kpId, drawerOpen, applySeasons])
 

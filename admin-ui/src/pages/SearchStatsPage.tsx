@@ -28,6 +28,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs, { type Dayjs } from 'dayjs'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../api/client'
+import { useBusyFavicon } from '../documentMeta/AdminDocumentMeta'
 import type {
   SearchLogItem,
   SearchStatItem,
@@ -151,6 +152,8 @@ export default function SearchStatsPage() {
   const [view, setView] = useState<'log' | 'aggregated'>('log')
   const [draft, setDraft] = useState<Filters>(defaultFilters)
   const [applied, setApplied] = useState<Filters>(defaultFilters)
+
+  useBusyFavicon(loading)
 
   const dateRangeValue = useMemo((): [Dayjs | null, Dayjs | null] | null => {
     if (!draft.dateFrom && !draft.dateTo) return null

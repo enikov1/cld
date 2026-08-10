@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'admin.token' => \App\Http\Middleware\VerifyAdminToken::class,
+            'admin.can' => \App\Http\Middleware\EnsureAdminAbility::class,
             'site.feature' => \App\Http\Middleware\EnsureSiteFeature::class,
         ]);
         $middleware->web(prepend: [

@@ -28,6 +28,7 @@ class AdminGlobalSearchController extends Controller
         ['key' => 'home-sections', 'path' => '/home-sections', 'title' => 'Секции главной', 'subtitle' => 'Блоки на главной странице', 'keywords' => 'home секции'],
         ['key' => 'reactions', 'path' => '/reactions', 'title' => 'Реакции', 'subtitle' => 'Оценки под плеером', 'keywords' => 'эмодзи'],
         ['key' => 'templates', 'path' => '/templates', 'title' => 'Шаблоны', 'subtitle' => 'Редактор .tpl', 'keywords' => 'tpl тема код'],
+        ['key' => 'tpl-docs', 'path' => '/tpl-docs', 'title' => 'TPL-DOC', 'subtitle' => 'Справка по шаблонам для верстальщика', 'keywords' => 'документация tpl теги layout верстка'],
         ['key' => 'comments', 'path' => '/comments', 'title' => 'Комментарии', 'subtitle' => 'Модерация отзывов', 'keywords' => 'модерация'],
         ['key' => 'player-reports', 'path' => '/player-reports', 'title' => 'Жалобы на плеер', 'subtitle' => 'Проблемы со страницы сериала', 'keywords' => 'багрепорты'],
         ['key' => 'users', 'path' => '/users', 'title' => 'Пользователи', 'subtitle' => 'Аккаунты и роли', 'keywords' => 'юзеры аккаунты'],
@@ -118,16 +119,39 @@ class AdminGlobalSearchController extends Controller
         }
 
         $limit = min(20, max(3, (int) $request->query('limit', self::LIMIT_PER_GROUP)));
+        $actor = \App\Support\AdminAccess::resolveActor($request);
+        if ($actor === null) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
 
-        $groups = array_values(array_filter([
-            $this->group('settings', 'Настройки', $this->searchSettings($q, $limit)),
-            $this->group('pages', 'Разделы', $this->searchPages($q, $limit)),
-            $this->group('series', 'Сериалы', $this->searchSeries($q, $limit)),
-            $this->group('collections', 'Подборки', $this->searchCollections($q, $limit)),
-            $this->group('studios', 'Студии', $this->searchStudios($q, $limit)),
-            $this->group('taxonomy', 'Справочники', $this->searchTaxonomy($q, $limit)),
-            $this->group('users', 'Пользователи', $this->searchUsers($q, min(5, $limit))),
-        ], fn (array $group) => $group['items'] !== []));
+        $allowedPages = array_flip(\App\Support\AdminPermissions::pageKeysForActor($actor));
+        $can = static fn (string $ability): bool => \App\Support\AdminPermissions::actorCan($actor, $ability);
+
+        $groups = [];
+
+        if ($can('admin.settings')) {
+            $groups[] = $this->group('settings', 'Настройки', $this->searchSettings($q, $limit));
+        }
+
+        $groups[] = $this->group('pages', 'Разделы', $this->searchPages($q, $limit, $allowedPages));
+
+        if ($can('content.series')) {
+            $groups[] = $this->group('series', 'Сериалы', $this->searchSeries($q, $limit));
+        }
+        if ($can('content.collections')) {
+            $groups[] = $this->group('collections', 'Подборки', $this->searchCollections($q, $limit));
+        }
+        if ($can('content.studios')) {
+            $groups[] = $this->group('studios', 'Студии', $this->searchStudios($q, $limit));
+        }
+        if ($can('content.taxonomy')) {
+            $groups[] = $this->group('taxonomy', 'Справочники', $this->searchTaxonomy($q, $limit));
+        }
+        if ($can('moderation.users')) {
+            $groups[] = $this->group('users', 'Пользователи', $this->searchUsers($q, min(5, $limit)));
+        }
+
+        $groups = array_values(array_filter($groups, fn (array $group) => $group['items'] !== []));
 
         return response()->json([
             'q' => $q,
@@ -145,12 +169,16 @@ class AdminGlobalSearchController extends Controller
     }
 
     /**
+     * @param array<string, int> $allowedPages
      * @return list<array<string, mixed>>
      */
-    private function searchPages(string $q, int $limit): array
+    private function searchPages(string $q, int $limit, array $allowedPages): array
     {
         $scored = [];
         foreach (self::PAGES as $page) {
+            if (!isset($allowedPages[$page['key']])) {
+                continue;
+            }
             $haystack = implode(' ', [$page['title'], $page['subtitle'], $page['keywords'], $page['key']]);
             $score = $this->score($haystack, $q);
             if ($score <= 0) {

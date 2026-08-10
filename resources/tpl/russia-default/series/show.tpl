@@ -174,6 +174,10 @@
             [/series_share_widget_code]
         </div>
 
+        [ad_below_player_code]
+        <div class="ad-below-player">{ad_below_player_code|raw}</div>
+        [/ad_below_player_code]
+
         [has_reactions]{reactions_widget|raw}[/has_reactions]
         [has_schedule]{episodes_modal|raw}[/has_schedule]
 

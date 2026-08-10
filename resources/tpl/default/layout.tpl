@@ -67,6 +67,9 @@
     <div class="wrap">
         <div class="wrap-center wrap-main">
             {header|raw} {notifications_dropdown|raw}
+            [ad_header_code]
+            <div class="ad-header">{ad_header_code|raw}</div>
+            [/ad_header_code]
             <div class="content">
                 [speedbar_block]
                 <div class="speedbar">{speedbar_block|raw}</div>

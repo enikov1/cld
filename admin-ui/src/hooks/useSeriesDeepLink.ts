@@ -30,6 +30,7 @@ export function useSeriesDeepLink({ searchParams, setSearchParams, openEdit }: U
     }
 
     deepLinkHandled.current = true
+    let cancelled = false
 
     ;(async () => {
       try {
@@ -42,6 +43,7 @@ export function useSeriesDeepLink({ searchParams, setSearchParams, openEdit }: U
         params.set('with_trashed', '1')
         params.set('per_page', '1')
         const data = await api<{ items: SeriesItem[] }>(`/api/admin/series?${params}`)
+        if (cancelled) return
         const item = seriesId
           ? data.items.find((row) => String(row.id) === seriesId)
           : data.items.find((row) => row.kp_id === kpId)
@@ -58,8 +60,12 @@ export function useSeriesDeepLink({ searchParams, setSearchParams, openEdit }: U
         next.delete('kp_id')
         setSearchParams(next, { replace: true })
       } catch (e) {
-        message.error(String((e as Error).message))
+        if (!cancelled) message.error(String((e as Error).message))
       }
     })()
+
+    return () => {
+      cancelled = true
+    }
   }, [searchParams, setSearchParams])
 }

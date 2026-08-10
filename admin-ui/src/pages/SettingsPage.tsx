@@ -16,6 +16,7 @@ import {
   Upload,
   message,
   Popconfirm,
+  Progress,
 } from 'antd'
 import {
   ApiOutlined,
@@ -27,13 +28,16 @@ import {
   LikeOutlined,
   LockOutlined,
   MessageOutlined,
+  PauseCircleOutlined,
+  PlayCircleOutlined,
   SkinOutlined,
+  StopOutlined,
   TagOutlined,
   ThunderboltOutlined,
   ToolOutlined,
   UserOutlined,
 } from '@ant-design/icons'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api, apiUpload } from '../api/client'
 import SiteConfigFields from '../components/SiteConfigFields'
@@ -98,6 +102,18 @@ export default function SettingsPage() {
   const [tmdbLastRunAt, setTmdbLastRunAt] = useState<string | null>(null)
   const [tmdbSyncing, setTmdbSyncing] = useState(false)
   const [cdnSyncing, setCdnSyncing] = useState(false)
+  const [cdnProgress, setCdnProgress] = useState<{
+    status: string
+    total: number
+    processed: number
+    synced: number
+    skipped: number
+    failed: number
+    message: string
+  } | null>(null)
+  const [cdnPercent, setCdnPercent] = useState(0)
+  const cdnAbortRef = useRef(false)
+  const cdnLoopActiveRef = useRef(false)
   const [robotsDefault, setRobotsDefault] = useState('')
   const [robotsEffective, setRobotsEffective] = useState('')
   const [robotsUrl, setRobotsUrl] = useState('/robots.txt')
@@ -109,13 +125,15 @@ export default function SettingsPage() {
   const [configSchema, setConfigSchema] = useState<SiteConfigSchema>({})
   const [configSeoFields, setConfigSeoFields] = useState<SiteConfigSchema>({})
   const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
   const [section, setSection] = useState<SettingsSection>(sectionFromHash)
   const [tabPosition, setTabPosition] = useState<'left' | 'top'>('left')
   const [form] = Form.useForm()
   const highlightField = searchParams.get('highlight')?.trim() || ''
 
   useDocumentTitle(`Настройки — ${SECTION_LABELS[section]}`)
-  useBusyFavicon(loading || tmdbSyncing || cdnSyncing || sitemapGenerating)
+  useBusyFavicon(loading || tmdbSyncing || cdnSyncing || cdnProgress?.status === 'running' || sitemapGenerating)
 
   const settingsMap = useMemo(() => {
     const m: Record<string, string> = {}
@@ -196,6 +214,99 @@ export default function SettingsPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  const loadCdnProgress = useCallback(async () => {
+    const res = await api<{
+      progress: {
+        status: string
+        total: number
+        processed: number
+        synced: number
+        skipped: number
+        failed: number
+        message: string
+      }
+      percent: number
+    }>('/api/admin/players/cdnvideohub/sync-progress')
+    setCdnProgress(res.progress)
+    setCdnPercent(res.percent ?? 0)
+    return res
+  }, [])
+
+  const runCdnLoop = useCallback(async (restart: boolean) => {
+    if (cdnLoopActiveRef.current) return
+    cdnLoopActiveRef.current = true
+    setCdnSyncing(true)
+    cdnAbortRef.current = false
+    let nextRestart = restart
+
+    try {
+      while (!cdnAbortRef.current) {
+        const res = await api<{
+          ok: boolean
+          done?: boolean
+          paused?: boolean
+          stopped?: boolean
+          percent?: number
+          message?: string
+          progress?: {
+            status: string
+            total: number
+            processed: number
+            synced: number
+            skipped: number
+            failed: number
+            message: string
+          }
+          synced?: number
+          skipped?: number
+        }>('/api/admin/players/cdnvideohub/sync-all', {
+          method: 'POST',
+          body: JSON.stringify({
+            restart: nextRestart,
+            continue: !nextRestart,
+            batch_size: 100,
+          }),
+        })
+
+        nextRestart = false
+        if (res.progress) setCdnProgress(res.progress)
+        setCdnPercent(res.percent ?? 0)
+
+        if (res.paused || res.progress?.status === 'paused') {
+          message.info(res.message || 'Задача на паузе')
+          break
+        }
+        if (res.stopped || res.progress?.status === 'stopped') {
+          message.warning(res.message || 'Задача остановлена')
+          break
+        }
+        if (res.done) {
+          message.success(res.message || `Готово: ${res.synced ?? 0}, пропущено: ${res.skipped ?? 0}`)
+          break
+        }
+      }
+    } catch (e) {
+      message.error(String((e as Error).message))
+    } finally {
+      cdnLoopActiveRef.current = false
+      setCdnSyncing(false)
+      try {
+        await loadCdnProgress()
+      } catch {
+        /* optional */
+      }
+    }
+  }, [loadCdnProgress])
+
+  useEffect(() => {
+    loadCdnProgress().catch(() => {
+      /* no running job */
+    })
+    return () => {
+      cdnAbortRef.current = true
+    }
+  }, [loadCdnProgress])
 
   useEffect(() => {
     const values: Record<string, unknown> = {
@@ -294,6 +405,9 @@ export default function SettingsPage() {
   }
 
   async function save(values: Record<string, unknown>) {
+    if (savingRef.current) return
+    savingRef.current = true
+    setSaving(true)
     const prevPath = settingsMap.admin_path || 'admin'
     const allValues = form.getFieldsValue(true) as Record<string, unknown>
     const merged = { ...allValues, ...values }
@@ -318,6 +432,9 @@ export default function SettingsPage() {
       await load()
     } catch (e) {
       message.error(String((e as Error).message))
+    } finally {
+      savingRef.current = false
+      setSaving(false)
     }
   }
 
@@ -444,7 +561,8 @@ export default function SettingsPage() {
 
           <Typography.Title level={5}>Фон сайта</Typography.Title>
           <Typography.Paragraph type="secondary" style={{ marginBottom: 12 }}>
-            PNG или JPG, до 2 МБ. При загруженном фоне шапка сдвигается вниз на заданный отступ.
+            PNG или JPG. При загрузке картинка сильно сжимается по размеру (как в онлайн-компрессорах, цель ≈
+            90% меньше, максимум 2 МБ). При загруженном фоне шапка сдвигается вниз на заданный отступ.
           </Typography.Paragraph>
           {settingsMap.site_background_url ? (
             <div style={{ marginBottom: 12 }}>
@@ -1158,31 +1276,107 @@ export default function SettingsPage() {
             В атрибут <code>data-title-id</code> подставляется KP ID сериала.
           </Typography.Paragraph>
           <SiteConfigFields fields={configSchema.players?.fields ?? []} />
-          <Space style={{ marginTop: 8 }} wrap>
-            <Popconfirm
-              title="Проставить CDN VideoHub всем сериалам?"
-              description="Будет создана или обновлена вкладка плеера у всех сериалов с KP ID. Сохраните настройки перед запуском."
-              okText="Проставить всем"
-              cancelText="Отмена"
-              onConfirm={async () => {
-                setCdnSyncing(true)
-                try {
-                  const res = await api<{ ok: boolean; synced: number; skipped: number; message?: string; error?: string }>(
-                    '/api/admin/players/cdnvideohub/sync-all',
-                    { method: 'POST' },
-                  )
-                  message.success(res.message || `Готово: ${res.synced}, пропущено: ${res.skipped}`)
-                } catch (e) {
-                  message.error(String((e as Error).message))
-                } finally {
-                  setCdnSyncing(false)
+
+          {(cdnSyncing ||
+            cdnProgress?.status === 'running' ||
+            cdnProgress?.status === 'paused' ||
+            cdnProgress?.status === 'done' ||
+            cdnProgress?.status === 'stopped' ||
+            cdnProgress?.status === 'failed') && (
+            <div style={{ marginBottom: 16, marginTop: 8 }}>
+              <Progress
+                percent={cdnPercent}
+                status={
+                  cdnProgress?.status === 'failed' || cdnProgress?.status === 'stopped'
+                    ? 'exception'
+                    : cdnProgress?.status === 'done'
+                      ? 'success'
+                      : cdnProgress?.status === 'paused' || (cdnProgress?.status === 'running' && !cdnSyncing)
+                        ? 'normal'
+                        : 'active'
                 }
-              }}
-            >
-              <Button type="primary" loading={cdnSyncing}>
-                Проставить всем сериалам
+              />
+              <Typography.Text type="secondary">
+                {cdnProgress?.message || `Обработано ${cdnProgress?.processed ?? 0} из ${cdnProgress?.total ?? 0}`}
+              </Typography.Text>
+            </div>
+          )}
+
+          <Space style={{ marginTop: 8 }} wrap>
+            {!cdnSyncing && cdnProgress?.status !== 'running' && cdnProgress?.status !== 'paused' ? (
+              <Popconfirm
+                title="Проставить CDN VideoHub всем сериалам?"
+                description="Будет создана или обновлена вкладка плеера у всех сериалов с KP ID. Сохраните настройки перед запуском."
+                okText="Проставить всем"
+                cancelText="Отмена"
+                onConfirm={() => void runCdnLoop(true)}
+              >
+                <Button type="primary" icon={<PlayCircleOutlined />}>
+                  Проставить всем сериалам
+                </Button>
+              </Popconfirm>
+            ) : null}
+            {cdnSyncing ? (
+              <Button
+                icon={<PauseCircleOutlined />}
+                onClick={async () => {
+                  cdnAbortRef.current = true
+                  try {
+                    const res = await api<{ progress: typeof cdnProgress; percent: number }>(
+                      '/api/admin/players/cdnvideohub/sync-pause',
+                      { method: 'POST' },
+                    )
+                    if (res.progress) setCdnProgress(res.progress)
+                    setCdnPercent(res.percent ?? 0)
+                    message.info('Пауза')
+                  } catch (e) {
+                    message.error(String((e as Error).message))
+                  }
+                }}
+              >
+                Пауза
               </Button>
-            </Popconfirm>
+            ) : null}
+            {cdnProgress?.status === 'paused' || (cdnProgress?.status === 'running' && !cdnSyncing) ? (
+              <Button
+                type="primary"
+                icon={<PlayCircleOutlined />}
+                onClick={async () => {
+                  try {
+                    if (cdnProgress?.status === 'paused') {
+                      await api('/api/admin/players/cdnvideohub/sync-resume', { method: 'POST' })
+                    }
+                    await runCdnLoop(false)
+                  } catch (e) {
+                    message.error(String((e as Error).message))
+                  }
+                }}
+              >
+                Продолжить
+              </Button>
+            ) : null}
+            {cdnSyncing || cdnProgress?.status === 'running' || cdnProgress?.status === 'paused' ? (
+              <Button
+                danger
+                icon={<StopOutlined />}
+                onClick={async () => {
+                  cdnAbortRef.current = true
+                  try {
+                    const res = await api<{ progress: typeof cdnProgress; percent: number }>(
+                      '/api/admin/players/cdnvideohub/sync-stop',
+                      { method: 'POST' },
+                    )
+                    if (res.progress) setCdnProgress(res.progress)
+                    setCdnPercent(res.percent ?? 0)
+                    message.warning('Остановлено')
+                  } catch (e) {
+                    message.error(String((e as Error).message))
+                  }
+                }}
+              >
+                Стоп
+              </Button>
+            ) : null}
             <Typography.Text type="secondary">
               Только сериалы с числовым KP ID. Работает, если автодобавление включено.
             </Typography.Text>
@@ -1199,7 +1393,7 @@ export default function SettingsPage() {
         <Typography.Title level={5} style={{ margin: 0 }}>
           {SECTION_LABELS[section]}
         </Typography.Title>
-        <Button type="primary" htmlType="submit" loading={loading}>
+        <Button type="primary" htmlType="submit" loading={saving}>
           Сохранить
         </Button>
       </div>
@@ -1214,7 +1408,7 @@ export default function SettingsPage() {
 
       <div className="settings-page__footer">
         <Space>
-          <Button type="primary" htmlType="submit" size="large" loading={loading}>
+          <Button type="primary" htmlType="submit" size="large" loading={saving}>
             Сохранить настройки
           </Button>
           <Typography.Text type="secondary">

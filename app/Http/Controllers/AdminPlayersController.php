@@ -6,6 +6,7 @@ use App\Models\PlayerSource;
 use App\Models\Series;
 use App\Services\AllohaBulkPlayerProgress;
 use App\Services\AllohaBulkPlayerSync;
+use App\Services\CdnVideoHubBulkProgress;
 use App\Services\CdnVideoHubPlayerSync;
 use App\Services\RutubeBulkTrailerProgress;
 use App\Services\RutubeBulkTrailerSync;
@@ -50,11 +51,15 @@ class AdminPlayersController extends Controller
             ], 422);
         }
 
+        $status = (string) ($progress['status'] ?? '');
+
         return response()->json([
             'ok' => true,
             'progress' => $progress,
             'percent' => AllohaBulkPlayerProgress::percent($progress),
-            'done' => ($progress['status'] ?? '') === 'done',
+            'done' => $status === 'done',
+            'paused' => $status === 'paused',
+            'stopped' => $status === 'stopped',
             'message' => (string) ($progress['message'] ?? ''),
             'synced' => (int) ($progress['synced'] ?? 0),
             'skipped' => (int) ($progress['skipped'] ?? 0),
@@ -65,12 +70,51 @@ class AdminPlayersController extends Controller
     public function allohaSyncProgress()
     {
         $progress = AllohaBulkPlayerProgress::get();
+        $status = (string) ($progress['status'] ?? '');
 
         return response()->json([
             'ok' => true,
             'progress' => $progress,
             'percent' => AllohaBulkPlayerProgress::percent($progress),
-            'done' => ($progress['status'] ?? '') === 'done',
+            'done' => $status === 'done',
+            'paused' => $status === 'paused',
+            'stopped' => $status === 'stopped',
+        ]);
+    }
+
+    public function pauseAllohaSync(AllohaBulkPlayerSync $sync)
+    {
+        $progress = $sync->pause();
+
+        return response()->json([
+            'ok' => true,
+            'progress' => $progress,
+            'percent' => AllohaBulkPlayerProgress::percent($progress),
+            'paused' => ($progress['status'] ?? '') === 'paused',
+        ]);
+    }
+
+    public function resumeAllohaSync(AllohaBulkPlayerSync $sync)
+    {
+        $progress = $sync->resume();
+
+        return response()->json([
+            'ok' => true,
+            'progress' => $progress,
+            'percent' => AllohaBulkPlayerProgress::percent($progress),
+            'paused' => ($progress['status'] ?? '') === 'paused',
+        ]);
+    }
+
+    public function stopAllohaSync(AllohaBulkPlayerSync $sync)
+    {
+        $progress = $sync->stop();
+
+        return response()->json([
+            'ok' => true,
+            'progress' => $progress,
+            'percent' => AllohaBulkPlayerProgress::percent($progress),
+            'stopped' => ($progress['status'] ?? '') === 'stopped',
         ]);
     }
 
@@ -175,28 +219,96 @@ class AdminPlayersController extends Controller
         ]);
     }
 
-    public function syncCdnVideoHubAll(CdnVideoHubPlayerSync $sync)
+    public function syncCdnVideoHubAll(Request $request, CdnVideoHubPlayerSync $sync)
     {
-        $result = $sync->syncAll();
+        $data = $request->validate([
+            'batch_size' => ['nullable', 'integer', 'min:1', 'max:200'],
+            'restart' => ['nullable', 'boolean'],
+            'continue' => ['nullable', 'boolean'],
+        ]);
 
-        if (!($result['ok'] ?? false)) {
+        $restart = (bool) ($data['restart'] ?? false);
+        $continue = (bool) ($data['continue'] ?? false);
+
+        $progress = $sync->runProgressiveBatch(
+            $restart || !$continue,
+            (int) ($data['batch_size'] ?? 100),
+        );
+
+        if (($progress['status'] ?? '') === 'failed') {
             return response()->json([
                 'ok' => false,
-                'error' => $result['error'] ?? 'Не удалось выполнить массовую синхронизацию',
-                'synced' => $result['synced'] ?? 0,
-                'skipped' => $result['skipped'] ?? 0,
+                'error' => (string) ($progress['message'] ?? 'Не удалось выполнить массовую синхронизацию'),
+                'progress' => $progress,
+                'percent' => CdnVideoHubBulkProgress::percent($progress),
+                'done' => false,
             ], 422);
         }
 
+        $status = (string) ($progress['status'] ?? '');
+
         return response()->json([
             'ok' => true,
-            'synced' => $result['synced'],
-            'skipped' => $result['skipped'],
-            'message' => sprintf(
-                'CDN VideoHub проставлен: %d сериалов, пропущено: %d',
-                $result['synced'],
-                $result['skipped'],
-            ),
+            'progress' => $progress,
+            'percent' => CdnVideoHubBulkProgress::percent($progress),
+            'done' => $status === 'done',
+            'paused' => $status === 'paused',
+            'stopped' => $status === 'stopped',
+            'message' => (string) ($progress['message'] ?? ''),
+            'synced' => (int) ($progress['synced'] ?? 0),
+            'skipped' => (int) ($progress['skipped'] ?? 0),
+            'failed' => (int) ($progress['failed'] ?? 0),
+        ]);
+    }
+
+    public function cdnVideoHubSyncProgress()
+    {
+        $progress = CdnVideoHubBulkProgress::get();
+        $status = (string) ($progress['status'] ?? '');
+
+        return response()->json([
+            'ok' => true,
+            'progress' => $progress,
+            'percent' => CdnVideoHubBulkProgress::percent($progress),
+            'done' => $status === 'done',
+            'paused' => $status === 'paused',
+            'stopped' => $status === 'stopped',
+        ]);
+    }
+
+    public function pauseCdnVideoHubSync(CdnVideoHubPlayerSync $sync)
+    {
+        $progress = $sync->pause();
+
+        return response()->json([
+            'ok' => true,
+            'progress' => $progress,
+            'percent' => CdnVideoHubBulkProgress::percent($progress),
+            'paused' => ($progress['status'] ?? '') === 'paused',
+        ]);
+    }
+
+    public function resumeCdnVideoHubSync(CdnVideoHubPlayerSync $sync)
+    {
+        $progress = $sync->resume();
+
+        return response()->json([
+            'ok' => true,
+            'progress' => $progress,
+            'percent' => CdnVideoHubBulkProgress::percent($progress),
+            'paused' => ($progress['status'] ?? '') === 'paused',
+        ]);
+    }
+
+    public function stopCdnVideoHubSync(CdnVideoHubPlayerSync $sync)
+    {
+        $progress = $sync->stop();
+
+        return response()->json([
+            'ok' => true,
+            'progress' => $progress,
+            'percent' => CdnVideoHubBulkProgress::percent($progress),
+            'stopped' => ($progress['status'] ?? '') === 'stopped',
         ]);
     }
 
@@ -228,15 +340,47 @@ class AdminPlayersController extends Controller
         ]);
     }
 
+    public function searchRutubeTrailers(Request $request, string $kpId, RutubeTrailerService $rutube)
+    {
+        $series = AdminSeriesResolver::byKey($kpId, true);
+
+        $data = $request->validate([
+            'query' => ['nullable', 'string', 'max:200'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:30'],
+        ]);
+
+        $payload = $rutube->searchCandidates(
+            $series,
+            isset($data['query']) ? (string) $data['query'] : null,
+            (int) ($data['limit'] ?? 12),
+        );
+
+        return response()->json(array_merge(['ok' => true], $payload));
+    }
+
     public function addRutubeTrailer(Request $request, string $kpId, RutubeTrailerService $rutube)
     {
         $series = AdminSeriesResolver::byKey($kpId, true);
 
         $data = $request->validate([
             'tab_name' => ['nullable', 'string', 'max:120'],
+            'embed_url' => ['nullable', 'string', 'max:500'],
+            'video_id' => ['nullable', 'string', 'max:64'],
+            'title' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $result = $rutube->addToSeries($series, (string) ($data['tab_name'] ?? 'Трейлер'));
+        $manual = trim((string) ($data['embed_url'] ?? ''));
+        if ($manual === '') {
+            $manual = trim((string) ($data['video_id'] ?? ''));
+        }
+
+        $result = $rutube->addToSeries(
+            $series,
+            (string) ($data['tab_name'] ?? 'Трейлер'),
+            'update',
+            $manual !== '' ? $manual : null,
+            isset($data['title']) ? (string) $data['title'] : null,
+        );
         if (!$result['ok']) {
             return response()->json(['ok' => false, 'error' => $result['error'] ?? 'Не удалось добавить трейлер Rutube'], 422);
         }
