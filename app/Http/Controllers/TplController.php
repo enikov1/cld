@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Support\AdminPath;
 use App\Support\NavMenuBuilder;
+use App\Support\SiteBranding;
 use App\Support\Speedbar;
 use App\Support\SiteConfig;
 use App\Support\ThemeManager;
@@ -165,6 +166,15 @@ abstract class TplController extends Controller
         $renderer = $this->renderer();
         $common = $this->commonVars();
         $vars = array_merge($common, $vars);
+
+        if (!empty($vars['_site_background_override'])) {
+            $overrideBg = trim((string)$vars['_site_background_override']);
+            unset($vars['_site_background_override']);
+            if ($overrideBg !== '') {
+                $vars['site'] = array_merge($vars['site'] ?? [], SiteBranding::siteVars($overrideBg));
+            }
+        }
+
         $vars['speedbar_block'] = $vars['speedbar_block'] ?? '';
         $vars['seo'] = array_merge([
             'title' => '',

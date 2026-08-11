@@ -51,6 +51,36 @@
     [/loop]
     [/theme.stylesheets]
 
+    [site.has_background]
+    <style id="site-branding">
+        :root {
+            --site-bg-header-offset: {site.background_header_offset}px;
+            --site-bg-color: {site.background_color};
+        }
+
+        body.has-site-bg {
+            background-color: var(--site-bg-color);
+            background-image: url('{site.background|raw}');
+            background-position: center top;
+            background-repeat: no-repeat;
+        }
+
+        body.has-site-bg .block.center {
+            margin-top: var(--site-bg-header-offset);
+        }
+
+        @media (max-width: 768px) {
+            body.has-site-bg.site-bg-hide-mobile {
+                background-image: none;
+            }
+
+            body.has-site-bg.site-bg-hide-mobile .block.center {
+                margin-top: 0;
+            }
+        }
+    </style>
+    [/site.has_background]
+
     <meta name="csrf-token" content="{csrf_token|raw}">
 </head>
 

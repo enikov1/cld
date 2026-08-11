@@ -28,12 +28,24 @@ class PosterKeyBuilder
     {
         $pattern = SiteConfig::str('images_poster_filename');
 
-        return match ($pattern) {
+        $base = match ($pattern) {
             'kp_id' => (string)($context->kpId ?? 'item'),
             'slug' => $context->slug ?: ('kp-' . ($context->kpId ?? 'item')),
             'title_year' => $this->titleYearKey($context),
             default => 'kp-' . ($context->kpId ?? 'item'),
         };
+
+        $variant = trim((string)($context->variant ?? ''));
+        if ($variant === '') {
+            return $base;
+        }
+
+        $safeVariant = Str::slug($variant);
+        if ($safeVariant === '') {
+            $safeVariant = 'v-' . Str::lower(Str::random(6));
+        }
+
+        return $base . '-' . $safeVariant;
     }
 
     private function buildCollectionKey(PosterContext $context): string

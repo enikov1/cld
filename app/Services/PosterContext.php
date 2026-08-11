@@ -22,7 +22,7 @@ final class PosterContext
     ) {
     }
 
-    public static function forSeries(Series $series): self
+    public static function forSeries(Series $series, ?string $variant = null): self
     {
         return new self(
             type: 'series',
@@ -30,13 +30,14 @@ final class PosterContext
             title: $series->title,
             slug: $series->slug,
             year: $series->year ?: $series->start_year,
+            variant: $variant,
         );
     }
 
     /**
      * @param array<string, mixed> $data
      */
-    public static function forSeriesData(string $kpId, array $data): self
+    public static function forSeriesData(string $kpId, array $data, ?string $variant = null): self
     {
         $year = isset($data['year']) ? (int)$data['year'] : null;
         if (!$year && isset($data['start_year'])) {
@@ -49,6 +50,7 @@ final class PosterContext
             title: isset($data['title']) ? (string)$data['title'] : null,
             slug: isset($data['slug']) ? (string)$data['slug'] : null,
             year: $year ?: null,
+            variant: $variant,
         );
     }
 

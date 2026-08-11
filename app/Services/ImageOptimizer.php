@@ -13,11 +13,38 @@ class ImageOptimizer
     private const TARGET_KEEP_RATIO = 0.11;
 
     /**
+     * @param  array{edge_fade_rgb?: array{0: int, 1: int, 2: int}}|null  $options
      * @return array{body: string, ext: string}|null
      */
-    public function process(string $binary, string $sourceExt, ?int $maxWidth = null, ?int $maxHeight = null): ?array
-    {
+    public function process(
+        string $binary,
+        string $sourceExt,
+        ?int $maxWidth = null,
+        ?int $maxHeight = null,
+        ?array $options = null,
+    ): ?array {
         if (!SiteConfig::bool('images_optimize_enabled')) {
+            // Still allow edge fade when optimization is off but GD is available.
+            if (
+                extension_loaded('gd')
+                && isset($options['edge_fade_rgb'])
+                && is_array($options['edge_fade_rgb'])
+            ) {
+                $image = $this->createImage($binary, $sourceExt);
+                if ($image !== null) {
+                    try {
+                        $this->applyEdgeFade($image, $options['edge_fade_rgb']);
+                        $ext = $this->normalizeExt($sourceExt);
+                        $body = $this->encode($image, $ext === 'jpg' ? 'jpg' : $ext, 85);
+                        if ($body !== null && $body !== '') {
+                            return ['body' => $body, 'ext' => $ext];
+                        }
+                    } finally {
+                        imagedestroy($image);
+                    }
+                }
+            }
+
             return ['body' => $binary, 'ext' => $this->normalizeExt($sourceExt)];
         }
 
@@ -32,6 +59,10 @@ class ImageOptimizer
 
         $resized = $this->resize($image, $maxWidth, $maxHeight);
         try {
+            if (isset($options['edge_fade_rgb']) && is_array($options['edge_fade_rgb'])) {
+                $this->applyEdgeFade($resized, $options['edge_fade_rgb']);
+            }
+
             $targetExt = $this->resolveOutputExt($sourceExt);
             $targetBytes = $this->resolveTargetBytes(strlen($binary));
             $body = $this->encodeToTarget($resized, $targetExt, $targetBytes);
@@ -49,6 +80,73 @@ class ImageOptimizer
     public function maxUploadBytes(): int
     {
         return max(100, SiteConfig::int('images_poster_max_upload_kb')) * 1024;
+    }
+
+    /**
+     * Bake side + bottom fade into the image using site background RGB.
+     *
+     * @param  array{0: int, 1: int, 2: int}  $rgb
+     */
+    public function applyEdgeFade(\GdImage $image, array $rgb): void
+    {
+        $width = imagesx($image);
+        $height = imagesy($image);
+        if ($width < 8 || $height < 8) {
+            return;
+        }
+
+        $br = max(0, min(255, (int)($rgb[0] ?? 0)));
+        $bg = max(0, min(255, (int)($rgb[1] ?? 0)));
+        $bb = max(0, min(255, (int)($rgb[2] ?? 0)));
+
+        $sideFade = (int) max(48, min((int) floor($width / 2), (int) round($width * 0.18)));
+        $bottomFade = (int) max(64, min((int) floor($height * 0.85), (int) round($height * 0.55)));
+
+        imagealphablending($image, true);
+
+        for ($x = 0; $x < $sideFade; $x++) {
+            $t = $this->smoothStep(1 - ($x / max(1, $sideFade)));
+            for ($y = 0; $y < $height; $y++) {
+                $this->blendPixel($image, $x, $y, $br, $bg, $bb, $t);
+                $this->blendPixel($image, $width - 1 - $x, $y, $br, $bg, $bb, $t);
+            }
+        }
+
+        for ($i = 0; $i < $bottomFade; $i++) {
+            $t = $this->smoothStep(1 - ($i / max(1, $bottomFade)));
+            $y = $height - 1 - $i;
+            for ($x = 0; $x < $width; $x++) {
+                $this->blendPixel($image, $x, $y, $br, $bg, $bb, $t);
+            }
+        }
+    }
+
+    private function smoothStep(float $t): float
+    {
+        $t = max(0.0, min(1.0, $t));
+
+        return $t * $t * (3 - 2 * $t);
+    }
+
+    private function blendPixel(\GdImage $image, int $x, int $y, int $br, int $bg, int $bb, float $t): void
+    {
+        if ($t <= 0) {
+            return;
+        }
+
+        $color = imagecolorat($image, $x, $y);
+        $r = ($color >> 16) & 0xFF;
+        $g = ($color >> 8) & 0xFF;
+        $b = $color & 0xFF;
+
+        $nr = (int) round($r * (1 - $t) + $br * $t);
+        $ng = (int) round($g * (1 - $t) + $bg * $t);
+        $nb = (int) round($b * (1 - $t) + $bb * $t);
+
+        $allocated = imagecolorallocate($image, $nr, $ng, $nb);
+        if ($allocated !== false) {
+            imagesetpixel($image, $x, $y, $allocated);
+        }
     }
 
     private function resolveTargetBytes(int $sourceBytes): int

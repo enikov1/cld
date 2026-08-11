@@ -38,6 +38,7 @@ import {
   PushpinFilled,
   PushpinOutlined,
   SaveOutlined,
+  ScissorOutlined,
   UndoOutlined,
   UploadOutlined,
 } from '@ant-design/icons'
@@ -48,14 +49,16 @@ import { useSearchParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { api, apiUpload } from '../api/client'
 import SeriesPlayersEditor, { type SeriesPlayersEditorHandle } from '../components/SeriesPlayersEditor'
+import BrandImageEditorModal from '../components/BrandImageEditorModal'
 import SeriesLookupSearch from '../components/SeriesLookupSearch'
 import MediaPickerModal from '../components/MediaPickerModal'
+import TmdbImagePickerModal, { type TmdbImageTarget } from '../components/TmdbImagePickerModal'
 import { useBusyFavicon, useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
 import { useSeriesDeepLink } from '../hooks/useSeriesDeepLink'
 import SeriesScheduleEditor, { type SeriesScheduleEditorHandle } from '../components/SeriesScheduleEditor'
 import type { CollectionItem, SeriesItem, StudioItem, TaxonomyOption } from '../types'
 import { BROADCAST_STATUSES, CONTENT_TYPES } from '../types'
-import { resolveMediaUrl, siteOrigin } from '../utils/mediaUrl'
+import { resolveMediaUrl, resolveCropperImageUrl, siteOrigin } from '../utils/mediaUrl'
 import { seriesPublicPath } from '../utils/seriesPublicPath'
 import { buildDescriptionAiPrompt } from '../utils/descriptionAiPrompt'
 
@@ -297,6 +300,8 @@ function seriesToFormValues(item: SeriesItem): Record<string, unknown> {
     short_description: item.short_description,
     slogan: item.slogan,
     poster_url: item.poster_url,
+    gallery_urls: item.gallery_urls ?? [],
+    brand_url: item.brand_url,
     year: item.year,
     start_year: item.start_year,
     end_year: item.end_year,
@@ -359,7 +364,23 @@ export default function SeriesPage() {
   const [posterMeta, setPosterMeta] = useState<PosterMeta | null>(null)
   const [posterMetaLoading, setPosterMetaLoading] = useState(false)
   const [uploadingPosterFromUrl, setUploadingPosterFromUrl] = useState(false)
+  const [brandCacheBust, setBrandCacheBust] = useState<number | undefined>(undefined)
+  const [brandMeta, setBrandMeta] = useState<PosterMeta | null>(null)
+  const [brandMetaLoading, setBrandMetaLoading] = useState(false)
+  const [brandEditor, setBrandEditor] = useState<{
+    src: string
+    fileName: string
+    revokeUrl?: string
+  } | null>(null)
+  const [uploadingBrandFromUrl, setUploadingBrandFromUrl] = useState(false)
+  const [galleryCacheBust, setGalleryCacheBust] = useState<number | undefined>(undefined)
+  const [galleryUrls, setGalleryUrls] = useState<string[]>([])
+  const [uploadingGalleryFromUrl, setUploadingGalleryFromUrl] = useState(false)
+  const [galleryRemoteUrl, setGalleryRemoteUrl] = useState('')
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false)
+  const [mediaPickerTarget, setMediaPickerTarget] = useState<'poster' | 'brand' | 'gallery'>('poster')
+  const [tmdbPickerOpen, setTmdbPickerOpen] = useState(false)
+  const [tmdbPickerTarget, setTmdbPickerTarget] = useState<TmdbImageTarget>('poster')
   const [saving, setSaving] = useState(false)
   const [formDirty, setFormDirty] = useState(false)
   const playersEditorRef = useRef<SeriesPlayersEditorHandle>(null)
@@ -370,6 +391,7 @@ export default function SeriesPage() {
   const [form] = Form.useForm()
   const [filterForm] = Form.useForm<SeriesListFilters>()
   const posterUrl = Form.useWatch('poster_url', form)
+  const brandUrl = Form.useWatch('brand_url', form)
 
   useDocumentTitle(
     drawerOpen
@@ -378,9 +400,18 @@ export default function SeriesPage() {
         : 'Новый сериал / фильм'
       : null,
   )
-  useBusyFavicon(importing || importingAlloha || importingTmdb || saving || uploadingPosterFromUrl)
+  useBusyFavicon(
+    importing ||
+      importingAlloha ||
+      importingTmdb ||
+      saving ||
+      uploadingPosterFromUrl ||
+      uploadingBrandFromUrl ||
+      uploadingGalleryFromUrl,
+  )
   const watchedDescription = Form.useWatch('description', form)
   const posterUrlIsRemote = /^https?:\/\//i.test(String(posterUrl ?? '').trim())
+  const brandUrlIsRemote = /^https?:\/\//i.test(String(brandUrl ?? '').trim())
   const descriptionCharCount = useMemo(
     () => countCharsWithoutSpaces(String(watchedDescription ?? '')),
     [watchedDescription],
@@ -475,6 +506,51 @@ export default function SeriesPage() {
       cancelled = true
     }
   }, [drawerOpen, posterUrl, posterCacheBust, editorRouteKey])
+
+  useEffect(() => {
+    if (!drawerOpen) {
+      setBrandMeta(null)
+      setBrandMetaLoading(false)
+      return
+    }
+
+    const url = String(brandUrl ?? '').trim()
+    if (!url) {
+      setBrandMeta(null)
+      setBrandMetaLoading(false)
+      return
+    }
+
+    if (!url.startsWith('/storage/') || !editorRouteKey) {
+      setBrandMetaLoading(false)
+      if (!url.startsWith('/storage/')) {
+        setBrandMeta((prev) =>
+          prev?.width && prev?.height
+            ? { width: prev.width, height: prev.height }
+            : null,
+        )
+      }
+      return
+    }
+
+    let cancelled = false
+    setBrandMetaLoading(true)
+    const params = new URLSearchParams({ url })
+    api<{ meta: PosterMeta | null }>(`/api/admin/series/${editorRouteKey}/brand-meta?${params}`)
+      .then((res) => {
+        if (!cancelled) setBrandMeta(res.meta ?? null)
+      })
+      .catch(() => {
+        if (!cancelled) setBrandMeta(null)
+      })
+      .finally(() => {
+        if (!cancelled) setBrandMetaLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [drawerOpen, brandUrl, brandCacheBust, editorRouteKey])
 
   const hasKpIdValue = Boolean(String(watchedKpId ?? '').trim())
   const hasImdbIdValue = Boolean(String(watchedImdbId ?? '').trim())
@@ -613,6 +689,15 @@ export default function SeriesPage() {
     loadSeries(1, perPage, { sort: 'default', with_trashed: false })
   }
 
+  const applyGalleryUrls = useCallback((urls: string[] | null | undefined) => {
+    const next = Array.isArray(urls)
+      ? urls.map((url) => String(url ?? '').trim()).filter(Boolean)
+      : []
+    setGalleryUrls(next)
+    form.setFieldValue('gallery_urls', next)
+    setGalleryCacheBust(Date.now())
+  }, [form])
+
   function openCreate() {
     setEditing(null)
     setPlayersCount(0)
@@ -626,9 +711,12 @@ export default function SeriesPage() {
       sort_order: 0,
       content_type: 'series',
       broadcast_status: 'ongoing',
+      gallery_urls: [],
     })
+    setGalleryUrls([])
     setFormDirty(false)
     setPosterMeta(null)
+    setBrandMeta(null)
     setDrawerTab('main')
     setMainSubTab('basic')
     setDrawerOpen(true)
@@ -640,21 +728,26 @@ export default function SeriesPage() {
     setDrawerTab('main')
     setMainSubTab('basic')
     setPosterMeta(null)
+    setBrandMeta(null)
     setDrawerOpen(true)
     setFormDirty(false)
     void loadStudios()
     // Prefill from list row so the drawer opens immediately; replace with full card when ready.
-    form.setFieldsValue(seriesToFormValues(row))
+    const rowValues = seriesToFormValues(row)
+    form.setFieldsValue(rowValues)
+    applyGalleryUrls((rowValues.gallery_urls as string[]) ?? [])
     try {
       const item = await fetchFullSeries(row)
       if (seq !== openEditSeqRef.current) return
       setEditing(item)
-      form.setFieldsValue(seriesToFormValues(item))
+      const values = seriesToFormValues(item)
+      form.setFieldsValue(values)
+      applyGalleryUrls((values.gallery_urls as string[]) ?? [])
     } catch (e) {
       if (seq !== openEditSeqRef.current) return
       message.error(String((e as Error).message))
     }
-  }, [fetchFullSeries, form, loadStudios])
+  }, [applyGalleryUrls, fetchFullSeries, form, loadStudios])
 
   useSeriesDeepLink({ searchParams, setSearchParams, openEdit })
 
@@ -664,6 +757,7 @@ export default function SeriesPage() {
     setPlayersCount(0)
     setHasSchedule(false)
     setFormDirty(false)
+    setGalleryUrls([])
     form.resetFields()
   }
 
@@ -697,10 +791,11 @@ export default function SeriesPage() {
       values.description = currentDescription
     }
     form.setFieldsValue(values)
+    applyGalleryUrls((values.gallery_urls as string[]) ?? [])
     setFormDirty(true)
   }
 
-  function buildSeriesPayload(values: Record<string, unknown>): Record<string, unknown> {
+    function buildSeriesPayload(values: Record<string, unknown>): Record<string, unknown> {
     const payload = { ...values }
     const premiereDate = payload.premiere_date
     if (premiereDate && dayjs.isDayjs(premiereDate)) {
@@ -713,6 +808,16 @@ export default function SeriesPage() {
     if (durationMinutes === null || durationMinutes === undefined || Number(durationMinutes) < 1) {
       payload.duration_minutes = null
     }
+
+    const gallery = galleryUrls.length
+      ? galleryUrls
+      : Array.isArray(payload.gallery_urls)
+        ? (payload.gallery_urls as unknown[])
+            .map((url) => String(url ?? '').trim())
+            .filter(Boolean)
+        : []
+    payload.gallery_urls = gallery
+    payload.brand_url = String(payload.brand_url ?? '').trim() || null
 
     return payload
   }
@@ -740,6 +845,7 @@ export default function SeriesPage() {
 
       setEditing(res.item)
       form.setFieldsValue(seriesToFormValues(res.item))
+      applyGalleryUrls(res.item.gallery_urls ?? [])
 
       const routeKey = seriesRouteKey(res.item, { ...payload, ...res.item })
       if (routeKey) {
@@ -1008,6 +1114,250 @@ export default function SeriesPage() {
       message.error(String((e as Error).message))
     } finally {
       setUploadingPosterFromUrl(false)
+    }
+  }
+
+  function openMediaPicker(target: 'poster' | 'brand' | 'gallery') {
+    setMediaPickerTarget(target)
+    setMediaPickerOpen(true)
+  }
+
+  function openTmdbPicker(target: TmdbImageTarget) {
+    if (!editorRouteKey) {
+      message.warning('Сначала сохраните карточку с KP ID или TMDB ID')
+      return
+    }
+    if (!hasTmdbIdValue) {
+      message.warning('Укажите TMDB ID, чтобы выбрать изображения из TMDB')
+      return
+    }
+    setTmdbPickerTarget(target)
+    setTmdbPickerOpen(true)
+  }
+
+  async function uploadBrand(file: File) {
+    const routeKey = seriesRouteKey(editing, form.getFieldsValue(true) as Record<string, unknown>)
+    if (!routeKey) {
+      message.warning('Укажите KP ID или TMDB ID перед загрузкой бренда')
+      return false
+    }
+    try {
+      const localMeta = await readLocalImageMeta(file)
+      setBrandMeta(localMeta)
+    } catch {
+      // ignore
+    }
+    const fd = new FormData()
+    fd.append('brand', file)
+    try {
+      const res = await apiUpload<{ brand_url: string; meta?: PosterMeta | null }>(
+        `/api/admin/series/${routeKey}/brand`,
+        fd,
+      )
+      form.setFieldValue('brand_url', res.brand_url)
+      setBrandCacheBust(Date.now())
+      if (res.meta) setBrandMeta(res.meta)
+      message.success('Бренд (фон) загружен')
+      await loadSeries()
+    } catch (e) {
+      message.error(String((e as Error).message))
+      throw e
+    }
+    return false
+  }
+
+  function openBrandEditor(src: string, fileName = 'brand.jpg', revokeUrl?: string) {
+    setBrandEditor((prev) => {
+      if (prev?.revokeUrl) URL.revokeObjectURL(prev.revokeUrl)
+      return { src, fileName, revokeUrl }
+    })
+  }
+
+  function closeBrandEditor() {
+    setBrandEditor((prev) => {
+      if (prev?.revokeUrl) URL.revokeObjectURL(prev.revokeUrl)
+      return null
+    })
+  }
+
+  function beginBrandFileEdit(file: File) {
+    const routeKey = seriesRouteKey(editing, form.getFieldsValue(true) as Record<string, unknown>)
+    if (!routeKey) {
+      message.warning('Укажите KP ID или TMDB ID перед загрузкой бренда')
+      return false
+    }
+    const src = URL.createObjectURL(file)
+    openBrandEditor(src, file.name || 'brand.jpg', src)
+    return false
+  }
+
+  function beginBrandUrlEdit(url: string, fileName = 'brand.jpg') {
+    const routeKey = seriesRouteKey(editing, form.getFieldsValue(true) as Record<string, unknown>)
+    if (!routeKey) {
+      message.warning('Укажите KP ID или TMDB ID перед загрузкой бренда')
+      return
+    }
+    const resolved = resolveCropperImageUrl(url)
+    if (!resolved) {
+      message.warning('Нет изображения для редактирования')
+      return
+    }
+    openBrandEditor(resolved, fileName)
+  }
+
+  async function uploadBrandFromUrl() {
+    const routeKey = seriesRouteKey(editing, form.getFieldsValue(true) as Record<string, unknown>)
+    if (!routeKey) {
+      message.warning('Укажите KP ID или TMDB ID перед загрузкой бренда')
+      return
+    }
+    const sourceUrl = String(form.getFieldValue('brand_url') ?? '').trim()
+    if (!/^https?:\/\//i.test(sourceUrl)) {
+      message.warning('Укажите http(s) URL изображения бренда')
+      return
+    }
+    setUploadingBrandFromUrl(true)
+    try {
+      const res = await api<{ brand_url: string; meta?: PosterMeta | null }>(
+        `/api/admin/series/${routeKey}/brand`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ url: sourceUrl }),
+        },
+      )
+      form.setFieldValue('brand_url', res.brand_url)
+      setBrandCacheBust(Date.now())
+      if (res.meta) setBrandMeta(res.meta)
+      message.success('Бренд скачан на сервер')
+      await loadSeries()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    } finally {
+      setUploadingBrandFromUrl(false)
+    }
+  }
+
+  async function clearBrand() {
+    const routeKey = seriesRouteKey(editing, form.getFieldsValue(true) as Record<string, unknown>)
+    if (!routeKey) {
+      message.warning('Укажите KP ID или TMDB ID')
+      return
+    }
+    try {
+      await api(`/api/admin/series/${routeKey}/brand`, { method: 'DELETE' })
+      form.setFieldValue('brand_url', null)
+      setBrandMeta(null)
+      setBrandCacheBust(Date.now())
+      message.success('Бренд удалён')
+      await loadSeries()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
+  }
+
+  async function uploadGallery(file: File) {
+    const routeKey = seriesRouteKey(editing, form.getFieldsValue(true) as Record<string, unknown>)
+    if (!routeKey) {
+      message.warning('Укажите KP ID или TMDB ID перед загрузкой в галерею')
+      return false
+    }
+    const fd = new FormData()
+    fd.append('image', file)
+    try {
+      const res = await apiUpload<{ gallery_urls: string[] }>(`/api/admin/series/${routeKey}/gallery`, fd)
+      applyGalleryUrls(res.gallery_urls ?? [])
+      message.success('Изображение добавлено в галерею')
+      await loadSeries()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
+    return false
+  }
+
+  async function uploadGalleryFromUrl(sourceUrl?: string) {
+    const routeKey = seriesRouteKey(editing, form.getFieldsValue(true) as Record<string, unknown>)
+    if (!routeKey) {
+      message.warning('Укажите KP ID или TMDB ID перед загрузкой в галерею')
+      return
+    }
+    const url = String(sourceUrl ?? galleryRemoteUrl).trim()
+    if (!/^https?:\/\//i.test(url)) {
+      message.warning('Укажите http(s) URL изображения')
+      return
+    }
+    setUploadingGalleryFromUrl(true)
+    try {
+      const res = await api<{ gallery_urls: string[] }>(`/api/admin/series/${routeKey}/gallery`, {
+        method: 'POST',
+        body: JSON.stringify({ url }),
+      })
+      applyGalleryUrls(res.gallery_urls ?? [])
+      setGalleryRemoteUrl('')
+      message.success('Изображение добавлено в галерею')
+      await loadSeries()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    } finally {
+      setUploadingGalleryFromUrl(false)
+    }
+  }
+
+  async function removeGalleryItem(index: number) {
+    const routeKey = seriesRouteKey(editing, form.getFieldsValue(true) as Record<string, unknown>)
+    if (!routeKey) {
+      message.warning('Укажите KP ID или TMDB ID')
+      return
+    }
+    try {
+      const res = await api<{ gallery_urls: string[] }>(`/api/admin/series/${routeKey}/gallery`, {
+        method: 'DELETE',
+        body: JSON.stringify({ index }),
+      })
+      applyGalleryUrls(res.gallery_urls ?? [])
+      message.success('Изображение удалено из галереи')
+      await loadSeries()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
+  }
+
+  async function confirmTmdbImages(urls: string[]) {
+    const routeKey = seriesRouteKey(editing, form.getFieldsValue(true) as Record<string, unknown>)
+    if (!routeKey) {
+      message.warning('Укажите KP ID или TMDB ID')
+      throw new Error('Укажите KP ID или TMDB ID')
+    }
+    if (urls.length === 0) return
+
+    try {
+      if (tmdbPickerTarget === 'poster') {
+        const res = await api<{ poster_url: string; meta?: PosterMeta | null }>(
+          `/api/admin/series/${routeKey}/poster`,
+          { method: 'POST', body: JSON.stringify({ url: urls[0] }) },
+        )
+        form.setFieldValue('poster_url', res.poster_url)
+        setPosterCacheBust(Date.now())
+        if (res.meta) setPosterMeta(res.meta)
+        message.success('Постер выбран из TMDB')
+      } else if (tmdbPickerTarget === 'brand') {
+        beginBrandUrlEdit(urls[0], 'brand-tmdb.jpg')
+        return
+      } else {
+        const res = await api<{ gallery_urls: string[]; added?: string[] }>(
+          `/api/admin/series/${routeKey}/gallery`,
+          {
+            method: 'POST',
+            body: JSON.stringify({ urls }),
+          },
+        )
+        applyGalleryUrls(res.gallery_urls ?? [])
+        const addedCount = res.added?.length ?? urls.length
+        message.success(`В галерею добавлено: ${addedCount}`)
+      }
+      await loadSeries()
+    } catch (e) {
+      message.error(String((e as Error).message))
+      throw e
     }
   }
 
@@ -1758,6 +2108,7 @@ export default function SeriesPage() {
                 label: 'Постер',
                 children: (
                   <>
+                    <Typography.Title level={5} style={{ marginTop: 0 }}>Постер</Typography.Title>
                     <Form.Item
                       label="URL постера"
                       name="poster_url"
@@ -1765,7 +2116,7 @@ export default function SeriesPage() {
                     >
                       <Input placeholder="/storage/posters/... или https://..." />
                     </Form.Item>
-                    <Space align="start" size={16} wrap style={{ marginBottom: 16 }}>
+                    <Space align="start" size={16} wrap style={{ marginBottom: 24 }}>
                       {posterUrl ? (
                         <img
                           key={posterCacheBust ?? posterUrl}
@@ -1788,8 +2139,15 @@ export default function SeriesPage() {
                           <Upload beforeUpload={uploadPoster} showUploadList={false} accept="image/*">
                             <Button icon={<UploadOutlined />}>Загрузить с компьютера</Button>
                           </Upload>
-                          <Button icon={<PictureOutlined />} onClick={() => setMediaPickerOpen(true)}>
+                          <Button icon={<PictureOutlined />} onClick={() => openMediaPicker('poster')}>
                             Выбрать из медиатеки
+                          </Button>
+                          <Button
+                            icon={<TmdbIcon />}
+                            disabled={!hasTmdbIdValue || !editorRouteKey}
+                            onClick={() => openTmdbPicker('poster')}
+                          >
+                            Выбрать из TMDB
                           </Button>
                           <Button
                             icon={<CloudDownloadOutlined />}
@@ -1813,6 +2171,156 @@ export default function SeriesPage() {
                         ) : (
                           <Typography.Text type="secondary">
                             Постер ещё не задан. Вставьте https://… и нажмите «Скачать по URL».
+                          </Typography.Text>
+                        )}
+                      </Space>
+                    </Space>
+
+                    <Typography.Title level={5}>Галерея</Typography.Title>
+                    <Form.Item name="gallery_urls" hidden>
+                      <Select mode="tags" open={false} />
+                    </Form.Item>
+                    <Space wrap size={8} style={{ marginBottom: 8 }}>
+                      <Upload beforeUpload={uploadGallery} showUploadList={false} accept="image/*">
+                        <Button icon={<UploadOutlined />}>Загрузить с компьютера</Button>
+                      </Upload>
+                      <Button icon={<PictureOutlined />} onClick={() => openMediaPicker('gallery')}>
+                        Выбрать из медиатеки
+                      </Button>
+                      <Button
+                        icon={<TmdbIcon />}
+                        disabled={!hasTmdbIdValue || !editorRouteKey}
+                        onClick={() => openTmdbPicker('gallery')}
+                      >
+                        Выбрать из TMDB
+                      </Button>
+                    </Space>
+                    <Space.Compact style={{ width: '100%', maxWidth: 640, marginBottom: 12, display: 'flex' }}>
+                      <Input
+                        value={galleryRemoteUrl}
+                        onChange={(e) => setGalleryRemoteUrl(e.target.value)}
+                        placeholder="https://… — добавить в галерею по URL"
+                      />
+                      <Button
+                        icon={<CloudDownloadOutlined />}
+                        loading={uploadingGalleryFromUrl}
+                        disabled={!/^https?:\/\//i.test(galleryRemoteUrl.trim())}
+                        onClick={() => void uploadGalleryFromUrl()}
+                      >
+                        Скачать
+                      </Button>
+                    </Space.Compact>
+                    {galleryUrls.length > 0 ? (
+                      <div className="series-media-gallery">
+                        {galleryUrls.map((url, index) => (
+                          <div key={`${url}-${index}`} className="series-media-gallery__item">
+                            <img
+                              src={resolveMediaUrl(url, galleryCacheBust)}
+                              alt={`Галерея ${index + 1}`}
+                            />
+                            <Button
+                              className="series-media-gallery__remove"
+                              size="small"
+                              danger
+                              icon={<DeleteOutlined />}
+                              onClick={() => void removeGalleryItem(index)}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ marginBottom: 8 }}>
+                        <Typography.Text type="secondary">
+                          Галерея пуста. Добавьте изображения вручную или через TMDB.
+                        </Typography.Text>
+                      </div>
+                    )}
+
+                    <Typography.Title level={5} style={{ marginTop: 24 }}>Бренд (фон)</Typography.Title>
+                    <Form.Item
+                      label="URL бренда"
+                      name="brand_url"
+                      extra="Широкое изображение для фона страницы контента"
+                    >
+                      <Input placeholder="/storage/posters/... или https://..." />
+                    </Form.Item>
+                    <Space align="start" size={16} wrap style={{ marginBottom: 8 }}>
+                      {brandUrl ? (
+                        <img
+                          key={brandCacheBust ?? brandUrl}
+                          src={resolveMediaUrl(brandUrl, brandCacheBust)}
+                          alt="Превью бренда"
+                          style={{
+                            width: 240,
+                            height: 135,
+                            objectFit: 'cover',
+                            borderRadius: 6,
+                            display: 'block',
+                            background: '#f5f5f5',
+                          }}
+                          onLoad={(e) => {
+                            const img = e.currentTarget
+                            if (!img.naturalWidth || !img.naturalHeight) return
+                            setBrandMeta((prev) => ({
+                              ...(prev ?? {}),
+                              width: img.naturalWidth,
+                              height: img.naturalHeight,
+                            }))
+                          }}
+                        />
+                      ) : null}
+                      <Space direction="vertical" size={8}>
+                        <Space wrap size={8}>
+                          <Upload beforeUpload={beginBrandFileEdit} showUploadList={false} accept="image/*">
+                            <Button icon={<UploadOutlined />}>Загрузить с компьютера</Button>
+                          </Upload>
+                          <Button icon={<PictureOutlined />} onClick={() => openMediaPicker('brand')}>
+                            Выбрать из медиатеки
+                          </Button>
+                          <Button
+                            icon={<TmdbIcon />}
+                            disabled={!hasTmdbIdValue || !editorRouteKey}
+                            onClick={() => openTmdbPicker('brand')}
+                          >
+                            Выбрать из TMDB
+                          </Button>
+                          <Button
+                            icon={<ScissorOutlined />}
+                            disabled={!brandUrl}
+                            onClick={() => beginBrandUrlEdit(String(brandUrl), 'brand-edit.jpg')}
+                          >
+                            Подогнать кадр
+                          </Button>
+                          <Button
+                            icon={<CloudDownloadOutlined />}
+                            loading={uploadingBrandFromUrl}
+                            disabled={!brandUrlIsRemote}
+                            onClick={uploadBrandFromUrl}
+                          >
+                            Скачать по URL
+                          </Button>
+                          <Button
+                            danger
+                            icon={<DeleteOutlined />}
+                            disabled={!brandUrl || !editorRouteKey}
+                            onClick={() => void clearBrand()}
+                          >
+                            Удалить
+                          </Button>
+                        </Space>
+                        {brandUrl ? (
+                          brandMetaLoading && !formatPosterMeta(brandMeta).length ? (
+                            <Typography.Text type="secondary">Загрузка сведений о файле…</Typography.Text>
+                          ) : formatPosterMeta(brandMeta).length ? (
+                            <Typography.Text type="secondary">
+                              {formatPosterMeta(brandMeta).join(' · ')}
+                            </Typography.Text>
+                          ) : (
+                            <Typography.Text type="secondary">Сведения о файле недоступны</Typography.Text>
+                          )
+                        ) : (
+                          <Typography.Text type="secondary">
+                            Бренд ещё не задан. Выберите фон из TMDB или загрузите вручную.
                           </Typography.Text>
                         )}
                       </Space>
@@ -1903,10 +2411,52 @@ export default function SeriesPage() {
         onClose={() => setMediaPickerOpen(false)}
         typeFilter="poster"
         onSelect={(url) => {
-          form.setFieldValue('poster_url', url)
-          setPosterCacheBust(Date.now())
-          setPosterMeta(null)
-          message.success('Постер выбран из медиатеки')
+          if (mediaPickerTarget === 'poster') {
+            form.setFieldValue('poster_url', url)
+            setPosterCacheBust(Date.now())
+            setPosterMeta(null)
+            message.success('Постер выбран из медиатеки')
+            return
+          }
+          void (async () => {
+            const routeKey = seriesRouteKey(editing, form.getFieldsValue(true) as Record<string, unknown>)
+            if (!routeKey) {
+              message.warning('Укажите KP ID или TMDB ID')
+              return
+            }
+            try {
+              if (mediaPickerTarget === 'brand') {
+                beginBrandUrlEdit(url, 'brand-media.jpg')
+                return
+              }
+              const res = await api<{ gallery_urls: string[] }>(`/api/admin/series/${routeKey}/gallery`, {
+                method: 'POST',
+                body: JSON.stringify({ url }),
+              })
+              applyGalleryUrls(res.gallery_urls ?? [])
+              message.success('Изображение добавлено в галерею и оптимизировано')
+              await loadSeries()
+            } catch (e) {
+              message.error(String((e as Error).message))
+            }
+          })()
+        }}
+      />
+      <TmdbImagePickerModal
+        open={tmdbPickerOpen}
+        kpId={editorRouteKey}
+        target={tmdbPickerTarget}
+        onClose={() => setTmdbPickerOpen(false)}
+        onConfirm={confirmTmdbImages}
+      />
+      <BrandImageEditorModal
+        open={Boolean(brandEditor)}
+        imageSrc={brandEditor?.src ?? null}
+        fileName={brandEditor?.fileName}
+        onCancel={closeBrandEditor}
+        onConfirm={async ({ file }) => {
+          await uploadBrand(file)
+          closeBrandEditor()
         }}
       />
     </div>

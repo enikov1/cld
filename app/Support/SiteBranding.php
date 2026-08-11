@@ -46,6 +46,23 @@ class SiteBranding
         return self::normalizeColor($raw) ?? '#111';
     }
 
+    /**
+     * @return array{0: int, 1: int, 2: int}
+     */
+    public static function backgroundColorRgb(): array
+    {
+        $hex = ltrim(self::backgroundColor(), '#');
+        if (strlen($hex) === 3) {
+            $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+        }
+
+        return [
+            hexdec(substr($hex, 0, 2)),
+            hexdec(substr($hex, 2, 2)),
+            hexdec(substr($hex, 4, 2)),
+        ];
+    }
+
     public static function hideBackgroundOnMobile(): bool
     {
         return SiteSetting::get('site_background_hide_mobile', '0') === '1';
@@ -64,15 +81,22 @@ class SiteBranding
     /**
      * @return array<string, string>
      */
-    public static function siteVars(): array
+    public static function siteVars(?string $backgroundOverride = null): array
     {
         $logo = self::logoUrl();
-        $background = self::backgroundUrl();
         $favicon = self::faviconUrl();
+
+        $override = $backgroundOverride !== null ? trim($backgroundOverride) : '';
+        $background = $override !== '' ? $override : self::backgroundUrl();
+        $isSeriesBrand = $override !== '';
+        [$r, $g, $b] = self::backgroundColorRgb();
 
         $bodyClasses = [];
         if ($background) {
             $bodyClasses[] = 'has-site-bg';
+            if ($isSeriesBrand) {
+                $bodyClasses[] = 'has-series-brand-bg';
+            }
             if (self::hideBackgroundOnMobile()) {
                 $bodyClasses[] = 'site-bg-hide-mobile';
             }
@@ -86,8 +110,10 @@ class SiteBranding
             'has_favicon' => $favicon ? '1' : '',
             'background_header_offset' => (string)self::headerOffset(),
             'background_color' => self::backgroundColor(),
+            'background_color_rgb' => $r . ', ' . $g . ', ' . $b,
             'background_hide_mobile' => self::hideBackgroundOnMobile() ? '1' : '',
             'body_class' => implode(' ', $bodyClasses),
+            'is_series_brand_bg' => $isSeriesBrand ? '1' : '',
         ];
     }
 }

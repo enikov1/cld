@@ -18,6 +18,7 @@ use App\Http\Controllers\RobotsController;
 use App\Http\Controllers\SeriesAnticipationController;
 use App\Http\Controllers\SeriesController;
 use App\Http\Controllers\SeriesEngagementController;
+use App\Http\Controllers\SeriesGalleryController;
 use App\Http\Controllers\SeriesPreviewController;
 use App\Http\Controllers\SeriesReactionController;
 use App\Http\Controllers\SearchController;
@@ -135,6 +136,7 @@ Route::get('/theme-assets/{theme}/{path}', [ThemeAssetController::class, 'show']
 
 Route::prefix('api/series/{seriesId}')->where(['seriesId' => '[0-9]+'])->group(function () {
     Route::get('/preview', [SeriesPreviewController::class, 'show']);
+    Route::get('/gallery', [SeriesGalleryController::class, 'show']);
     Route::get('/engagement', [SeriesEngagementController::class, 'engagement']);
     Route::get('/comments', [SeriesEngagementController::class, 'comments'])->middleware('site.feature:comments_enabled');
     Route::post('/comments', [SeriesEngagementController::class, 'storeComment'])->middleware('site.feature:comments_enabled');

@@ -54,6 +54,8 @@ export type SeriesItem = {
   short_description?: string | null
   slogan?: string | null
   poster_url?: string | null
+  gallery_urls?: string[] | null
+  brand_url?: string | null
   player_url?: string | null
   year?: number | null
   start_year?: number | null

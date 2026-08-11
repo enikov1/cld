@@ -52,7 +52,16 @@ class BrandingStorage
         $ext = $this->validateExtension($file, self::BACKGROUND_EXTENSIONS);
         $this->validateSize($file);
 
-        return $this->store($file, 'background', $ext, 'site_background_url', optimize: true, maxWidth: 1600, maxHeight: 0);
+        return $this->store(
+            $file,
+            'background',
+            $ext,
+            'site_background_url',
+            optimize: true,
+            maxWidth: 1600,
+            maxHeight: 0,
+            edgeFade: true,
+        );
     }
 
     public function deleteLogo(): void
@@ -100,12 +109,17 @@ class BrandingStorage
         bool $optimize = false,
         ?int $maxWidth = null,
         ?int $maxHeight = null,
+        bool $edgeFade = false,
     ): string {
         $this->deleteExistingFiles($basename);
 
         $binary = (string) file_get_contents($file->getRealPath());
         if ($optimize) {
-            $processed = $this->optimizer->process($binary, $ext, $maxWidth, $maxHeight);
+            $options = [];
+            if ($edgeFade) {
+                $options['edge_fade_rgb'] = \App\Support\SiteBranding::backgroundColorRgb();
+            }
+            $processed = $this->optimizer->process($binary, $ext, $maxWidth, $maxHeight, $options);
             if ($processed !== null) {
                 $binary = $processed['body'];
                 $ext = $processed['ext'] === 'jpeg' ? 'jpg' : $processed['ext'];

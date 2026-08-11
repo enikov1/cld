@@ -30,6 +30,8 @@ class Series extends Model
         'short_description',
         'slogan',
         'poster_url',
+        'gallery_urls',
+        'brand_url',
         'player_url',
         'premiere_date',
         'translation',
@@ -93,6 +95,7 @@ class Series extends Model
         'anticipation_no_count' => 'integer',
         'studio_id' => 'integer',
         'premiere_date' => 'date',
+        'gallery_urls' => 'array',
     ];
 
     protected static function booted(): void

@@ -65,6 +65,30 @@ class TmdbClient
     /**
      * @return array<string,mixed>
      */
+    public function getMovieImages(int|string $tmdbId): array
+    {
+        return $this->getJson('/movie/' . rawurlencode((string)$tmdbId) . '/images', [
+            'include_image_language' => 'ru,en,null',
+            // Images endpoint ignores language filter for listing when include_image_language is set;
+            // omit default language so we get the full filtered set.
+            'language' => '',
+        ]);
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    public function getTvImages(int|string $tmdbId): array
+    {
+        return $this->getJson('/tv/' . rawurlencode((string)$tmdbId) . '/images', [
+            'include_image_language' => 'ru,en,null',
+            'language' => '',
+        ]);
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
     public function searchMulti(string $query, int $page = 1): array
     {
         return $this->getJson('/search/multi', [
@@ -110,12 +134,20 @@ class TmdbClient
             return [];
         }
 
+        $query = array_merge([
+            'api_key' => $this->apiKey,
+            'language' => $this->language,
+        ], $query);
+
+        // Allow callers to omit language (e.g. /images with include_image_language).
+        $query = array_filter(
+            $query,
+            static fn ($value) => $value !== null && $value !== '',
+        );
+
         $response = Http::timeout($this->timeout)
             ->acceptJson()
-            ->get($this->baseUrl . $path, array_merge([
-                'api_key' => $this->apiKey,
-                'language' => $this->language,
-            ], $query));
+            ->get($this->baseUrl . $path, $query);
 
         if (!$response->ok()) {
             return [];

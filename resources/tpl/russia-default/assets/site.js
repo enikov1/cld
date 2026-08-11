@@ -4499,7 +4499,220 @@
         initCatalogFilters();
         initSeriesPreview();
         initPersonPhotoHints();
+        initSeriesGallery();
     });
+
+    function initSeriesGallery() {
+        var triggers = document.querySelectorAll('[data-series-gallery]');
+        if (!triggers.length) return;
+
+        var cache = {};
+        var state = {
+            items: [],
+            index: 0,
+            seriesId: null,
+            title: '',
+        };
+        var root = null;
+        var imgEl = null;
+        var titleEl = null;
+        var counterEl = null;
+        var statusEl = null;
+        var thumbsEl = null;
+        var prevBtn = null;
+        var nextBtn = null;
+        var loading = false;
+
+        function ensureModal() {
+            if (root) return root;
+            root = document.createElement('div');
+            root.className = 'ls-gallery';
+            root.hidden = true;
+            root.setAttribute('role', 'dialog');
+            root.setAttribute('aria-modal', 'true');
+            root.innerHTML =
+                '<div class="ls-gallery__backdrop" data-gallery-close></div>' +
+                '<div class="ls-gallery__dialog">' +
+                '  <div class="ls-gallery__head">' +
+                '    <h2 class="ls-gallery__title" data-gallery-title></h2>' +
+                '    <span class="ls-gallery__counter" data-gallery-counter></span>' +
+                '    <button type="button" class="ls-gallery__close dontusebuttonclass" data-gallery-close aria-label="Закрыть">&times;</button>' +
+                '  </div>' +
+                '  <div class="ls-gallery__stage">' +
+                '    <button type="button" class="ls-gallery__nav ls-gallery__nav--prev dontusebuttonclass" data-gallery-prev aria-label="Назад" hidden>&lsaquo;</button>' +
+                '    <img class="ls-gallery__img" data-gallery-img alt="" hidden>' +
+                '    <div class="ls-gallery__status" data-gallery-status>Загрузка…</div>' +
+                '    <button type="button" class="ls-gallery__nav ls-gallery__nav--next dontusebuttonclass" data-gallery-next aria-label="Вперёд" hidden>&rsaquo;</button>' +
+                '  </div>' +
+                '  <div class="ls-gallery__thumbs" data-gallery-thumbs></div>' +
+                '</div>';
+            document.body.appendChild(root);
+            imgEl = root.querySelector('[data-gallery-img]');
+            titleEl = root.querySelector('[data-gallery-title]');
+            counterEl = root.querySelector('[data-gallery-counter]');
+            statusEl = root.querySelector('[data-gallery-status]');
+            thumbsEl = root.querySelector('[data-gallery-thumbs]');
+            prevBtn = root.querySelector('[data-gallery-prev]');
+            nextBtn = root.querySelector('[data-gallery-next]');
+
+            root.addEventListener('click', function (e) {
+                var t = e.target;
+                if (t.closest('[data-gallery-close]')) {
+                    close();
+                    return;
+                }
+                if (t.closest('[data-gallery-prev]')) {
+                    showIndex(state.index - 1);
+                    return;
+                }
+                if (t.closest('[data-gallery-next]')) {
+                    showIndex(state.index + 1);
+                    return;
+                }
+                var thumb = t.closest('[data-gallery-thumb]');
+                if (thumb) {
+                    var idx = parseInt(thumb.getAttribute('data-gallery-thumb'), 10);
+                    if (!isNaN(idx)) showIndex(idx);
+                }
+            });
+
+            document.addEventListener('keydown', function (e) {
+                if (root.hidden) return;
+                if (e.key === 'Escape') close();
+                if (e.key === 'ArrowLeft') showIndex(state.index - 1);
+                if (e.key === 'ArrowRight') showIndex(state.index + 1);
+            });
+
+            return root;
+        }
+
+        function setStatus(text) {
+            if (!statusEl) return;
+            if (text) {
+                statusEl.textContent = text;
+                statusEl.hidden = false;
+            } else {
+                statusEl.hidden = true;
+            }
+        }
+
+        function showIndex(index) {
+            if (!state.items.length) return;
+            var len = state.items.length;
+            state.index = ((index % len) + len) % len;
+            var item = state.items[state.index];
+            if (imgEl) {
+                imgEl.hidden = false;
+                imgEl.src = item.url;
+                imgEl.alt = state.title || 'Галерея';
+            }
+            if (counterEl) {
+                counterEl.textContent = (state.index + 1) + ' / ' + len;
+            }
+            if (prevBtn) prevBtn.hidden = len < 2;
+            if (nextBtn) nextBtn.hidden = len < 2;
+            if (thumbsEl) {
+                var thumbs = thumbsEl.querySelectorAll('[data-gallery-thumb]');
+                for (var i = 0; i < thumbs.length; i++) {
+                    thumbs[i].classList.toggle('is-active', i === state.index);
+                }
+            }
+            setStatus('');
+        }
+
+        function renderThumbs() {
+            if (!thumbsEl) return;
+            thumbsEl.innerHTML = '';
+            state.items.forEach(function (item, i) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'ls-gallery__thumb dontusebuttonclass' + (i === 0 ? ' is-active' : '');
+                btn.setAttribute('data-gallery-thumb', String(i));
+                btn.setAttribute('aria-label', 'Фото ' + (i + 1));
+                var img = document.createElement('img');
+                img.src = item.url;
+                img.alt = '';
+                img.loading = 'lazy';
+                btn.appendChild(img);
+                thumbsEl.appendChild(btn);
+            });
+        }
+
+        function applyPayload(data) {
+            var items = Array.isArray(data.items) ? data.items.filter(function (it) {
+                return it && it.url;
+            }) : [];
+            state.title = data.title || 'Галерея';
+            state.items = items;
+            if (titleEl) titleEl.textContent = state.title;
+            if (!items.length) {
+                setStatus('Галерея пуста');
+                return;
+            }
+            renderThumbs();
+            showIndex(0);
+        }
+
+        function open(seriesId) {
+            ensureModal();
+            root.hidden = false;
+            document.body.style.overflow = 'hidden';
+            state.seriesId = seriesId;
+            state.items = [];
+            state.index = 0;
+            if (imgEl) {
+                imgEl.hidden = true;
+                imgEl.removeAttribute('src');
+            }
+            if (thumbsEl) thumbsEl.innerHTML = '';
+            if (counterEl) counterEl.textContent = '';
+            if (prevBtn) prevBtn.hidden = true;
+            if (nextBtn) nextBtn.hidden = true;
+            if (titleEl) titleEl.textContent = 'Галерея';
+            setStatus('Загрузка…');
+
+            if (cache[seriesId]) {
+                applyPayload(cache[seriesId]);
+                return;
+            }
+            if (loading) return;
+            loading = true;
+            fetchJson(seriesApiPath(seriesId) + '/gallery')
+                .then(function (data) {
+                    loading = false;
+                    if (!data || !data.ok) {
+                        setStatus((data && data.message) || 'Не удалось загрузить галерею');
+                        return;
+                    }
+                    cache[seriesId] = data;
+                    if (String(state.seriesId) !== String(seriesId) || root.hidden) return;
+                    applyPayload(data);
+                })
+                .catch(function () {
+                    loading = false;
+                    setStatus('Не удалось загрузить галерею');
+                });
+        }
+
+        function close() {
+            if (!root || root.hidden) return;
+            root.hidden = true;
+            document.body.style.overflow = '';
+            if (imgEl) {
+                imgEl.hidden = true;
+                imgEl.removeAttribute('src');
+            }
+        }
+
+        Array.prototype.forEach.call(triggers, function (btn) {
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var id = btn.getAttribute('data-series-id');
+                if (id) open(id);
+            });
+        });
+    }
 
     function initHeaderFavouritesCount() {
         ensureCsrfToken().then(function () {

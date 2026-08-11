@@ -243,6 +243,12 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
     Route::post('/series/{kp_id}/import-alloha', [AdminSeriesController::class, 'importFromAllohaByKey']);
     Route::post('/series/{kp_id}/poster', [AdminSeriesController::class, 'uploadPoster']);
     Route::get('/series/{kp_id}/poster-meta', [AdminSeriesController::class, 'posterMeta']);
+    Route::get('/series/{kp_id}/tmdb-images', [AdminSeriesController::class, 'tmdbImages']);
+    Route::post('/series/{kp_id}/brand', [AdminSeriesController::class, 'uploadBrand']);
+    Route::delete('/series/{kp_id}/brand', [AdminSeriesController::class, 'destroyBrand']);
+    Route::get('/series/{kp_id}/brand-meta', [AdminSeriesController::class, 'brandMeta']);
+    Route::post('/series/{kp_id}/gallery', [AdminSeriesController::class, 'uploadGallery']);
+    Route::delete('/series/{kp_id}/gallery', [AdminSeriesController::class, 'destroyGalleryItem']);
 
     Route::get('/media', [AdminMediaController::class, 'index']);
     Route::post('/media/upload', [AdminMediaController::class, 'upload']);

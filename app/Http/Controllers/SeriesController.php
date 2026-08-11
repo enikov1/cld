@@ -103,6 +103,12 @@ class SeriesController extends TplController
         $displayActors = $series->actors->take(self::PEOPLE_DISPLAY_LIMIT);
         $displayDirectors = $series->directors->take(self::PEOPLE_DISPLAY_LIMIT);
 
+        $galleryUrls = collect(is_array($series->gallery_urls) ? $series->gallery_urls : [])
+            ->map(static fn ($url) => trim((string)$url))
+            ->filter()
+            ->values()
+            ->all();
+
         $seriesData = [
             'id' => $series->id,
             'kp_id' => $series->kp_id,
@@ -119,6 +125,10 @@ class SeriesController extends TplController
             'short_description' => $series->short_description,
             'slogan' => $series->slogan,
             'poster_url' => $series->poster_url,
+            'brand_url' => $series->brand_url,
+            'gallery_urls' => $galleryUrls,
+            'gallery' => array_map(static fn (string $url) => ['url' => $url], $galleryUrls),
+            'has_gallery' => $galleryUrls !== [],
             'kp_rating' => $series->kp_rating,
             'imdb_rating' => $series->imdb_rating,
             'imdb_id' => $series->imdb_id,
@@ -327,6 +337,11 @@ class SeriesController extends TplController
         }
 
         $vars['_cache_series_id'] = $series->id;
+
+        $brandUrl = trim((string)($series->brand_url ?? ''));
+        if ($brandUrl !== '') {
+            $vars['_site_background_override'] = $brandUrl;
+        }
 
         return $this->renderTplPage('series/show.tpl', $vars, $meta);
     }

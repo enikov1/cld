@@ -1702,6 +1702,180 @@ html[data-admin-theme='dark'] .series-list-poster {
   }
 }
 
+.tmdb-image-picker {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+  gap: 16px;
+  min-height: 420px;
+  align-items: stretch;
+}
+
+.tmdb-image-picker__list {
+  min-width: 0;
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  overflow: auto;
+  max-height: 520px;
+  background: #fafafa;
+  padding: 10px;
+}
+
+.tmdb-image-picker__grid {
+  display: grid;
+  gap: 10px;
+}
+
+.tmdb-image-picker__grid.is-poster {
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+}
+
+.tmdb-image-picker__grid.is-wide {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+
+.tmdb-image-picker__item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tmdb-image-picker__item:hover {
+  border-color: #91caff;
+}
+
+.tmdb-image-picker__item.is-active {
+  border-color: #1677ff;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.2);
+}
+
+.tmdb-image-picker__item:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.tmdb-image-picker__thumb {
+  display: block;
+  width: 100%;
+  background: #e8e8e8;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+}
+
+.tmdb-image-picker__grid.is-poster .tmdb-image-picker__thumb {
+  aspect-ratio: 2 / 3;
+}
+
+.tmdb-image-picker__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.tmdb-image-picker__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
+  padding: 0 6px 6px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.tmdb-image-picker__size,
+.tmdb-image-picker__score {
+  white-space: nowrap;
+}
+
+.tmdb-image-picker__preview {
+  min-width: 0;
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  padding: 12px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tmdb-image-picker__preview-title {
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.tmdb-image-picker__preview-frame {
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #111;
+}
+
+.tmdb-image-picker__preview-frame.is-wide {
+  aspect-ratio: 16 / 9;
+}
+
+.tmdb-image-picker__preview-frame.is-poster {
+  aspect-ratio: 2 / 3;
+  max-width: 260px;
+  margin-inline: auto;
+}
+
+.tmdb-image-picker__preview-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.series-media-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.series-media-gallery__item {
+  position: relative;
+  width: 120px;
+  height: 68px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f5f5f5;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.series-media-gallery__item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.series-media-gallery__remove {
+  position: absolute !important;
+  top: 4px;
+  right: 4px;
+}
+
+@media (max-width: 900px) {
+  .tmdb-image-picker {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .tmdb-image-picker__list {
+    max-height: 320px;
+  }
+}
+
 .media-library__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -2095,4 +2269,40 @@ html[data-admin-theme='dark'] .tpl-guide-tag__desc {
   .tpl-guide__content {
     max-height: none;
   }
+}
+
+/* Brand / background image crop editor */
+.brand-image-editor__presets {
+  margin-bottom: 12px;
+  overflow-x: auto;
+}
+
+.brand-image-editor__stage {
+  position: relative;
+  width: 100%;
+  height: min(52vh, 420px);
+  min-height: 280px;
+  background: #111;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.brand-image-editor__status {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: #111;
+}
+
+.brand-image-editor__control {
+  margin-bottom: 8px;
+}
+
+.brand-image-editor__control .ant-slider {
+  margin: 4px 0 0;
 }

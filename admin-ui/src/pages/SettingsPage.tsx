@@ -40,10 +40,12 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api, apiUpload } from '../api/client'
+import BrandImageEditorModal from '../components/BrandImageEditorModal'
 import SiteConfigFields from '../components/SiteConfigFields'
 import { useBusyFavicon, useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
 import type { SettingItem, ThemeItem } from '../types'
 import type { SiteConfigSchema } from '../types/siteConfig'
+import { resolveCropperImageUrl } from '../utils/mediaUrl'
 
 type SettingsSection =
   | 'branding'
@@ -126,6 +128,11 @@ export default function SettingsPage() {
   const [configSeoFields, setConfigSeoFields] = useState<SiteConfigSchema>({})
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [bgEditor, setBgEditor] = useState<{
+    src: string
+    fileName: string
+    revokeUrl?: string
+  } | null>(null)
   const savingRef = useRef(false)
   const [section, setSection] = useState<SettingsSection>(sectionFromHash)
   const [tabPosition, setTabPosition] = useState<'left' | 'top'>('left')
@@ -571,34 +578,45 @@ export default function SettingsPage() {
                 alt="Фон"
                 style={{ maxHeight: 120, maxWidth: '100%', objectFit: 'cover', display: 'block', marginBottom: 8, borderRadius: 8 }}
               />
-              <Button
-                danger
-                size="small"
-                onClick={async () => {
-                  try {
-                    await api('/api/admin/branding/background', { method: 'DELETE' })
-                    message.success('Фон удалён')
-                    await load()
-                  } catch (e) {
-                    message.error(String((e as Error).message))
-                  }
-                }}
-              >
-                Удалить фон
-              </Button>
+              <Space size={8} wrap>
+                <Button
+                  size="small"
+                  onClick={() => {
+                    const src = resolveCropperImageUrl(settingsMap.site_background_url)
+                    if (!src) return
+                    setBgEditor((prev) => {
+                      if (prev?.revokeUrl) URL.revokeObjectURL(prev.revokeUrl)
+                      return { src, fileName: 'site-background.jpg' }
+                    })
+                  }}
+                >
+                  Подогнать кадр
+                </Button>
+                <Button
+                  danger
+                  size="small"
+                  onClick={async () => {
+                    try {
+                      await api('/api/admin/branding/background', { method: 'DELETE' })
+                      message.success('Фон удалён')
+                      await load()
+                    } catch (e) {
+                      message.error(String((e as Error).message))
+                    }
+                  }}
+                >
+                  Удалить фон
+                </Button>
+              </Space>
             </div>
           ) : null}
           <Upload
-            beforeUpload={async (file) => {
-              const fd = new FormData()
-              fd.append('background', file)
-              try {
-                await apiUpload<{ background_url: string }>('/api/admin/branding/background', fd)
-                message.success('Фон загружен')
-                await load()
-              } catch (e) {
-                message.error(String((e as Error).message))
-              }
+            beforeUpload={(file) => {
+              const src = URL.createObjectURL(file)
+              setBgEditor((prev) => {
+                if (prev?.revokeUrl) URL.revokeObjectURL(prev.revokeUrl)
+                return { src, fileName: file.name || 'site-background.jpg', revokeUrl: src }
+              })
               return false
             }}
             showUploadList={false}
@@ -1388,6 +1406,7 @@ export default function SettingsPage() {
   ]
 
   return (
+    <>
     <Form form={form} layout="vertical" onFinish={save} className="settings-page">
       <div className="settings-page__toolbar">
         <Typography.Title level={5} style={{ margin: 0 }}>
@@ -1417,5 +1436,29 @@ export default function SettingsPage() {
         </Space>
       </div>
     </Form>
+    <BrandImageEditorModal
+      open={Boolean(bgEditor)}
+      imageSrc={bgEditor?.src ?? null}
+      fileName={bgEditor?.fileName}
+      title="Подгонка фона сайта"
+      onCancel={() => {
+        setBgEditor((prev) => {
+          if (prev?.revokeUrl) URL.revokeObjectURL(prev.revokeUrl)
+          return null
+        })
+      }}
+      onConfirm={async ({ file }) => {
+        const fd = new FormData()
+        fd.append('background', file)
+        await apiUpload<{ background_url: string }>('/api/admin/branding/background', fd)
+        message.success('Фон загружен')
+        setBgEditor((prev) => {
+          if (prev?.revokeUrl) URL.revokeObjectURL(prev.revokeUrl)
+          return null
+        })
+        await load()
+      }}
+    />
+    </>
   )
 }

@@ -17,6 +17,7 @@ use App\Services\SeriesLookupService;
 use App\Services\SeriesViewService;
 use App\Services\TaxonomyService;
 use App\Services\TmdbImportService;
+use App\Services\TmdbImageService;
 use App\Services\TmdbPopularitySyncService;
 use App\Support\AdminAudit;
 use App\Support\AdminSeriesFilter;
@@ -211,6 +212,9 @@ class AdminSeriesController extends Controller
             'short_description' => ['nullable', 'string'],
             'slogan' => ['nullable', 'string'],
             'poster_url' => ['nullable', 'string'],
+            'gallery_urls' => ['nullable', 'array'],
+            'gallery_urls.*' => ['nullable', 'string', 'max:2048'],
+            'brand_url' => ['nullable', 'string', 'max:2048'],
             'player_url' => ['nullable', 'string'],
             'year' => ['nullable', 'integer'],
             'start_year' => ['nullable', 'integer'],
@@ -440,6 +444,44 @@ class AdminSeriesController extends Controller
 
         if (array_key_exists('poster_url', $data)) {
             $attrs['poster_url'] = trim((string)$data['poster_url']) ?: null;
+        }
+
+        if (array_key_exists('brand_url', $data)) {
+            $brandUrl = trim((string)$data['brand_url']) ?: null;
+            if ($brandUrl !== null && preg_match('#^https?://#i', $brandUrl)) {
+                $storedBrand = app(PosterStorage::class)->storeOptimizedSource(
+                    $brandUrl,
+                    PosterContext::forSeriesData($kpId ?? ('tmdb-' . ($tmdbId ?? 'new')), $data, 'brand'),
+                );
+                $brandUrl = $storedBrand ?: $brandUrl;
+            }
+            $attrs['brand_url'] = $brandUrl;
+        }
+
+        if (array_key_exists('gallery_urls', $data)) {
+            $gallery = [];
+            $storage = app(PosterStorage::class);
+            foreach (($data['gallery_urls'] ?? []) as $url) {
+                $url = trim((string)$url);
+                if ($url === '') {
+                    continue;
+                }
+                if (preg_match('#^https?://#i', $url)) {
+                    $stored = $storage->storeOptimizedSource(
+                        $url,
+                        PosterContext::forSeriesData(
+                            $kpId ?? ('tmdb-' . ($tmdbId ?? 'new')),
+                            $data,
+                            'gallery-' . Str::lower(Str::random(8)),
+                        ),
+                    );
+                    if ($stored) {
+                        $url = $stored;
+                    }
+                }
+                $gallery[] = $url;
+            }
+            $attrs['gallery_urls'] = $gallery === [] ? null : array_values(array_unique($gallery));
         }
 
         if (!empty($data['download_poster']) && !empty($data['poster_url'])) {
@@ -790,6 +832,213 @@ class AdminSeriesController extends Controller
         return response()->json([
             'ok' => true,
             'meta' => app(PosterStorage::class)->inspectPublicUrl($url),
+        ]);
+    }
+
+    public function tmdbImages(Request $request, string $kp_id, TmdbImageService $images)
+    {
+        $data = $request->validate([
+            'target' => ['required', 'in:poster,gallery,brand'],
+            'source' => ['nullable', 'in:backdrops,episodes'],
+            'season' => ['nullable', 'integer', 'min:1', 'max:999'],
+        ]);
+
+        $series = AdminSeriesResolver::byKey($kp_id);
+        $source = $data['source'] ?? 'backdrops';
+        $season = isset($data['season']) ? (int)$data['season'] : null;
+        $result = $images->candidatesForSeries($series, $data['target'], $source, $season);
+
+        if (!($result['ok'] ?? false)) {
+            return response()->json([
+                'ok' => false,
+                'error' => $result['error'] ?? 'Ошибка TMDB',
+            ], 422);
+        }
+
+        return response()->json($result);
+    }
+
+    public function uploadBrand(Request $request, string $kp_id)
+    {
+        $maxKb = (int)ceil(app(ImageOptimizer::class)->maxUploadBytes() / 1024);
+
+        $request->validate([
+            'brand' => ['required_without:url', 'file', 'image', 'max:' . $maxKb],
+            'url' => ['required_without:brand', 'nullable', 'string', 'max:2048'],
+        ]);
+
+        $series = AdminSeriesResolver::byKey($kp_id);
+        $storage = app(PosterStorage::class);
+        $context = PosterContext::forSeries($series, 'brand');
+
+        if ($request->hasFile('brand')) {
+            $url = $storage->storeFromUpload($request->file('brand'), $context);
+        } else {
+            $sourceUrl = trim((string) $request->input('url', ''));
+            if ($sourceUrl === '') {
+                return response()->json(['error' => 'Укажите URL изображения'], 422);
+            }
+
+            $url = $storage->storeOptimizedSource($sourceUrl, $context);
+            if (!$url) {
+                return response()->json([
+                    'error' => 'Не удалось сохранить/оптимизировать изображение. Проверьте ссылку и размер файла.',
+                ], 422);
+            }
+        }
+
+        $series->brand_url = $url;
+        $series->save();
+        TplCache::forgetSeries($series->id);
+
+        return response()->json([
+            'ok' => true,
+            'brand_url' => $url,
+            'meta' => $storage->inspectPublicUrl($url),
+            'item' => $this->serializeSeries($series),
+        ]);
+    }
+
+    public function destroyBrand(string $kp_id)
+    {
+        $series = AdminSeriesResolver::byKey($kp_id);
+        $series->brand_url = null;
+        $series->save();
+        TplCache::forgetSeries($series->id);
+
+        return response()->json([
+            'ok' => true,
+            'brand_url' => null,
+            'item' => $this->serializeSeries($series),
+        ]);
+    }
+
+    public function brandMeta(Request $request, string $kp_id)
+    {
+        $series = AdminSeriesResolver::byKey($kp_id);
+        $url = trim((string) $request->query('url', $series->brand_url ?? ''));
+        if ($url === '') {
+            return response()->json(['ok' => true, 'meta' => null]);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'meta' => app(PosterStorage::class)->inspectPublicUrl($url),
+        ]);
+    }
+
+    public function uploadGallery(Request $request, string $kp_id)
+    {
+        $maxKb = (int)ceil(app(ImageOptimizer::class)->maxUploadBytes() / 1024);
+
+        $request->validate([
+            'image' => ['nullable', 'file', 'image', 'max:' . $maxKb],
+            'url' => ['nullable', 'string', 'max:2048'],
+            'urls' => ['nullable', 'array'],
+            'urls.*' => ['string', 'max:2048'],
+        ]);
+
+        if (!$request->hasFile('image')
+            && trim((string)$request->input('url', '')) === ''
+            && empty($request->input('urls'))
+        ) {
+            return response()->json(['error' => 'Укажите файл, url или urls'], 422);
+        }
+
+        $series = AdminSeriesResolver::byKey($kp_id);
+        $storage = app(PosterStorage::class);
+        $gallery = array_values(array_filter(
+            array_map('strval', is_array($series->gallery_urls) ? $series->gallery_urls : []),
+            static fn (string $u) => trim($u) !== '',
+        ));
+
+        $added = [];
+
+        $batchUrls = [];
+        if ($request->hasFile('image')) {
+            $context = PosterContext::forSeries($series, 'gallery-' . Str::lower(Str::random(8)));
+            $stored = $storage->storeFromUpload($request->file('image'), $context);
+            $added[] = $stored;
+        } else {
+            $single = trim((string) $request->input('url', ''));
+            if ($single !== '') {
+                $batchUrls[] = $single;
+            }
+            foreach ((array) $request->input('urls', []) as $u) {
+                $u = trim((string)$u);
+                if ($u !== '') {
+                    $batchUrls[] = $u;
+                }
+            }
+        }
+
+        foreach (array_values(array_unique($batchUrls)) as $sourceUrl) {
+            $context = PosterContext::forSeries($series, 'gallery-' . Str::lower(Str::random(8)));
+            $stored = $storage->storeOptimizedSource($sourceUrl, $context);
+            if ($stored) {
+                $added[] = $stored;
+            }
+        }
+
+        if ($added === []) {
+            return response()->json([
+                'error' => 'Не удалось скачать/оптимизировать изображения. Часто причина — слишком большой файл TMDB; попробуйте другое изображение или загрузите с компьютера.',
+            ], 422);
+        }
+
+        foreach ($added as $url) {
+            if (!in_array($url, $gallery, true)) {
+                $gallery[] = $url;
+            }
+        }
+
+        $series->gallery_urls = $gallery;
+        $series->save();
+        TplCache::forgetSeries($series->id);
+
+        return response()->json([
+            'ok' => true,
+            'gallery_urls' => $gallery,
+            'added' => $added,
+            'item' => $this->serializeSeries($series),
+        ]);
+    }
+
+    public function destroyGalleryItem(Request $request, string $kp_id)
+    {
+        $data = $request->validate([
+            'url' => ['nullable', 'string', 'max:2048'],
+            'index' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $series = AdminSeriesResolver::byKey($kp_id);
+        $gallery = array_values(array_filter(
+            array_map('strval', is_array($series->gallery_urls) ? $series->gallery_urls : []),
+            static fn (string $u) => trim($u) !== '',
+        ));
+
+        if (array_key_exists('index', $data) && $data['index'] !== null) {
+            $index = (int)$data['index'];
+            if (!array_key_exists($index, $gallery)) {
+                return response()->json(['error' => 'Элемент галереи не найден'], 404);
+            }
+            array_splice($gallery, $index, 1);
+        } else {
+            $url = trim((string)($data['url'] ?? ''));
+            if ($url === '') {
+                return response()->json(['error' => 'Укажите url или index'], 422);
+            }
+            $gallery = array_values(array_filter($gallery, static fn (string $u) => $u !== $url));
+        }
+
+        $series->gallery_urls = $gallery === [] ? null : $gallery;
+        $series->save();
+        TplCache::forgetSeries($series->id);
+
+        return response()->json([
+            'ok' => true,
+            'gallery_urls' => $gallery,
+            'item' => $this->serializeSeries($series),
         ]);
     }
 

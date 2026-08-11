@@ -26,33 +26,34 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Oswald:wght@600;700;800&display=swap" rel="stylesheet"> [theme.stylesheets] [loop theme.stylesheets]
-    <link rel="stylesheet" href="{item|raw}"> [/loop] [/theme.stylesheets] [site.has_background]
+    <link rel="stylesheet" href="{item|raw}"> [/loop] [/theme.stylesheets]
+    [site.has_background]
     <style id="site-branding">
-         :root {
+        :root {
             --site-bg-header-offset: {site.background_header_offset}px;
             --site-bg-color: {site.background_color};
         }
-        
+
         body.has-site-bg {
             background-color: var(--site-bg-color);
             background-image: url('{site.background|raw}');
             background-position: center top;
             background-repeat: no-repeat;
         }
-        
+
         body.has-site-bg.dt {
             background-color: var(--site-bg-color);
         }
-        
+
         body.has-site-bg .wrap-main {
             margin-top: var(--site-bg-header-offset);
         }
-        
+
         @media (max-width: 768px) {
             body.has-site-bg.site-bg-hide-mobile {
                 background-image: none;
             }
-            
+
             body.has-site-bg.site-bg-hide-mobile .wrap-main {
                 margin-top: 0;
             }

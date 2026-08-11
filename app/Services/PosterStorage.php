@@ -9,6 +9,9 @@ use Illuminate\Support\Str;
 
 class PosterStorage
 {
+    /** Wider assets (brand background / gallery) — keep more detail than posters. */
+    private const WIDE_MAX_WIDTH = 1920;
+
     public function __construct(
         private readonly PosterKeyBuilder $keyBuilder,
         private readonly ImageOptimizer $optimizer,
@@ -78,7 +81,8 @@ class PosterStorage
         }
 
         $binary = (string)file_get_contents($file->getRealPath());
-        return $this->storeBinary($binary, $ext, $context);
+
+        return $this->storeBinary($binary, $ext, $context, true);
     }
 
     public function storeFromUrl(?string $url, PosterContext $context, bool $optimize = true): ?string
@@ -88,8 +92,34 @@ class PosterStorage
             return null;
         }
 
+        $candidates = [$url];
+        // If a TMDB /original URL is too heavy, fall back to a resized CDN variant.
+        if (preg_match('#^(https?://image\.tmdb\.org/t/p)/original(/.*)$#i', $url, $m)) {
+            $candidates[] = $m[1] . '/w1280' . $m[2];
+            $candidates[] = $m[1] . '/w780' . $m[2];
+        } elseif (preg_match('#^(https?://image\.tmdb\.org/t/p)/w\d+(/.*)$#i', $url, $m)) {
+            $candidates[] = $m[1] . '/w780' . $m[2];
+            $candidates[] = $m[1] . '/w500' . $m[2];
+        }
+
+        foreach (array_values(array_unique($candidates)) as $candidate) {
+            $stored = $this->downloadAndStore($candidate, $context, $optimize);
+            if ($stored !== null) {
+                return $stored;
+            }
+        }
+
+        return null;
+    }
+
+    private function downloadAndStore(string $url, PosterContext $context, bool $optimize): ?string
+    {
+        if (!$this->isSafeRemoteUrl($url)) {
+            return null;
+        }
+
         try {
-            $response = Http::timeout(30)
+            $response = Http::timeout(45)
                 ->withHeaders([
                     'User-Agent' => 'LordSerialBot/1.0',
                     'Accept' => 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
@@ -111,10 +141,62 @@ class PosterStorage
                 return $this->storeBinaryRaw($body, $ext === 'svg' ? 'svg' : ($ext === 'jpeg' ? 'jpg' : $ext), $context);
             }
 
-            return $this->storeBinary($body, $ext, $context);
+            return $this->storeBinary($body, $ext, $context, true);
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    /**
+     * Store from remote https URL or local /storage/... path. Always optimizes raster images.
+     */
+    public function storeOptimizedSource(string $source, PosterContext $context): ?string
+    {
+        $source = trim($source);
+        if ($source === '') {
+            return null;
+        }
+
+        if (preg_match('#^https?://#i', $source)) {
+            return $this->storeFromUrl($source, $context, true);
+        }
+
+        if (!str_starts_with($source, '/storage/')) {
+            return null;
+        }
+
+        $path = ltrim(substr($source, strlen('/storage/')), '/');
+        if ($path === '' || str_contains($path, '..')) {
+            return null;
+        }
+
+        $disk = Storage::disk('public');
+        if (!$disk->exists($path)) {
+            return null;
+        }
+
+        try {
+            $binary = $disk->get($path);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if ($binary === '' || strlen($binary) > $this->optimizer->maxUploadBytes()) {
+            return null;
+        }
+
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION) ?: 'jpg');
+        if ($ext === 'jpeg') {
+            $ext = 'jpg';
+        }
+        if ($ext === 'svg') {
+            return $this->storeBinaryRaw($binary, 'svg', $context);
+        }
+        if (!in_array($ext, ['jpg', 'png', 'webp', 'gif'], true)) {
+            $ext = 'jpg';
+        }
+
+        return $this->storeBinary($binary, $ext, $context, true);
     }
 
     private function isSafeRemoteUrl(string $url): bool
@@ -169,9 +251,19 @@ class PosterStorage
         return $this->publicUrl($path);
     }
 
-    private function storeBinary(string $binary, string $sourceExt, PosterContext $context): string
+    private function storeBinary(string $binary, string $sourceExt, PosterContext $context, bool $optimize): string
     {
-        $processed = $this->optimizer->process($binary, $sourceExt);
+        if (!$optimize) {
+            return $this->storeBinaryRaw($binary, $sourceExt === 'jpeg' ? 'jpg' : $sourceExt, $context);
+        }
+
+        [$maxWidth, $maxHeight] = $this->limitsForContext($context);
+        $options = [];
+        if (strtolower(trim((string)($context->variant ?? ''))) === 'brand') {
+            $options['edge_fade_rgb'] = \App\Support\SiteBranding::backgroundColorRgb();
+        }
+
+        $processed = $this->optimizer->process($binary, $sourceExt, $maxWidth, $maxHeight, $options);
         if ($processed === null) {
             $processed = ['body' => $binary, 'ext' => $sourceExt === 'jpeg' ? 'jpg' : $sourceExt];
         }
@@ -181,6 +273,20 @@ class PosterStorage
         Storage::disk('public')->put($path, $processed['body']);
 
         return $this->publicUrl($path);
+    }
+
+    /**
+     * @return array{0: ?int, 1: ?int}
+     */
+    private function limitsForContext(PosterContext $context): array
+    {
+        $variant = strtolower(trim((string)($context->variant ?? '')));
+        if ($variant === 'brand' || str_starts_with($variant, 'gallery')) {
+            return [self::WIDE_MAX_WIDTH, 0];
+        }
+
+        // null → ImageOptimizer falls back to SiteConfig poster limits
+        return [null, null];
     }
 
     private function buildPath(string $key, string $ext): string
