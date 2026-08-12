@@ -56,7 +56,11 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             if ($request->expectsJson()) {
-                return response()->json(['message' => 'Ошибка ' . $code], $code);
+                $message = $code === 419
+                    ? 'Сессия истекла. Обновите страницу и попробуйте снова.'
+                    : ('Ошибка ' . $code);
+
+                return response()->json(['message' => $message], $code);
             }
 
             return ErrorPageRenderer::response($code);

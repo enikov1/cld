@@ -371,7 +371,7 @@
 
     function humanizeApiMessage(message) {
         if (!message) return message;
-        if (/csrf token mismatch/i.test(message)) {
+        if (/csrf token mismatch/i.test(message) || /ошибка\s*419/i.test(message) || /^419$/.test(String(message))) {
             return cfg('ui_msg_session_expired', 'Сессия истекла. Обновите страницу и попробуйте снова.');
         }
         var known = {
@@ -1772,6 +1772,425 @@
         }
     }
 
+    function initEngagementTabs() {
+        var root = document.getElementById('engagementSection');
+        if (!root) return;
+        var tabs = root.querySelectorAll('[data-engagement-tab]');
+        var panels = root.querySelectorAll('[data-engagement-panel]');
+        if (!tabs.length || !panels.length) return;
+
+        tabs.forEach(function (tab) {
+            tab.addEventListener('click', function () {
+                var name = tab.getAttribute('data-engagement-tab');
+                if (!name) return;
+                tabs.forEach(function (btn) {
+                    var active = btn === tab;
+                    btn.classList.toggle('is-active', active);
+                    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+                });
+                panels.forEach(function (panel) {
+                    var match = panel.getAttribute('data-engagement-panel') === name;
+                    panel.classList.toggle('is-active', match);
+                    panel.setAttribute('aria-hidden', match ? 'false' : 'true');
+                    // Keep markup in DOM for SEO — do not set the HTML hidden attribute.
+                    if (panel.hasAttribute('hidden')) panel.removeAttribute('hidden');
+                });
+            });
+        });
+    }
+
+    function initReviews() {
+        var section = document.getElementById('reviewsSection');
+        if (!section) return;
+
+        var seriesId = section.getAttribute('data-series-id');
+        if (!seriesId) {
+            var engagement = document.getElementById('engagementSection');
+            seriesId = engagement && engagement.getAttribute('data-series-id');
+        }
+        if (!seriesId) return;
+
+        var listEl = section.querySelector('[data-reviews-list]');
+        var noticeEl = section.querySelector('[data-reviews-notice]');
+        var rootForm = section.querySelector('[data-review-form="root"]');
+        var countEl = section.querySelector('[data-reviews-count]');
+        var sortEl = section.querySelector('[data-reviews-sort]');
+        var currentSort = sortEl && sortEl.getAttribute('data-reviews-sort-current') === 'rating' ? 'rating' : 'date';
+        var reviewsSsr = listEl && listEl.getAttribute('data-reviews-ssr') === '1';
+        var selectedRating = 0;
+        var hasOwnReview = !!section.querySelector('[data-reviews-own-hint]');
+        var minBodyLength = Number(cfg('reviews_body_min_length', 20)) || 20;
+        var linkPattern = /(?:https?:\/\/|ftp:\/\/|www\.)\S+|mailto:\S+|\[(?:url|link)(?:=|\])|<a\s[\s\S]*?>|(?<![\w@\/])(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:com|ru|net|org|info|biz|me|io|tv|cc|su|ua|by|kz)(?:\/\S*)?/i;
+
+        function flashNotice(text, isError) {
+            if (!noticeEl) return;
+            if (!text) {
+                noticeEl.hidden = true;
+                noticeEl.textContent = '';
+                return;
+            }
+            noticeEl.textContent = text;
+            noticeEl.className = 'comments-notice' + (isError ? ' comments-notice--error' : ' comments-notice--success');
+            noticeEl.hidden = false;
+            window.clearTimeout(flashNotice._t);
+            flashNotice._t = window.setTimeout(function () {
+                noticeEl.hidden = true;
+            }, 4500);
+        }
+
+        function markOwnReview(message) {
+            hasOwnReview = true;
+            var compose = section.querySelector('[data-reviews-compose]') || section.querySelector('.reviews-compose');
+            if (!compose) return;
+            if (rootForm) rootForm.hidden = true;
+            var hint = compose.querySelector('[data-reviews-own-hint]');
+            if (!hint) {
+                hint = document.createElement('p');
+                hint.className = 'review-login-hint';
+                hint.setAttribute('data-reviews-own-hint', '1');
+                compose.insertBefore(hint, compose.firstChild);
+            }
+            hint.hidden = false;
+            hint.textContent = message || cfg('reviews_msg_already_exists', 'Вы уже оставили рецензию на этот сериал.');
+        }
+
+        function reviewEffectiveBody(text) {
+            return String(text || '')
+                .replace(/\[spoiler\]([\s\S]*?)\[\/spoiler\]/gi, '$1')
+                .trim();
+        }
+
+        function insertSpoilerTag(textarea) {
+            if (!textarea) return;
+            var start = textarea.selectionStart;
+            var end = textarea.selectionEnd;
+            var val = textarea.value;
+            var open = '[spoiler]';
+            var close = '[/spoiler]';
+
+            if (start !== end) {
+                textarea.value = val.slice(0, start) + open + val.slice(start, end) + close + val.slice(end);
+                textarea.selectionStart = start + open.length;
+                textarea.selectionEnd = end + open.length;
+            } else {
+                textarea.value = val.slice(0, start) + open + close + val.slice(start);
+                textarea.selectionStart = textarea.selectionEnd = start + open.length;
+            }
+            textarea.focus();
+        }
+
+        function buildReviewToolbar() {
+            var toolbar = document.createElement('div');
+            toolbar.className = 'comment-form__toolbar';
+            toolbar.setAttribute('data-review-toolbar', '1');
+
+            var spoilerBtn = document.createElement('button');
+            spoilerBtn.type = 'button';
+            spoilerBtn.className = 'comment-form__tool dontusebuttonclass';
+            spoilerBtn.setAttribute('data-review-spoiler', '1');
+            spoilerBtn.title = cfg('reviews_ui_spoiler', 'Спойлер');
+            spoilerBtn.innerHTML = '<span class="fa fa-eye" aria-hidden="true"></span> ' + cfg('reviews_ui_spoiler', 'Спойлер');
+            toolbar.appendChild(spoilerBtn);
+            return toolbar;
+        }
+
+        function enhanceReviewForm(form) {
+            if (!form) return;
+            var textarea = form.querySelector('textarea[name="body"]');
+            if (!textarea || form.querySelector('[data-review-toolbar]')) return;
+            textarea.parentNode.insertBefore(buildReviewToolbar(), textarea);
+        }
+
+        function paintStars(hoverValue) {
+            var stars = section.querySelectorAll('[data-review-star]');
+            var active = hoverValue || selectedRating || 0;
+            stars.forEach(function (star) {
+                var n = parseInt(star.getAttribute('data-review-star'), 10) || 0;
+                star.classList.toggle('is-active', !hoverValue && selectedRating > 0 && n <= selectedRating);
+                star.classList.toggle('is-hover', !!hoverValue && n <= hoverValue);
+            });
+            var hidden = section.querySelector('[data-review-rating-value]');
+            if (hidden) hidden.value = selectedRating ? String(selectedRating) : '';
+            var label = section.querySelector('[data-review-rating-label]');
+            if (label) label.textContent = selectedRating ? (selectedRating + '/10') : '';
+        }
+
+        function setRating(value) {
+            selectedRating = value || 0;
+            paintStars(0);
+        }
+
+        function starsHtml(rating) {
+            var html = '<span class="review-stars" aria-label="' + rating + ' из 10">';
+            for (var i = 1; i <= 10; i++) {
+                html += '<span class="review-stars__star' + (i <= rating ? ' review-stars__star--filled' : '') + '" aria-hidden="true">★</span>';
+            }
+            return html + '</span>';
+        }
+
+        function renderReviewBody(raw) {
+            var body = document.createElement('div');
+            body.className = 'review-body comment-body';
+            var text = String(raw || '');
+            var parts = text.split(/(\[spoiler\][\s\S]*?\[\/spoiler\])/gi);
+            parts.forEach(function (part) {
+                var match = part.match(/^\[spoiler\]([\s\S]*)\[\/spoiler\]$/i);
+                if (match) {
+                    var spoiler = document.createElement('span');
+                    spoiler.className = 'comment-spoiler';
+                    var btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'comment-spoiler__toggle dontusebuttonclass';
+                    btn.setAttribute('aria-expanded', 'false');
+                    btn.textContent = cfg('reviews_ui_spoiler_reveal', 'Спойлер');
+                    var hidden = document.createElement('span');
+                    hidden.className = 'comment-spoiler__text';
+                    hidden.hidden = true;
+                    hidden.textContent = match[1];
+                    spoiler.appendChild(btn);
+                    spoiler.appendChild(hidden);
+                    body.appendChild(spoiler);
+                    return;
+                }
+                if (part) body.appendChild(document.createTextNode(part));
+            });
+            return body;
+        }
+
+        function renderReview(item) {
+            var article = document.createElement('article');
+            article.className = 'review-item' + (item.is_editorial ? ' review-item--editorial' : '');
+            article.setAttribute('data-review-id', String(item.id || ''));
+
+            var rating = Math.max(1, Math.min(10, parseInt(item.rating, 10) || 0));
+            var author = item.author || cfg('reviews_label_user', 'Пользователь');
+            var initial = author ? author.charAt(0).toUpperCase() : '?';
+            var hue = 0;
+            for (var i = 0; i < author.length; i++) hue = author.charCodeAt(i) + ((hue << 5) - hue);
+            hue = Math.abs(hue) % 360;
+
+            article.innerHTML =
+                '<div class="review-item__inner">' +
+                    '<div class="comment-avatar" aria-hidden="true" style="--avatar-hue: ' + hue + '">' + initial + '</div>' +
+                    '<div class="review-content">' +
+                        '<header class="review-head">' +
+                            '<div class="review-head__meta">' +
+                                '<strong class="review-author"></strong>' +
+                                (item.is_editorial ? '<span class="review-editorial-badge">' + cfg('reviews_ui_editorial', 'Редакция') + '</span>' : '') +
+                                '<time class="review-date"></time>' +
+                            '</div>' +
+                            '<div class="review-rating" title="' + rating + '/10">' +
+                                starsHtml(rating) +
+                                '<span class="review-rating__value">' + rating + '/10</span>' +
+                            '</div>' +
+                        '</header>' +
+                    '</div>' +
+                '</div>';
+
+            article.querySelector('.review-author').textContent = author;
+            article.querySelector('.review-date').textContent = item.created_at || '';
+            article.querySelector('.review-content').appendChild(renderReviewBody(item.body || ''));
+            return article;
+        }
+
+        function updateReviewsCount(countOrItems) {
+            var count = Array.isArray(countOrItems) ? countOrItems.length : (parseInt(countOrItems, 10) || 0);
+            if (countEl) {
+                if (count <= 0) {
+                    countEl.hidden = true;
+                    countEl.textContent = '';
+                } else {
+                    var mod10 = count % 10;
+                    var mod100 = count % 100;
+                    var label;
+                    if (mod100 >= 11 && mod100 <= 14) label = count + ' рецензий';
+                    else if (mod10 === 1) label = count + ' рецензия';
+                    else if (mod10 >= 2 && mod10 <= 4) label = count + ' рецензии';
+                    else label = count + ' рецензий';
+                    countEl.hidden = false;
+                    countEl.textContent = /^\(/.test(String(countEl.textContent || '')) || countEl.closest('.comms-t')
+                        ? ('(' + count + ')')
+                        : label;
+                }
+            }
+            var tabCount = document.querySelector('[data-engagement-reviews-count]');
+            if (tabCount) {
+                if (count > 0) {
+                    tabCount.textContent = '(' + count + ')';
+                    tabCount.hidden = false;
+                } else {
+                    tabCount.hidden = true;
+                }
+            }
+        }
+
+        function setReviewsSort(nextSort) {
+            currentSort = nextSort === 'rating' ? 'rating' : 'date';
+            if (!sortEl) return;
+            sortEl.querySelectorAll('[data-reviews-sort-value]').forEach(function (btn) {
+                btn.classList.toggle('is-active', btn.getAttribute('data-reviews-sort-value') === currentSort);
+            });
+        }
+
+        function loadReviews() {
+            if (!listEl) return;
+            listEl.removeAttribute('data-reviews-ssr');
+            listEl.innerHTML = '<p class="comment-loading">' + cfg('reviews_ui_loading', 'Загрузка рецензий...') + '</p>';
+            fetch('/api/series/' + encodeURIComponent(seriesId) + '/reviews?sort=' + encodeURIComponent(currentSort), {
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json' },
+            })
+                .then(function (r) {
+                    if (!r.ok) throw new Error('load failed');
+                    return r.json();
+                })
+                .then(function (data) {
+                    listEl.innerHTML = '';
+                    if (data.sort) setReviewsSort(data.sort);
+                    if (data.has_own_review) {
+                        markOwnReview(data.own_review_message || cfg(
+                            data.own_review_pending ? 'reviews_msg_pending' : 'reviews_msg_already_exists',
+                            data.own_review_pending ? 'Рецензия отправлена на модерацию.' : 'Вы уже оставили рецензию на этот сериал.'
+                        ));
+                    }
+                    var items = data.items || [];
+                    updateReviewsCount(typeof data.total === 'number' ? data.total : items.length);
+                    if (!items.length) {
+                        listEl.innerHTML = '<p class="comment-empty">' + cfg('reviews_ui_empty', 'Пока нет рецензий. Будьте первым!') + '</p>';
+                        return;
+                    }
+                    items.forEach(function (item) {
+                        listEl.appendChild(renderReview(item));
+                    });
+                })
+                .catch(function () {
+                    listEl.innerHTML = '<p class="comment-empty">' + cfg('reviews_ui_load_error', 'Не удалось загрузить рецензии.') + '</p>';
+                });
+        }
+
+        if (rootForm) enhanceReviewForm(rootForm);
+        setRating(0);
+
+        section.addEventListener('mouseover', function (e) {
+            var star = e.target.closest('[data-review-star]');
+            if (!star || !section.contains(star)) return;
+            paintStars(parseInt(star.getAttribute('data-review-star'), 10) || 0);
+        });
+        section.addEventListener('mouseout', function (e) {
+            var ratingBox = e.target.closest('[data-review-rating]');
+            if (!ratingBox || !section.contains(ratingBox)) return;
+            if (e.relatedTarget && ratingBox.contains(e.relatedTarget)) return;
+            paintStars(0);
+        });
+
+        section.addEventListener('click', function (e) {
+            var star = e.target.closest('[data-review-star]');
+            if (star && section.contains(star)) {
+                setRating(parseInt(star.getAttribute('data-review-star'), 10) || 0);
+                return;
+            }
+
+            var spoilerBtn = e.target.closest('[data-review-spoiler]');
+            if (spoilerBtn && section.contains(spoilerBtn)) {
+                var form = spoilerBtn.closest('[data-review-form]');
+                var textarea = form && form.querySelector('textarea[name="body"]');
+                if (textarea) insertSpoilerTag(textarea);
+                return;
+            }
+
+            var toggleBtn = e.target.closest('.comment-spoiler__toggle');
+            if (toggleBtn && section.contains(toggleBtn)) {
+                var spoiler = toggleBtn.closest('.comment-spoiler');
+                var text = spoiler && spoiler.querySelector('.comment-spoiler__text');
+                if (!text) return;
+                var reveal = cfg('reviews_ui_spoiler_reveal', 'Спойлер');
+                var hide = cfg('reviews_ui_spoiler_hide', 'Скрыть спойлер');
+                var expanded = text.hidden;
+                text.hidden = !expanded;
+                toggleBtn.textContent = expanded ? hide : reveal;
+                toggleBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+                return;
+            }
+
+            var submitBtn = e.target.closest('[data-review-submit]');
+            if (!submitBtn || !section.contains(submitBtn)) return;
+            if (hasOwnReview) {
+                flashNotice(cfg('reviews_msg_already_exists', 'Вы уже оставили рецензию на этот сериал.'), true);
+                return;
+            }
+            var submitForm = submitBtn.closest('[data-review-form]');
+            if (!submitForm) return;
+
+            var bodyInput = submitForm.querySelector('textarea[name="body"]');
+            var body = bodyInput ? bodyInput.value.trim() : '';
+            if (!selectedRating) {
+                flashNotice(cfg('reviews_msg_rating_required', 'Поставьте оценку от 1 до 10.'), true);
+                return;
+            }
+            if (linkPattern.test(body)) {
+                flashNotice(cfg('reviews_msg_links_forbidden', 'Ссылки в рецензиях запрещены.'), true);
+                return;
+            }
+            if (reviewEffectiveBody(body).length < minBodyLength) {
+                flashNotice(cfg('reviews_msg_too_short', 'Рецензия слишком короткая.'), true);
+                return;
+            }
+
+            submitBtn.disabled = true;
+            csrfReadyPromise = null;
+            refreshCsrfToken()
+                .then(function () {
+                    return postJson('/api/series/' + encodeURIComponent(seriesId) + '/reviews', {
+                        body: body,
+                        rating: selectedRating,
+                    });
+                })
+                .then(readJsonResponse)
+                .then(function (res) {
+                    if (!res.ok) {
+                        if (res.status === 419 || /419|csrf/i.test((res.data && res.data.message) || '')) {
+                            flashNotice(cfg('ui_msg_session_expired', 'Сессия истекла. Обновите страницу и попробуйте снова.'), true);
+                            return;
+                        }
+                        if (res.data && res.data.has_own_review) {
+                            markOwnReview(res.data.message);
+                        }
+                        flashNotice(humanizeApiMessage((res.data && (res.data.message || parseApiErrors(res.data))) || '') || cfg('reviews_msg_submit_failed', 'Не удалось отправить рецензию.'), true);
+                        return;
+                    }
+                    flashNotice((res.data && res.data.message) || cfg('reviews_msg_published', 'Рецензия опубликована.'), false);
+                    if (bodyInput) bodyInput.value = '';
+                    setRating(0);
+                    markOwnReview((res.data && res.data.message) || cfg('reviews_msg_already_exists', 'Вы уже оставили рецензию на этот сериал.'));
+                    if (!(res.data && res.data.pending)) {
+                        loadReviews();
+                    }
+                })
+                .catch(function () {
+                    flashNotice(cfg('reviews_msg_submit_failed', 'Не удалось отправить рецензию.'), true);
+                })
+                .finally(function () {
+                    submitBtn.disabled = false;
+                });
+        });
+
+        if (sortEl) {
+            sortEl.addEventListener('click', function (e) {
+                var btn = e.target.closest('[data-reviews-sort-value]');
+                if (!btn || !sortEl.contains(btn)) return;
+                var nextSort = btn.getAttribute('data-reviews-sort-value');
+                if (!nextSort || nextSort === currentSort) return;
+                currentSort = nextSort === 'rating' ? 'rating' : 'date';
+                setReviewsSort(currentSort);
+                loadReviews();
+            });
+        }
+
+        if (!reviewsSsr) {
+            loadReviews();
+        }
+    }
+
     function initComments() {
         var section = document.getElementById('commentsSection');
         if (!section) return;
@@ -1924,13 +2343,24 @@
         }
 
         function updateCommentsCount(items) {
-            if (!countEl) return;
-            var total = countComments(items);
-            if (total > 0) {
-                countEl.textContent = pluralComments(total);
-                countEl.hidden = false;
-            } else {
-                countEl.hidden = true;
+            if (countEl) {
+                var total = countComments(items);
+                if (total > 0) {
+                    countEl.textContent = pluralComments(total);
+                    countEl.hidden = false;
+                } else {
+                    countEl.hidden = true;
+                }
+            }
+            var tabCount = document.querySelector('[data-engagement-comments-count]');
+            if (tabCount) {
+                var totalTab = countComments(items);
+                if (totalTab > 0) {
+                    tabCount.textContent = '(' + totalTab + ')';
+                    tabCount.hidden = false;
+                } else {
+                    tabCount.hidden = true;
+                }
             }
         }
 
@@ -2298,7 +2728,7 @@
     function initCommentSpoilers() {
         document.addEventListener('click', function (e) {
             var toggleBtn = e.target.closest('.comment-spoiler__toggle');
-            if (!toggleBtn || toggleBtn.closest('#commentsSection')) return;
+            if (!toggleBtn || toggleBtn.closest('#commentsSection') || toggleBtn.closest('#reviewsSection')) return;
 
             var spoiler = toggleBtn.closest('.comment-spoiler');
             var text = spoiler && spoiler.querySelector('.comment-spoiler__text');
@@ -4480,7 +4910,9 @@
         initSeriesEngagement();
         initSeriesWatchHistory();
         initAnticipationVotes();
+        initEngagementTabs();
         initComments();
+        initReviews();
         initCommentSpoilers();
         initEpisodesModal();
         initReactionsWidget();

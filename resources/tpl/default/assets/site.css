@@ -1853,6 +1853,268 @@ body.bookmark-lock {
     }
 }
 
+.engagement-section {
+    margin: 28px 0 0;
+    padding: 24px;
+    background: linear-gradient(180deg, #f8f9fb 0%, #f3f5f8 100%);
+    border: 1px solid #e3e7ee;
+    border-radius: 14px;
+    box-sizing: border-box;
+}
+
+.engagement-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.engagement-tabs__btn {
+    position: relative;
+    padding: 10px 16px 12px;
+    border: 0;
+    background: transparent;
+    color: #6b7280;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.engagement-tabs__btn:hover,
+.engagement-tabs__btn.is-active {
+    color: #1f2937;
+}
+
+.engagement-tabs__btn.is-active::after {
+    content: '';
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: -1px;
+    height: 3px;
+    border-radius: 3px 3px 0 0;
+    background: #22c55e;
+}
+
+.engagement-tabs__count {
+    margin-left: 4px;
+    font-weight: 600;
+    opacity: 0.7;
+}
+
+.engagement-tabs__count[hidden] {
+    display: none !important;
+}
+
+.engagement-panel[hidden],
+.engagement-panel:not(.is-active) {
+    display: none;
+}
+
+.comments-section--embedded,
+.reviews-section--embedded {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+}
+
+.reviews-section {
+    margin: 28px 0 0;
+    padding: 24px;
+    background: linear-gradient(180deg, #f8f9fb 0%, #f3f5f8 100%);
+    border: 1px solid #e3e7ee;
+    border-radius: 14px;
+    box-sizing: border-box;
+}
+
+.review-form__rating {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 14px;
+    margin-bottom: 14px;
+}
+
+.review-stars-input {
+    display: inline-flex;
+    gap: 2px;
+}
+
+.review-stars-input__star {
+    padding: 0 1px;
+    border: 0;
+    background: transparent;
+    color: #d1d5db;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.12s ease, transform 0.12s ease;
+}
+
+.review-stars-input__star:hover,
+.review-stars-input__star.is-active,
+.review-stars-input__star.is-hover {
+    color: #f59e0b;
+}
+
+.review-stars-input__star.is-active {
+    transform: scale(1.05);
+}
+
+.review-form__rating-value {
+    min-width: 36px;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.review-login-hint {
+    margin: 0;
+    padding: 14px 16px;
+    border: 1px dashed #d1d5db;
+    border-radius: 10px;
+    background: #fff;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.review-item {
+    margin-bottom: 14px;
+}
+
+.review-item__inner {
+    display: flex;
+    gap: 12px;
+    padding: 14px 16px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+}
+
+.review-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.review-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px 16px;
+    margin-bottom: 8px;
+}
+
+.review-head__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.review-author {
+    color: #111827;
+    font-size: 14px;
+}
+
+.review-date {
+    color: #9ca3af;
+    font-size: 12px;
+}
+
+.review-editorial-badge {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #047857;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.review-rating {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.review-stars {
+    display: inline-flex;
+    gap: 1px;
+    letter-spacing: 0;
+}
+
+.review-stars__star {
+    color: #d1d5db;
+    font-size: 14px;
+    line-height: 1;
+}
+
+.review-stars__star--filled {
+    color: #f59e0b;
+}
+
+.review-rating__value {
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.review-body {
+    color: #374151;
+    font-size: 14px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.reviews-list:empty,
+.reviews-list .comment-empty {
+    margin: 0;
+    padding: 28px 16px;
+    border: 1px dashed #d1d5db;
+    border-radius: 12px;
+    background: #fff;
+    color: #9ca3af;
+    text-align: center;
+}
+
+.dt .engagement-section,
+.dt .reviews-section {
+    background: linear-gradient(180deg, #1b2130 0%, #151a26 100%);
+    border-color: #2a3344;
+}
+
+.dt .engagement-tabs {
+    border-bottom-color: #2a3344;
+}
+
+.dt .engagement-tabs__btn {
+    color: #9ca3af;
+}
+
+.dt .engagement-tabs__btn:hover,
+.dt .engagement-tabs__btn.is-active {
+    color: #f3f4f6;
+}
+
+.dt .review-item__inner,
+.dt .review-login-hint,
+.dt .reviews-list .comment-empty {
+    background: #1b2130;
+    border-color: #2a3344;
+}
+
+.dt .review-author {
+    color: #f3f4f6;
+}
+
+.dt .review-body {
+    color: #d1d5db;
+}
+
 .comments-section {
     margin: 28px 0 0;
     padding: 24px;
@@ -3488,6 +3750,67 @@ body.dt .movie-tip__close:hover {
 .profile-empty {
     color: #888;
     font-size: 14px;
+}
+
+.profile-tabs__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    margin-left: 6px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #f59e0b;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.profile-reviews-hint {
+    margin: 0 0 14px;
+    color: #6b7280;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.profile-review-rating {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0 8px;
+}
+
+.profile-review-rating__value {
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.series-notification-card--pending {
+    border-color: #fcd34d;
+    background: linear-gradient(180deg, #fffbeb 0%, #fff 100%);
+}
+
+.profile-review-badge--pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.profile-review-badge--rejected {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.dt .profile-reviews-hint,
+.dt .profile-review-rating__value {
+    color: #9ca3af;
+}
+
+.dt .series-notification-card--pending {
+    background: linear-gradient(180deg, #2a2418 0%, #1f1f1f 100%);
+    border-color: #92400e;
 }
 
 .profile-logout {

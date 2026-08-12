@@ -8,6 +8,7 @@ use App\Models\CommentVote;
 use App\Models\GuestVote;
 use App\Models\NotificationSetting;
 use App\Models\PlayerReport;
+use App\Models\Review;
 use App\Models\Series;
 use App\Models\UserVote;
 use App\Models\Watchlist;
@@ -16,6 +17,9 @@ use App\Services\UserLibraryService;
 use App\Support\CommentBody;
 use App\Support\CommentModeration;
 use App\Support\CommentTree;
+use App\Support\ReviewBody;
+use App\Support\ReviewList;
+use App\Support\ReviewModeration;
 use App\Support\SiteConfig;
 use App\Support\TplCache;
 use App\Support\WatchlistDefaults;
@@ -207,6 +211,121 @@ class SeriesEngagementController extends Controller
             'ok' => true,
             'pending' => $pending,
             'message' => $message,
+        ]);
+    }
+
+    public function reviews(Request $request, int $seriesId)
+    {
+        if (!SiteConfig::bool('reviews_enabled')) {
+            return response()->json(['items' => [], 'logged_in' => Auth::check(), 'disabled' => true]);
+        }
+
+        $series = $this->resolveActiveSeries($seriesId);
+        $sort = ReviewList::normalizeSort($request->query('sort'));
+
+        $ownReview = null;
+        if (Auth::check()) {
+            $ownReview = Review::query()
+                ->where('series_id', $series->id)
+                ->where('user_id', Auth::id())
+                ->first();
+        }
+        $hasOwnReview = $ownReview && in_array($ownReview->status, ['pending', 'approved'], true);
+        $ownPending = $ownReview && $ownReview->status === 'pending';
+
+        $page = ReviewList::page($series->id, $sort);
+
+        return response()->json([
+            'items' => $page['items'],
+            'total' => $page['total'],
+            'sort' => $sort,
+            'logged_in' => Auth::check(),
+            'has_own_review' => (bool) $hasOwnReview,
+            'own_review_pending' => (bool) $ownPending,
+            'own_review_message' => $ownPending
+                ? SiteConfig::str('reviews_msg_pending')
+                : ($hasOwnReview ? SiteConfig::str('reviews_msg_already_exists') : ''),
+        ]);
+    }
+
+    public function storeReview(Request $request, int $seriesId)
+    {
+        if (!SiteConfig::bool('reviews_enabled')) {
+            return response()->json(['ok' => false, 'message' => SiteConfig::str('reviews_msg_disabled')], 403);
+        }
+
+        if (!Auth::check()) {
+            return response()->json(['ok' => false, 'message' => SiteConfig::str('reviews_msg_auth_required')], 401);
+        }
+
+        $series = $this->resolveActiveSeries($seriesId);
+        $userId = (int) Auth::id();
+
+        $existing = Review::query()
+            ->where('series_id', $series->id)
+            ->where('user_id', $userId)
+            ->first();
+
+        if ($existing && in_array($existing->status, ['pending', 'approved'], true)) {
+            return response()->json([
+                'ok' => false,
+                'message' => SiteConfig::str('reviews_msg_already_exists'),
+                'has_own_review' => true,
+            ], 422);
+        }
+
+        $min = SiteConfig::int('reviews_body_min_length');
+        $max = SiteConfig::int('reviews_body_max_length');
+
+        $data = $request->validate([
+            'body' => ['required', 'string', 'min:' . $min, 'max:' . $max],
+            'rating' => ['required', 'integer', 'min:1', 'max:10'],
+        ]);
+
+        $body = ReviewBody::assertValid($data['body']);
+        $status = ReviewModeration::initialStatus();
+
+        try {
+            if ($existing && $existing->status === 'rejected') {
+                $existing->rating = (int) $data['rating'];
+                $existing->body = $body;
+                $existing->status = $status;
+                $existing->author_name = null;
+                // User resubmit is never editorial; keep flag false for moderation clarity.
+                $existing->is_editorial = false;
+                $existing->created_at = now();
+                $existing->save();
+            } else {
+                Review::query()->create([
+                    'series_id' => $series->id,
+                    'user_id' => $userId,
+                    'rating' => (int) $data['rating'],
+                    'body' => $body,
+                    'status' => $status,
+                    'author_name' => null,
+                    'is_editorial' => false,
+                ]);
+            }
+        } catch (UniqueConstraintViolationException) {
+            return response()->json([
+                'ok' => false,
+                'message' => SiteConfig::str('reviews_msg_already_exists'),
+                'has_own_review' => true,
+            ], 422);
+        }
+
+        $this->bustSeriesCache($series);
+
+        $pending = $status === 'pending';
+        $message = $pending
+            ? SiteConfig::str('reviews_msg_pending')
+            : SiteConfig::str('reviews_msg_published');
+
+        return response()->json([
+            'ok' => true,
+            'pending' => $pending,
+            'message' => $message,
+            'has_own_review' => true,
         ]);
     }
 

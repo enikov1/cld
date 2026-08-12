@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\NotificationSetting;
+use App\Models\Review;
 use App\Models\Series;
 use App\Models\Studio;
 use App\Models\Year;
@@ -15,6 +16,8 @@ use App\Services\SeriesViewService;
 use App\Services\UserLibraryService;
 use App\Support\CommentTree;
 use App\Support\CommentView;
+use App\Support\ReviewList;
+use App\Support\ReviewView;
 use App\Support\PlayerUrlHelper;
 use App\Support\ContentTypes;
 use App\Support\SeasonEpisodeLabels;
@@ -222,11 +225,31 @@ class SeriesController extends TplController
         }
 
         $commentsEnabled = SiteConfig::bool('comments_enabled');
-        $commentsSort = CommentTree::normalizeSort(request()->query('sort'));
+        // Always SSR with default sort — guest series HTML is shared; query sort is client-side via API.
+        $commentsSort = 'date';
         $commentItems = $commentsEnabled
             ? CommentTree::forSeries($series->id, request(), $commentsSort)
             : [];
         $commentsCount = CommentView::countComments($commentItems);
+
+        $reviewsEnabled = SiteConfig::bool('reviews_enabled');
+        $reviewsSort = 'date';
+        $reviewItems = $reviewsEnabled
+            ? ReviewList::forSeries($series->id, $reviewsSort)
+            : [];
+        $reviewsCount = $reviewsEnabled
+            ? Review::query()->where('series_id', $series->id)->where('status', 'approved')->count()
+            : 0;
+
+        $ownReview = null;
+        if ($reviewsEnabled && Auth::check()) {
+            $ownReview = Review::query()
+                ->where('series_id', $series->id)
+                ->where('user_id', Auth::id())
+                ->first();
+        }
+        $hasOwnReview = $ownReview && in_array($ownReview->status, ['pending', 'approved'], true);
+        $ownReviewPending = $ownReview && $ownReview->status === 'pending';
 
         $relatedSeries = SeriesRelatedService::forSeries($series);
         $relatedMapped = SeriesCardMapper::mapSeries($relatedSeries);
@@ -263,6 +286,22 @@ class SeriesController extends TplController
             'comments_list_html' => $commentsEnabled
                 ? $this->renderCommentsList($commentItems)
                 : '',
+            'has_reviews' => $reviewsEnabled,
+            'has_engagement_tabs' => $commentsEnabled && $reviewsEnabled,
+            'has_own_review' => (bool) $hasOwnReview,
+            'own_review_pending' => (bool) $ownReviewPending,
+            'own_review_message' => $ownReviewPending
+                ? SiteConfig::str('reviews_msg_pending')
+                : ($hasOwnReview ? SiteConfig::str('reviews_msg_already_exists') : ''),
+            'reviews_sort' => $reviewsSort,
+            'reviews_sort_date_active' => $reviewsSort === 'date',
+            'reviews_sort_rating_active' => $reviewsSort === 'rating',
+            'reviews_count' => $reviewsCount,
+            'reviews_count_label' => ReviewView::countLabel($reviewsCount),
+            'reviews_empty' => $reviewsCount === 0,
+            'reviews_list_html' => $reviewsEnabled
+                ? $this->renderReviewsList($reviewItems)
+                : '',
             'has_series_vote' => SiteConfig::bool('series_vote_enabled'),
             'has_notifications' => SiteConfig::bool('notifications_enabled'),
             'notification_subscribed' => $notificationSubscribed ? '1' : '',
@@ -294,27 +333,48 @@ class SeriesController extends TplController
                 : '',
         ]);
 
-        $this->applySpeedbar(Speedbar::forSeries($series), $vars, [
-            [
-                '@type' => 'TVSeries',
-                'name' => $series->title,
-                'description' => $series->description,
-                'image' => $series->poster_url,
-                'url' => $seriesUrl,
-                'datePublished' => $series->year ? (string)$series->year : null,
-                'aggregateRating' => $series->userRatingLabel() ? [
-                    '@type' => 'AggregateRating',
-                    'ratingValue' => $series->userRatingLabel(),
-                    'bestRating' => '10',
-                    'ratingCount' => $series->votesCount(),
-                ] : ($series->kp_rating ? [
-                    '@type' => 'AggregateRating',
-                    'ratingValue' => (string)$series->kp_rating,
-                    'bestRating' => '10',
-                    'ratingCount' => max(1, (int)$series->kp_votes_count),
-                ] : null),
-            ],
-        ]);
+        $tvSeriesJsonLd = [
+            '@type' => 'TVSeries',
+            'name' => $series->title,
+            'description' => $series->description,
+            'image' => $series->poster_url,
+            'url' => $seriesUrl,
+            'datePublished' => $series->year ? (string) $series->year : null,
+        ];
+
+        if ($reviewsEnabled && $reviewItems !== []) {
+            $tvSeriesJsonLd['review'] = ReviewView::jsonLdNodes($reviewItems);
+        }
+
+        $aggregateRating = $reviewsEnabled
+            ? ReviewView::aggregateRatingJsonLd($series->id)
+            : null;
+        if ($aggregateRating === null && $series->userRatingLabel()) {
+            $aggregateRating = [
+                '@type' => 'AggregateRating',
+                'ratingValue' => $series->userRatingLabel(),
+                'bestRating' => '10',
+                'ratingCount' => $series->votesCount(),
+            ];
+        }
+        if ($aggregateRating === null && $series->kp_rating) {
+            $aggregateRating = [
+                '@type' => 'AggregateRating',
+                'ratingValue' => (string) $series->kp_rating,
+                'bestRating' => '10',
+                'ratingCount' => max(1, (int) $series->kp_votes_count),
+            ];
+        }
+        if ($aggregateRating !== null) {
+            $tvSeriesJsonLd['aggregateRating'] = $aggregateRating;
+        }
+
+        $tvSeriesJsonLd = array_filter(
+            $tvSeriesJsonLd,
+            static fn ($value) => $value !== null && $value !== '' && $value !== []
+        );
+
+        $this->applySpeedbar(Speedbar::forSeries($series), $vars, [$tvSeriesJsonLd]);
 
         $vars['page'] = [
             'heading' => $series->title,
@@ -368,6 +428,25 @@ class SeriesController extends TplController
             $html .= $this->renderPartial('partials/comment_item.tpl', [
                 'item' => CommentView::mapForTpl($item, $depth, $childrenHtml),
                 'has_comments_vote' => SiteConfig::bool('comments_vote_enabled'),
+            ]);
+        }
+
+        return $html;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $items
+     */
+    private function renderReviewsList(array $items): string
+    {
+        if ($items === []) {
+            return '';
+        }
+
+        $html = '';
+        foreach ($items as $item) {
+            $html .= $this->renderPartial('partials/review_item.tpl', [
+                'item' => ReviewView::mapForTpl($item),
             ]);
         }
 

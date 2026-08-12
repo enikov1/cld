@@ -413,7 +413,141 @@ HD качестве бесплатно[/meta-title] [meta-description][series.sh
         </div>
     </div>
 
-    [has_reactions] {reactions_widget|raw} [/has_reactions] [has_schedule] {episodes_modal|raw} [/has_schedule] [has_comments]
+    [has_reactions] {reactions_widget|raw} [/has_reactions] [has_schedule] {episodes_modal|raw} [/has_schedule]
+    [has_comments]
+    [has_reviews]
+    <section class="engagement-section" id="engagementSection" data-series-id="{series.id}">
+        [auth.logged_in]<span hidden data-logged-in="1"></span>[/auth.logged_in]
+        <div class="engagement-tabs" data-engagement-tabs role="tablist">
+            <button type="button" class="dontusebuttonclass engagement-tabs__btn is-active" role="tab" aria-selected="true" data-engagement-tab="comments">{reviews_ui_tab_comments}<span class="engagement-tabs__count" data-engagement-comments-count[not-comments_count] hidden[/not-comments_count]>({comments_count})</span></button>
+            <button type="button" class="dontusebuttonclass engagement-tabs__btn" role="tab" aria-selected="false" data-engagement-tab="reviews">{reviews_ui_tab_reviews}<span class="engagement-tabs__count" data-engagement-reviews-count[not-reviews_count] hidden[/not-reviews_count]>({reviews_count})</span></button>
+        </div>
+
+        <div class="engagement-panel is-active" data-engagement-panel="comments" role="tabpanel" aria-hidden="false">
+            <section class="comments-section comments-section--embedded" id="commentsSection" data-series-id="{series.id}">
+                <header class="comments-section__header">
+                    <h2 class="comments-section__title">{comments_ui_title}</h2>
+                    <span class="comments-section__count" data-comments-count[not-comments_count] hidden[/not-comments_count]>{comments_count_label}</span>
+                </header>
+
+                <div class="comments-notice" data-comments-notice hidden></div>
+                <p class="comments-compose__hint">{comments_ui_spoiler_hint}</p>
+                <div class="comments-compose">
+                    [auth.logged_in]
+                    <form class="comment-form" data-comment-form="root" action="#" novalidate>
+                        <label class="comment-form__label" for="comment-body-root">{comments_ui_label}</label>
+                        <textarea id="comment-body-root" name="body" placeholder="{comments_ui_placeholder}" rows="4"></textarea>
+                        <div class="comment-form__footer">
+                            <button type="button" class="dontusebuttonclass comment-form__submit" data-comment-submit>{comments_ui_submit}</button>
+                        </div>
+                    </form>
+                    [/auth.logged_in] [not-auth.logged_in] [comments_guest_enabled]
+                    <form class="comment-form comment-form--guest" data-comment-form="root" action="#" novalidate>
+                        <div class="comment-form__guest">
+                            <input type="text" name="guest_name" placeholder="{comments_ui_guest_name}" maxlength="120" autocomplete="nickname">
+                            <label class="comment-form__anon">
+                                    <input type="checkbox" name="is_anonymous" value="1">
+                                    <span>{comments_ui_anonymous}</span>
+                                </label>
+                        </div>
+                        <label class="comment-form__label" for="comment-body-guest">{comments_ui_label}</label>
+                        <textarea id="comment-body-guest" name="body" placeholder="{comments_ui_placeholder}" rows="4"></textarea>
+                        <div class="comment-form__footer">
+                            <button type="button" class="dontusebuttonclass comment-form__submit" data-comment-submit>{comments_ui_submit}</button>
+                        </div>
+                    </form>
+                    [/comments_guest_enabled] [/not-auth.logged_in]
+                </div>
+
+                <div class="comments-sort" data-comments-sort data-comments-sort-current="{comments_sort}">
+                    <span class="comments-sort__label">{comments_ui_sort_label}</span>
+                    <div class="comments-sort__links">
+                        [comments_sort_date_active]
+                        <button type="button" class="dontusebuttonclass comments-sort__link is-active" data-comments-sort-value="date">{comments_ui_sort_date}</button> [/comments_sort_date_active] [not-comments_sort_date_active]
+                        <button type="button" class="dontusebuttonclass comments-sort__link" data-comments-sort-value="date">{comments_ui_sort_date}</button> [/not-comments_sort_date_active]
+                        <span class="comments-sort__sep" aria-hidden="true"></span> [comments_sort_rating_active]
+                        <button type="button" class="dontusebuttonclass comments-sort__link is-active" data-comments-sort-value="rating">{comments_ui_sort_rating}</button> [/comments_sort_rating_active] [not-comments_sort_rating_active]
+                        <button type="button" class="dontusebuttonclass comments-sort__link" data-comments-sort-value="rating">{comments_ui_sort_rating}</button> [/not-comments_sort_rating_active]
+                    </div>
+                </div>
+
+                <div class="comments-list" data-comments-list data-comments-ssr="1">
+                    [comments_empty]
+                    <p class="comment-empty">{comments_ui_empty}</p>
+                    [/comments_empty] [not-comments_empty] {comments_list_html|raw} [/not-comments_empty]
+                </div>
+            </section>
+        </div>
+
+        <div class="engagement-panel" data-engagement-panel="reviews" role="tabpanel" aria-hidden="true">
+            <section class="reviews-section reviews-section--embedded" id="reviewsSection" data-series-id="{series.id}">
+                <header class="comments-section__header">
+                    <h2 class="comments-section__title">{reviews_ui_title}</h2>
+                    <span class="comments-section__count" data-reviews-count[not-reviews_count] hidden[/not-reviews_count]>{reviews_count_label}</span>
+                </header>
+
+                <div class="comments-notice" data-reviews-notice hidden></div>
+                <p class="comments-compose__hint">{reviews_ui_spoiler_hint}</p>
+
+                <div class="reviews-compose" data-reviews-compose>
+                    [auth.logged_in]
+                    [has_own_review]
+                    <p class="review-login-hint" data-reviews-own-hint>{own_review_message}</p>
+                    [/has_own_review]
+                    [not-has_own_review]
+                    <form class="comment-form review-form" data-review-form="root" action="#" novalidate>
+                        <div class="review-form__rating" data-review-rating>
+                            <span class="comment-form__label">{reviews_ui_rating_label}</span>
+                            <div class="review-stars-input" role="radiogroup" aria-label="{reviews_ui_rating_label}">
+                                <button type="button" class="dontusebuttonclass review-stars-input__star" data-review-star="1" aria-label="1">★</button>
+                                <button type="button" class="dontusebuttonclass review-stars-input__star" data-review-star="2" aria-label="2">★</button>
+                                <button type="button" class="dontusebuttonclass review-stars-input__star" data-review-star="3" aria-label="3">★</button>
+                                <button type="button" class="dontusebuttonclass review-stars-input__star" data-review-star="4" aria-label="4">★</button>
+                                <button type="button" class="dontusebuttonclass review-stars-input__star" data-review-star="5" aria-label="5">★</button>
+                                <button type="button" class="dontusebuttonclass review-stars-input__star" data-review-star="6" aria-label="6">★</button>
+                                <button type="button" class="dontusebuttonclass review-stars-input__star" data-review-star="7" aria-label="7">★</button>
+                                <button type="button" class="dontusebuttonclass review-stars-input__star" data-review-star="8" aria-label="8">★</button>
+                                <button type="button" class="dontusebuttonclass review-stars-input__star" data-review-star="9" aria-label="9">★</button>
+                                <button type="button" class="dontusebuttonclass review-stars-input__star" data-review-star="10" aria-label="10">★</button>
+                            </div>
+                            <input type="hidden" name="rating" value="" data-review-rating-value>
+                            <span class="review-form__rating-value" data-review-rating-label></span>
+                        </div>
+                        <label class="comment-form__label" for="review-body-root">{reviews_ui_label}</label>
+                        <textarea id="review-body-root" name="body" placeholder="{reviews_ui_placeholder}" rows="5"></textarea>
+                        <div class="comment-form__footer">
+                            <button type="button" class="dontusebuttonclass comment-form__submit" data-review-submit>{reviews_ui_submit}</button>
+                        </div>
+                    </form>
+                    [/not-has_own_review]
+                    [/auth.logged_in]
+                    [not-auth.logged_in]
+                    <p class="review-login-hint">{reviews_ui_login_hint}</p>
+                    [/not-auth.logged_in]
+                </div>
+
+                <div class="comments-sort" data-reviews-sort data-reviews-sort-current="{reviews_sort}">
+                    <span class="comments-sort__label">{reviews_ui_sort_label}</span>
+                    <div class="comments-sort__links">
+                        [reviews_sort_date_active]
+                        <button type="button" class="dontusebuttonclass comments-sort__link is-active" data-reviews-sort-value="date">{reviews_ui_sort_date}</button> [/reviews_sort_date_active] [not-reviews_sort_date_active]
+                        <button type="button" class="dontusebuttonclass comments-sort__link" data-reviews-sort-value="date">{reviews_ui_sort_date}</button> [/not-reviews_sort_date_active]
+                        <span class="comments-sort__sep" aria-hidden="true"></span> [reviews_sort_rating_active]
+                        <button type="button" class="dontusebuttonclass comments-sort__link is-active" data-reviews-sort-value="rating">{reviews_ui_sort_rating}</button> [/reviews_sort_rating_active] [not-reviews_sort_rating_active]
+                        <button type="button" class="dontusebuttonclass comments-sort__link" data-reviews-sort-value="rating">{reviews_ui_sort_rating}</button> [/not-reviews_sort_rating_active]
+                    </div>
+                </div>
+
+                <div class="reviews-list" data-reviews-list data-reviews-ssr="1">
+                    [reviews_empty]
+                    <p class="comment-empty">{reviews_ui_empty}</p>
+                    [/reviews_empty] [not-reviews_empty] {reviews_list_html|raw} [/not-reviews_empty]
+                </div>
+            </section>
+        </div>
+    </section>
+    [/has_reviews]
+    [not-has_reviews]
     <section class="comments-section" id="commentsSection" data-series-id="{series.id}">
         [auth.logged_in]<span hidden data-logged-in="1"></span>[/auth.logged_in]
 
@@ -471,7 +605,74 @@ HD качестве бесплатно[/meta-title] [meta-description][series.sh
             [/comments_empty] [not-comments_empty] {comments_list_html|raw} [/not-comments_empty]
         </div>
     </section>
-    [/has_comments] [has_related]
+    [/not-has_reviews]
+    [/has_comments]
+    [not-has_comments]
+    [has_reviews]
+    <section class="reviews-section" id="reviewsSection" data-series-id="{series.id}">
+        [auth.logged_in]<span hidden data-logged-in="1"></span>[/auth.logged_in]
+        <header class="comments-section__header">
+            <h2 class="comments-section__title">{reviews_ui_title}</h2>
+            <span class="comments-section__count" data-reviews-count[not-reviews_count] hidden[/not-reviews_count]>{reviews_count_label}</span>
+        </header>
+        <div class="comments-notice" data-reviews-notice hidden></div>
+        <p class="comments-compose__hint">{reviews_ui_spoiler_hint}</p>
+        <div class="reviews-compose" data-reviews-compose>
+            [auth.logged_in]
+            [has_own_review]
+            <p class="review-login-hint" data-reviews-own-hint>{own_review_message}</p>
+            [/has_own_review]
+            [not-has_own_review]
+            <form class="comment-form review-form" data-review-form="root" action="#" novalidate>
+                <div class="review-form__rating" data-review-rating>
+                    <span class="comment-form__label">{reviews_ui_rating_label}</span>
+                    <div class="review-stars-input" role="radiogroup" aria-label="{reviews_ui_rating_label}">
+                        <button type="button" class="dontusebuttonclass review-stars-input__star" data-review-star="1" aria-label="1">★</button>
+                        <button type="button" class="dontusebuttonclass review-stars-input__star" data-review-star="2" aria-label="2">★</button>
+                        <button type="button" class="dontusebuttonclass review-stars-input__star" data-review-star="3" aria-label="3">★</button>
+                        <button type="button" class="dontusebuttonclass review-stars-input__star" data-review-star="4" aria-label="4">★</button>
+                        <button type="button" class="dontusebuttonclass review-stars-input__star" data-review-star="5" aria-label="5">★</button>
+                        <button type="button" class="dontusebuttonclass review-stars-input__star" data-review-star="6" aria-label="6">★</button>
+                        <button type="button" class="dontusebuttonclass review-stars-input__star" data-review-star="7" aria-label="7">★</button>
+                        <button type="button" class="dontusebuttonclass review-stars-input__star" data-review-star="8" aria-label="8">★</button>
+                        <button type="button" class="dontusebuttonclass review-stars-input__star" data-review-star="9" aria-label="9">★</button>
+                        <button type="button" class="dontusebuttonclass review-stars-input__star" data-review-star="10" aria-label="10">★</button>
+                    </div>
+                    <input type="hidden" name="rating" value="" data-review-rating-value>
+                    <span class="review-form__rating-value" data-review-rating-label></span>
+                </div>
+                <label class="comment-form__label" for="review-body-solo">{reviews_ui_label}</label>
+                <textarea id="review-body-solo" name="body" placeholder="{reviews_ui_placeholder}" rows="5"></textarea>
+                <div class="comment-form__footer">
+                    <button type="button" class="dontusebuttonclass comment-form__submit" data-review-submit>{reviews_ui_submit}</button>
+                </div>
+            </form>
+            [/not-has_own_review]
+            [/auth.logged_in]
+            [not-auth.logged_in]
+            <p class="review-login-hint">{reviews_ui_login_hint}</p>
+            [/not-auth.logged_in]
+        </div>
+        <div class="comments-sort" data-reviews-sort data-reviews-sort-current="{reviews_sort}">
+            <span class="comments-sort__label">{reviews_ui_sort_label}</span>
+            <div class="comments-sort__links">
+                [reviews_sort_date_active]
+                <button type="button" class="dontusebuttonclass comments-sort__link is-active" data-reviews-sort-value="date">{reviews_ui_sort_date}</button> [/reviews_sort_date_active] [not-reviews_sort_date_active]
+                <button type="button" class="dontusebuttonclass comments-sort__link" data-reviews-sort-value="date">{reviews_ui_sort_date}</button> [/not-reviews_sort_date_active]
+                <span class="comments-sort__sep" aria-hidden="true"></span> [reviews_sort_rating_active]
+                <button type="button" class="dontusebuttonclass comments-sort__link is-active" data-reviews-sort-value="rating">{reviews_ui_sort_rating}</button> [/reviews_sort_rating_active] [not-reviews_sort_rating_active]
+                <button type="button" class="dontusebuttonclass comments-sort__link" data-reviews-sort-value="rating">{reviews_ui_sort_rating}</button> [/not-reviews_sort_rating_active]
+            </div>
+        </div>
+        <div class="reviews-list" data-reviews-list data-reviews-ssr="1">
+            [reviews_empty]
+            <p class="comment-empty">{reviews_ui_empty}</p>
+            [/reviews_empty] [not-reviews_empty] {reviews_list_html|raw} [/not-reviews_empty]
+        </div>
+    </section>
+    [/has_reviews]
+    [/not-has_comments]
+    [has_related]
     <section class="sect related-sect" aria-label="Рекомендуем посмотреть">
         <div class="sect-header fx-row fx-middle fx-start">
             <span class="sect-title">Рекомендуем посмотреть</span>

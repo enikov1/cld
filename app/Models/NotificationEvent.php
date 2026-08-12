@@ -17,12 +17,14 @@ class NotificationEvent extends Model
         'episode_number',
         'voice',
         'event_type',
+        'payload',
         'created_at',
     ];
 
     protected $casts = [
         'season_number' => 'integer',
         'episode_number' => 'integer',
+        'payload' => 'array',
         'created_at' => 'datetime',
     ];
 

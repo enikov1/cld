@@ -205,6 +205,19 @@ class TplRenderer
         return $acc;
     }
 
+    private function isEmptyValue(mixed $val): bool
+    {
+        if ($val === null || $val === false || $val === '' || $val === 0 || $val === 0.0 || $val === '0') {
+            return true;
+        }
+
+        if (is_array($val) && count($val) === 0) {
+            return true;
+        }
+
+        return false;
+    }
+
     private function renderNotBlocks(string $tpl, array $vars): string
     {
         return (string)preg_replace_callback(
@@ -213,8 +226,7 @@ class TplRenderer
                 $key = $m[1];
                 $inner = $m[2];
                 $val = $this->resolvePath($vars, $key);
-                $isEmpty = $val === null || $val === false || $val === '' || (is_array($val) && count($val) === 0);
-                if ($isEmpty) {
+                if ($this->isEmptyValue($val)) {
                     return $this->renderString($inner, $vars);
                 }
                 return '';
@@ -232,8 +244,7 @@ class TplRenderer
                 $inner = $m[2];
                 $val = $this->resolvePath($vars, $key);
 
-                $isTruthy = !($val === null || $val === false || $val === '' || (is_array($val) && count($val) === 0));
-                if (!$isTruthy) {
+                if ($this->isEmptyValue($val)) {
                     return '';
                 }
                 return $this->renderString($inner, $vars);

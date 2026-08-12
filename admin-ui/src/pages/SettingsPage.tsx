@@ -54,6 +54,7 @@ type SettingsSection =
   | 'seo'
   | 'auth'
   | 'comments'
+  | 'reviews'
   | 'ratings'
   | 'engagement'
   | 'catalog'
@@ -72,6 +73,7 @@ const SECTION_LABELS: Record<SettingsSection, string> = {
   seo: 'SEO',
   auth: 'Авторизация',
   comments: 'Комментарии',
+  reviews: 'Рецензии',
   ratings: 'Рейтинги',
   engagement: 'Списки и уведомления',
   catalog: 'Каталог',
@@ -156,7 +158,7 @@ export default function SettingsPage() {
   const adminPath = (settingsMap.admin_path || 'admin').replace(/^\/+|\/+$/g, '')
 
   const boolKeys = useMemo(() => {
-    const keys = new Set<string>(['comments_auto_approve', 'site_background_hide_mobile'])
+    const keys = new Set<string>(['comments_auto_approve', 'reviews_auto_approve', 'site_background_hide_mobile'])
     Object.values(configSchema).forEach((group) => {
       group.fields.forEach((field) => {
         if (field.type === 'bool') keys.add(field.key)
@@ -333,6 +335,7 @@ export default function SettingsPage() {
       tmdb_api_key: '',
       admin_path: settingsMap.admin_path || 'admin',
       comments_auto_approve: settingsMap.comments_auto_approve === '1',
+      reviews_auto_approve: settingsMap.reviews_auto_approve === '1',
     }
 
     const applyFields = (schema: SiteConfigSchema) => {
@@ -910,6 +913,23 @@ export default function SettingsPage() {
       ),
     },
     {
+      key: 'reviews',
+      label: (
+        <span className="settings-tab-label">
+          <MessageOutlined />
+          Рецензии
+        </span>
+      ),
+      children: (
+        <Card title={configSchema.reviews?.title ?? 'Рецензии'} loading={loading} bordered={false}>
+          <Typography.Paragraph type="secondary">
+            Рецензии с оценкой 1–10, лимиты и тексты интерфейса.
+          </Typography.Paragraph>
+          <SiteConfigFields fields={configSchema.reviews?.fields ?? []} />
+        </Card>
+      ),
+    },
+    {
       key: 'ratings',
       label: (
         <span className="settings-tab-label">
@@ -1069,6 +1089,7 @@ export default function SettingsPage() {
         </span>
       ),
       children: (
+        <>
         <Card title="Комментарии" loading={loading} bordered={false}>
           <Typography.Paragraph type="secondary">
             По умолчанию новые комментарии попадают на модерацию и не видны на сайте до одобрения.
@@ -1082,6 +1103,20 @@ export default function SettingsPage() {
             <Switch checkedChildren="Вкл" unCheckedChildren="Выкл" />
           </Form.Item>
         </Card>
+        <Card title="Рецензии" loading={loading} bordered={false} style={{ marginTop: 16 }}>
+          <Typography.Paragraph type="secondary">
+            Пользовательские рецензии по умолчанию требуют модерации. Редакционные из админки публикуются сразу.
+          </Typography.Paragraph>
+          <Form.Item
+            label="Автоодобрение рецензий"
+            name="reviews_auto_approve"
+            valuePropName="checked"
+            extra="Если включено — рецензии пользователей сразу публикуются без проверки."
+          >
+            <Switch checkedChildren="Вкл" unCheckedChildren="Выкл" />
+          </Form.Item>
+        </Card>
+        </>
       ),
     },
     {

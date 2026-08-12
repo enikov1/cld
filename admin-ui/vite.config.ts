@@ -9,6 +9,7 @@ const ADMIN_SECTIONS = new Set([
   'collections',
   'studios',
   'comments',
+  'reviews',
   'player-reports',
   'cron-runs',
   'users',

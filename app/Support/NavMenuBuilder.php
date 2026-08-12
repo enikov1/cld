@@ -131,7 +131,16 @@ class NavMenuBuilder
             NavMegaSection::SOURCE_STUDIOS => Studio::query()
                 ->where('is_active', true)
                 ->where('is_hidden', false)
-                ->catalogOrder()
+                ->withCount(['items as items_count' => function ($query) {
+                    $query->whereHas('series', function ($q) {
+                        $q->where('is_active', true)
+                            ->where('is_hidden', false);
+                    });
+                }])
+                ->orderByDesc('items_count')
+                ->orderByDesc('is_pinned')
+                ->orderBy('sort_order')
+                ->orderByDesc('id')
                 ->limit(max(1, $section->item_limit))
                 ->get()
                 ->map(fn (Studio $s) => [

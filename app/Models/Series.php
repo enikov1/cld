@@ -297,6 +297,11 @@ class Series extends Model
         return $this->hasMany(Comment::class, 'series_id');
     }
 
+    public function reviews()
+    {
+        return $this->hasMany(Review::class, 'series_id');
+    }
+
     public function votes()
     {
         return $this->hasMany(UserVote::class, 'series_id');

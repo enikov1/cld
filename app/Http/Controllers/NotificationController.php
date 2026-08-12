@@ -165,26 +165,44 @@ class NotificationController extends Controller
     {
         $event = $delivery->event;
         $series = $event?->series;
+        $payload = is_array($event?->payload) ? $event->payload : [];
+        $eventType = (string) ($event?->event_type ?? 'new_episode');
 
         $episodeLabel = '';
         if ($event?->season_number && $event?->episode_number) {
             $episodeLabel = sprintf('%d сезон, %d серия', $event->season_number, $event->episode_number);
         }
 
+        $seriesUrl = $series ? SeriesUrl::path($series) : '#';
+        $anchor = trim((string) ($payload['anchor'] ?? ''));
+        if ($seriesUrl !== '#' && $anchor !== '') {
+            $seriesUrl .= '#' . ltrim($anchor, '#');
+        }
+
+        $title = match ($eventType) {
+            'comment_approved' => (string) ($payload['title'] ?? SiteConfig::str('notifications_ui_comment_approved')),
+            'review_approved' => (string) ($payload['title'] ?? SiteConfig::str('notifications_ui_review_approved')),
+            default => $episodeLabel !== ''
+                ? 'Новая серия — ' . $episodeLabel
+                : 'Новая серия',
+        };
+
+        $subtitle = match ($eventType) {
+            'comment_approved', 'review_approved' => (string) ($payload['preview'] ?? ''),
+            default => (string) ($event?->voice ?? ''),
+        };
+
         return [
             'id' => $delivery->id,
             'read' => $delivery->read_at !== null,
             'created_at' => $delivery->created_at?->format('d.m.Y H:i') ?? '',
             'series_title' => $series?->title ?? '—',
-            'series_url' => $series
-                ? SeriesUrl::path($series)
-                : '#',
+            'series_url' => $seriesUrl,
             'poster_url' => $series?->poster_url ?? '',
             'episode_label' => $episodeLabel,
-            'voice' => $event?->voice ?? '',
-            'title' => $episodeLabel !== ''
-                ? 'Новая серия — ' . $episodeLabel
-                : 'Новая серия',
+            'voice' => $subtitle,
+            'title' => $title,
+            'event_type' => $eventType,
         ];
     }
 }

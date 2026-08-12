@@ -140,6 +140,8 @@ Route::prefix('api/series/{seriesId}')->where(['seriesId' => '[0-9]+'])->group(f
     Route::get('/engagement', [SeriesEngagementController::class, 'engagement']);
     Route::get('/comments', [SeriesEngagementController::class, 'comments'])->middleware('site.feature:comments_enabled');
     Route::post('/comments', [SeriesEngagementController::class, 'storeComment'])->middleware('site.feature:comments_enabled');
+    Route::get('/reviews', [SeriesEngagementController::class, 'reviews'])->middleware('site.feature:reviews_enabled');
+    Route::post('/reviews', [SeriesEngagementController::class, 'storeReview'])->middleware(['site.feature:reviews_enabled', 'throttle:10,1']);
     Route::post('/vote', [SeriesEngagementController::class, 'vote'])->middleware('site.feature:series_vote_enabled');
     Route::get('/anticipation', [SeriesAnticipationController::class, 'show']);
     Route::post('/anticipation', [SeriesAnticipationController::class, 'vote']);

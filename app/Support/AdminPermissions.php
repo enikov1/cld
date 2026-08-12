@@ -32,6 +32,7 @@ class AdminPermissions
             ['key' => 'content.sync', 'label' => 'Синхронизации (KP / Alloha / Rutube / плееры)', 'group' => 'Интеграции', 'pages' => ['sync', 'alloha-sync', 'rutube-sync']],
 
             ['key' => 'moderation.comments', 'label' => 'Комментарии', 'group' => 'Модерация', 'pages' => ['comments']],
+            ['key' => 'moderation.reviews', 'label' => 'Рецензии', 'group' => 'Модерация', 'pages' => ['reviews']],
             ['key' => 'moderation.player_reports', 'label' => 'Жалобы на плеер', 'group' => 'Модерация', 'pages' => ['player-reports']],
             ['key' => 'moderation.users', 'label' => 'Пользователи', 'group' => 'Модерация', 'pages' => ['users']],
 
@@ -149,7 +150,7 @@ class AdminPermissions
         $segment = explode('/', $relative)[0] ?? '';
 
         return match ($segment) {
-            '', 'site-access', 'me' => null,
+            '', 'site-access', 'me', 'moderation-counts' => null,
 
             'stats', 'views-stats' => 'admin.stats',
             'cache' => 'admin.cache',
@@ -164,6 +165,7 @@ class AdminPermissions
             'themes' => 'admin.settings',
 
             'comments' => 'moderation.comments',
+            'reviews' => 'moderation.reviews',
             'player-reports' => 'moderation.player_reports',
             'users' => 'moderation.users',
 

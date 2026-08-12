@@ -401,6 +401,8 @@ class TplSampleValues
             'profile_stats.lists' => '3',
             'profile_stats.items' => '0',
             'profile_stats.comments' => '0',
+            'profile_stats.reviews' => '0',
+            'profile_stats.reviews_pending' => '0',
         ];
     }
 

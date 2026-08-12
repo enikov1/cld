@@ -19,6 +19,7 @@ const MediaLibraryPage = lazy(() => import('./pages/MediaLibraryPage'))
 const CollectionsPage = lazy(() => import('./pages/CollectionsPage'))
 const StudiosPage = lazy(() => import('./pages/StudiosPage'))
 const CommentsPage = lazy(() => import('./pages/CommentsPage'))
+const ReviewsPage = lazy(() => import('./pages/ReviewsPage'))
 const PlayerReportsPage = lazy(() => import('./pages/PlayerReportsPage'))
 const CronRunsPage = lazy(() => import('./pages/CronRunsPage'))
 const UsersPage = lazy(() => import('./pages/UsersPage'))
@@ -80,6 +81,7 @@ function AppRoutes({ isDark, onToggleTheme }: AppRoutesProps) {
           <Route path="collections" element={<CollectionsPage />} />
           <Route path="studios" element={<StudiosPage />} />
           <Route path="comments" element={<CommentsPage />} />
+          <Route path="reviews" element={<ReviewsPage />} />
           <Route path="player-reports" element={<PlayerReportsPage />} />
           <Route path="cron-runs" element={<CronRunsPage />} />
           <Route path="users" element={<UsersPage />} />

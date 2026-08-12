@@ -61,6 +61,7 @@ class AdminGlobalSearchController extends Controller
         ['key' => 'sitemap', 'label' => 'sitemap.xml', 'section' => 'seo', 'keywords' => 'карта сайта'],
         ['key' => 'admin_path', 'label' => 'URL-префикс админки', 'section' => 'admin', 'keywords' => 'admin path путь'],
         ['key' => 'comments_auto_approve', 'label' => 'Автоодобрение комментариев', 'section' => 'moderation', 'keywords' => 'модерация'],
+        ['key' => 'reviews_auto_approve', 'label' => 'Автоодобрение рецензий', 'section' => 'moderation', 'keywords' => 'модерация рецензии'],
         ['key' => 'kinopoisk_api_key', 'label' => 'KinoPoisk API-ключ', 'section' => 'integrations', 'keywords' => 'кинопоиск api'],
         ['key' => 'alloha_api_token', 'label' => 'Alloha API-токен', 'section' => 'integrations', 'keywords' => 'аллоха api'],
         ['key' => 'tmdb_api_key', 'label' => 'TMDB API-ключ', 'section' => 'integrations', 'keywords' => 'tmdb api'],

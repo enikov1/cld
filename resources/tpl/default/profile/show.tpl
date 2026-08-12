@@ -27,6 +27,12 @@
                     <span class="profile-stat__num">{profile_stats.comments}</span>
                     <span class="profile-stat__label">комментариев</span>
                 </div>
+                [has_profile_reviews]
+                <div class="profile-stat">
+                    <span class="profile-stat__num">{profile_stats.reviews}</span>
+                    <span class="profile-stat__label">рецензий</span>
+                </div>
+                [/has_profile_reviews]
             </div>
 
             <form action="/logout" method="post" class="profile-logout">
@@ -43,6 +49,12 @@
                     <button type="button" class="profile-tabs__btn" data-profile-tab="notifications">Уведомления</button>
                 [/has_notifications]
                 <button type="button" class="profile-tabs__btn" data-profile-tab="comments">Комментарии</button>
+                [has_profile_reviews]
+                <button type="button" class="profile-tabs__btn" data-profile-tab="reviews">
+                    Рецензии
+                    [has_reviews_pending]<span class="profile-tabs__badge">{profile_stats.reviews_pending}</span>[/has_reviews_pending]
+                </button>
+                [/has_profile_reviews]
             </nav>
 
             <section class="profile-panel is-active" data-profile-panel="account">
@@ -233,6 +245,46 @@
                     </div>
                 </div>
             </section>
+
+            [has_profile_reviews]
+            <section class="profile-panel" data-profile-panel="reviews" hidden>
+                <div class="profile-card profile-card--full">
+                    <h2>Мои рецензии</h2>
+                    [has_reviews_pending]
+                    <p class="profile-reviews-hint">На модерации: {profile_stats.reviews_pending}. После одобрения они появятся на страницах сериалов.</p>
+                    [/has_reviews_pending]
+                    <div class="series-notifications-list">
+                        [loop profile_reviews]
+                            <article class="series-notification-card[item.is_pending] series-notification-card--pending[/item.is_pending]">
+                                <a class="series-notification-poster" href="{item.series_url|raw}">
+                                    <img src="{item.poster_url|raw}" alt="{item.series_title}" loading="lazy">
+                                </a>
+                                <div class="series-notification-body">
+                                    <div class="series-notification-top">
+                                        <a class="series-notification-name" href="{item.series_url|raw}">{item.series_title}</a>
+                                        <span class="series-notification-date">{item.created_at}</span>
+                                    </div>
+                                    <div class="profile-review-rating" title="{item.rating_label}">
+                                        {item.stars_html|raw}
+                                        <span class="profile-review-rating__value">{item.rating_label}</span>
+                                    </div>
+                                    <div class="series-notification-title">{item.body_html|raw}</div>
+                                    <div class="series-notification-meta">
+                                        <span class="series-notification-badge {item.status_badge_class}">{item.status_label}</span>
+                                    </div>
+                                </div>
+                            </article>
+                        [/loop]
+                        [not-profile_reviews]
+                            <div class="series-notifications-empty">
+                                <strong>Рецензий пока нет</strong>
+                                Оставьте первую рецензию на странице интересующего сериала — после входа в аккаунт.
+                            </div>
+                        [/not-profile_reviews]
+                    </div>
+                </div>
+            </section>
+            [/has_profile_reviews]
         </div>
     </div>
 </main>

@@ -4,11 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Comment;
 use App\Models\NotificationSetting;
+use App\Models\Review;
 use App\Models\Watchlist;
 use App\Models\WatchlistItem;
 use App\Support\SeriesUrl;
 use App\Support\RespondsWithJsonForms;
 use App\Support\CommentBody;
+use App\Support\ReviewBody;
+use App\Support\ReviewView;
 use App\Support\SiteConfig;
 use App\Support\Speedbar;
 use App\Support\WatchlistDefaults;
@@ -86,6 +89,53 @@ class ProfileController extends TplController
             })
             ->all();
 
+        $reviews = Review::query()
+            ->with(['series'])
+            ->where('user_id', $user->id)
+            ->orderByDesc('created_at')
+            ->limit(SiteConfig::int('profile_reviews_limit'))
+            ->get()
+            ->map(function (Review $review) {
+                $series = $review->series;
+                $rating = max(1, min(10, (int) $review->rating));
+
+                return [
+                    'body' => $review->body,
+                    'body_html' => ReviewBody::renderHtml($review->body),
+                    'rating' => $rating,
+                    'rating_label' => $rating . '/10',
+                    'stars_html' => ReviewView::starsHtml($rating),
+                    'status' => $review->status,
+                    'status_label' => match ($review->status) {
+                        'approved' => 'Опубликована',
+                        'pending' => 'На модерации',
+                        'rejected' => 'Отклонена',
+                        default => $review->status,
+                    },
+                    'status_badge_class' => match ($review->status) {
+                        'approved' => 'series-notification-badge--voice',
+                        'pending' => 'profile-review-badge--pending',
+                        'rejected' => 'profile-review-badge--rejected',
+                        default => '',
+                    },
+                    'is_pending' => $review->status === 'pending',
+                    'created_at' => $review->created_at?->format('d.m.Y H:i') ?? '',
+                    'series_title' => $series?->title ?? '—',
+                    'series_url' => $series ? SeriesUrl::path($series) : '#',
+                    'poster_url' => $series?->poster_url ?? '',
+                ];
+            })
+            ->all();
+
+        $reviewsPendingCount = Review::query()
+            ->where('user_id', $user->id)
+            ->where('status', 'pending')
+            ->count();
+
+        $reviewsTotalCount = Review::query()
+            ->where('user_id', $user->id)
+            ->count();
+
         $initial = mb_strtoupper(mb_substr($user->name, 0, 1));
         $totalItems = array_sum(array_column($watchlists, 'items_count'));
 
@@ -124,10 +174,15 @@ class ProfileController extends TplController
                 'lists' => count($watchlists),
                 'items' => $totalItems,
                 'comments' => count($comments),
+                'reviews' => $reviewsTotalCount,
+                'reviews_pending' => $reviewsPendingCount,
                 'notifications' => count($notificationSubscriptions),
             ],
             'watchlists' => $watchlists,
             'profile_comments' => $comments,
+            'profile_reviews' => $reviews,
+            'has_profile_reviews' => SiteConfig::bool('reviews_enabled') || $reviewsTotalCount > 0,
+            'has_reviews_pending' => $reviewsPendingCount > 0,
             'notification_subscriptions' => $notificationSubscriptions,
             'has_notifications' => SiteConfig::bool('notifications_enabled'),
             'flash_success' => session('success', ''),

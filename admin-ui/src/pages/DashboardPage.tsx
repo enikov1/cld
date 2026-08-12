@@ -101,6 +101,16 @@ export default function DashboardPage() {
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
             <Statistic
+              title="Рецензии на модерации"
+              value={stats?.reviews_pending ?? 0}
+              suffix={`из ${stats?.reviews_total ?? 0}`}
+              valueStyle={stats?.reviews_pending ? { color: '#fa8c16' } : undefined}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading}>
+            <Statistic
               title="Жалобы на плеер"
               value={stats?.player_reports_today ?? 0}
               suffix={`сегодня / ${stats?.player_reports_total ?? 0} всего`}
@@ -152,6 +162,8 @@ export default function DashboardPage() {
               <Link to={ADMIN_ROUTES['search-stats']}>Статистика поиска</Link>
               {' · '}
               <Link to={ADMIN_ROUTES.comments}>Модерация комментариев</Link>
+              {' · '}
+              <Link to={ADMIN_ROUTES.reviews}>Рецензии</Link>
               {' · '}
               <Link to={ADMIN_ROUTES['player-reports']}>Жалобы на плеер</Link>
             </Typography.Paragraph>

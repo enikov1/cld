@@ -379,3 +379,174 @@
     .ls-gallery__stage { padding: 12px 44px; }
     .ls-gallery__img { max-height: 58vh; }
 }
+
+.engagement-tabs {
+    display: flex;
+    gap: 8px;
+    margin: 0 0 16px;
+    border-bottom: 1px solid rgba(0,0,0,.08);
+}
+.engagement-tabs__btn {
+    position: relative;
+    padding: 10px 14px 12px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    opacity: .7;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.engagement-tabs__btn.is-active {
+    opacity: 1;
+}
+.engagement-tabs__btn.is-active::after {
+    content: '';
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: -1px;
+    height: 3px;
+    background: #4caf50;
+}
+.engagement-tabs__count {
+    margin-left: 4px;
+    opacity: .7;
+    font-weight: 600;
+}
+.engagement-tabs__count[hidden] {
+    display: none !important;
+}
+.engagement-panel[hidden],
+.engagement-panel:not(.is-active) { display: none; }
+
+.review-form__rating {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 14px;
+    margin-bottom: 12px;
+}
+.review-stars-input { display: inline-flex; gap: 2px; }
+.review-stars-input__star {
+    padding: 0 1px;
+    border: 0;
+    background: transparent;
+    color: #c5cdd3;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+.review-stars-input__star.is-active,
+.review-stars-input__star.is-hover { color: #f0ad4e; }
+.review-form__rating-value { font-size: 13px; opacity: .75; }
+.review-login-hint {
+    margin: 0;
+    padding: 12px 14px;
+    border: 1px dashed rgba(0,0,0,.15);
+    border-radius: 4px;
+    opacity: .85;
+}
+.review-item { margin-bottom: 16px; }
+.review-item__inner {
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+    background: #e4ebef;
+    border-radius: 4px;
+}
+.review-content { flex: 1; min-width: 0; }
+.review-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px 16px;
+    margin-bottom: 8px;
+}
+.review-head__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.review-author { font-weight: 500; }
+.review-date { opacity: .7; font-size: 12px; }
+.review-editorial-badge {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #e8f5e9;
+    color: #2e7d32;
+    font-size: 11px;
+    font-weight: 700;
+}
+.review-rating { display: inline-flex; align-items: center; gap: 8px; }
+.review-stars { display: inline-flex; gap: 1px; }
+.review-stars__star { color: #c5cdd3; font-size: 14px; }
+.review-stars__star--filled { color: #f0ad4e; }
+.review-rating__value { font-size: 12px; opacity: .75; font-weight: 700; }
+.review-body { margin: 8px 0; line-height: 1.5; }
+.comments-sort {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 12px 0 16px;
+    font-size: 14px;
+    opacity: .85;
+}
+.comments-sort__links { display: flex; align-items: center; gap: 14px; }
+.comments-sort__link {
+    position: relative;
+    padding: 4px 0 8px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+.comments-sort__link.is-active::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: #4caf50;
+}
+
+.profile-tabs__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    margin-left: 6px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #f0ad4e;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+}
+.profile-reviews-hint {
+    margin: 0 0 14px;
+    font-size: 13px;
+    opacity: .8;
+}
+.profile-review-rating {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0 8px;
+}
+.profile-review-rating__value {
+    font-size: 12px;
+    font-weight: 700;
+    opacity: .75;
+}
+.series-notification-card--pending {
+    outline: 1px solid #f0ad4e;
+}
+.profile-review-badge--pending {
+    background: #fff3cd;
+    color: #856404;
+}
+.profile-review-badge--rejected {
+    background: #f8d7da;
+    color: #721c24;
+}

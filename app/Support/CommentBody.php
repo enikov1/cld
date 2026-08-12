@@ -67,7 +67,7 @@ class CommentBody
         return $normalized;
     }
 
-    public static function renderHtml(string $body): string
+    public static function renderHtml(string $body, ?string $spoilerRevealSetting = null): string
     {
         $body = self::normalize($body);
         $parts = preg_split(
@@ -84,7 +84,7 @@ class CommentBody
         $html = '';
         foreach ($parts as $part) {
             if (preg_match('/^\[spoiler\]([\s\S]*)\[\/spoiler\]$/iu', $part, $matches)) {
-                $html .= self::renderSpoilerHtml($matches[1]);
+                $html .= self::renderSpoilerHtml($matches[1], $spoilerRevealSetting);
                 continue;
             }
 
@@ -94,9 +94,10 @@ class CommentBody
         return $html;
     }
 
-    private static function renderSpoilerHtml(string $content): string
+    private static function renderSpoilerHtml(string $content, ?string $spoilerRevealSetting = null): string
     {
-        $label = htmlspecialchars(SiteConfig::str('comments_ui_spoiler_reveal'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $key = $spoilerRevealSetting ?: 'comments_ui_spoiler_reveal';
+        $label = htmlspecialchars(SiteConfig::str($key), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $text = self::escapeText($content);
 
         return '<span class="comment-spoiler">'

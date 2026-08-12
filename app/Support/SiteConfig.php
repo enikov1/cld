@@ -58,6 +58,8 @@ class SiteConfig
             'comments_guest_name_max_length' => ['type' => 'int', 'default' => '120', 'group' => 'comments', 'label' => 'Макс. длина имени гостя', 'min' => 2, 'max' => 255],
             'comments_max_reply_depth' => ['type' => 'int', 'default' => '8', 'group' => 'comments', 'label' => 'Макс. глубина ответов', 'min' => 1, 'max' => 20],
             'profile_comments_limit' => ['type' => 'int', 'default' => '20', 'group' => 'comments', 'label' => 'Комментариев в профиле', 'min' => 5, 'max' => 100],
+            'profile_reviews_limit' => ['type' => 'int', 'default' => '20', 'group' => 'reviews', 'label' => 'Рецензий в профиле', 'min' => 5, 'max' => 100],
+            'reviews_list_limit' => ['type' => 'int', 'default' => '100', 'group' => 'reviews', 'label' => 'Макс. рецензий на странице сериала', 'min' => 10, 'max' => 200],
 
             // Comments — messages
             'comments_msg_guest_name_required' => ['type' => 'string', 'default' => 'Укажите имя или отметьте «Анонимно».', 'group' => 'comments', 'label' => 'Имя гостя не указано'],
@@ -95,6 +97,48 @@ class SiteConfig
             'comments_ui_sort_date' => ['type' => 'string', 'default' => 'По дате', 'group' => 'comments', 'label' => 'Сортировка по дате'],
             'comments_ui_sort_rating' => ['type' => 'string', 'default' => 'По рейтингу', 'group' => 'comments', 'label' => 'Сортировка по рейтингу'],
             'comments_ui_pinned' => ['type' => 'string', 'default' => 'Закреплён', 'group' => 'comments', 'label' => 'Метка закреплённого'],
+
+            // Reviews — toggles
+            'reviews_enabled' => ['type' => 'bool', 'default' => '1', 'group' => 'reviews', 'label' => 'Рецензии на странице сериала'],
+
+            // Reviews — limits
+            'reviews_body_min_length' => ['type' => 'int', 'default' => '20', 'group' => 'reviews', 'label' => 'Мин. длина рецензии', 'min' => 2, 'max' => 1000],
+            'reviews_body_max_length' => ['type' => 'int', 'default' => '8000', 'group' => 'reviews', 'label' => 'Макс. длина рецензии', 'min' => 100, 'max' => 20000],
+            'reviews_author_name_max_length' => ['type' => 'int', 'default' => '120', 'group' => 'reviews', 'label' => 'Макс. длина имени автора', 'min' => 2, 'max' => 120],
+
+            // Reviews — messages
+            'reviews_msg_pending' => ['type' => 'string', 'default' => 'Рецензия отправлена на модерацию.', 'group' => 'reviews', 'label' => 'На модерации'],
+            'reviews_msg_published' => ['type' => 'string', 'default' => 'Рецензия опубликована.', 'group' => 'reviews', 'label' => 'Опубликована'],
+            'reviews_msg_too_short' => ['type' => 'string', 'default' => 'Рецензия слишком короткая.', 'group' => 'reviews', 'label' => 'Слишком короткая'],
+            'reviews_msg_submit_failed' => ['type' => 'string', 'default' => 'Не удалось отправить рецензию.', 'group' => 'reviews', 'label' => 'Ошибка отправки'],
+            'reviews_msg_disabled' => ['type' => 'string', 'default' => 'Рецензии отключены.', 'group' => 'reviews', 'label' => 'Рецензии отключены'],
+            'reviews_msg_links_forbidden' => ['type' => 'string', 'default' => 'Ссылки в рецензиях запрещены.', 'group' => 'reviews', 'label' => 'Ссылки запрещены'],
+            'reviews_msg_auth_required' => ['type' => 'string', 'default' => 'Чтобы оставить рецензию, войдите в аккаунт.', 'group' => 'reviews', 'label' => 'Нужна авторизация'],
+            'reviews_msg_already_exists' => ['type' => 'string', 'default' => 'Вы уже оставили рецензию на этот сериал.', 'group' => 'reviews', 'label' => 'Уже есть рецензия'],
+            'reviews_msg_rating_required' => ['type' => 'string', 'default' => 'Поставьте оценку от 1 до 10.', 'group' => 'reviews', 'label' => 'Нужна оценка'],
+
+            // Reviews — UI
+            'reviews_ui_title' => ['type' => 'string', 'default' => 'Рецензии', 'group' => 'reviews', 'label' => 'Заголовок блока'],
+            'reviews_ui_tab_comments' => ['type' => 'string', 'default' => 'Комментарии', 'group' => 'reviews', 'label' => 'Вкладка комментариев'],
+            'reviews_ui_tab_reviews' => ['type' => 'string', 'default' => 'Рецензии', 'group' => 'reviews', 'label' => 'Вкладка рецензий'],
+            'reviews_ui_label' => ['type' => 'string', 'default' => 'Напишите рецензию', 'group' => 'reviews', 'label' => 'Подпись поля'],
+            'reviews_ui_placeholder' => ['type' => 'string', 'default' => 'Поделитесь развёрнутым мнением о сериале...', 'group' => 'reviews', 'label' => 'Placeholder'],
+            'reviews_ui_rating_label' => ['type' => 'string', 'default' => 'Ваша оценка', 'group' => 'reviews', 'label' => 'Подпись рейтинга'],
+            'reviews_ui_submit' => ['type' => 'string', 'default' => 'Отправить', 'group' => 'reviews', 'label' => 'Кнопка отправки'],
+            'reviews_ui_loading' => ['type' => 'string', 'default' => 'Загрузка рецензий...', 'group' => 'reviews', 'label' => 'Загрузка'],
+            'reviews_ui_empty' => ['type' => 'string', 'default' => 'Пока нет рецензий. Будьте первым!', 'group' => 'reviews', 'label' => 'Пустой список'],
+            'reviews_ui_load_error' => ['type' => 'string', 'default' => 'Не удалось загрузить рецензии.', 'group' => 'reviews', 'label' => 'Ошибка загрузки'],
+            'reviews_ui_login_hint' => ['type' => 'string', 'default' => 'Войдите в аккаунт, чтобы оставить рецензию.', 'group' => 'reviews', 'label' => 'Подсказка входа'],
+            'reviews_ui_spoiler' => ['type' => 'string', 'default' => 'Спойлер', 'group' => 'reviews', 'label' => 'Кнопка спойлера'],
+            'reviews_ui_spoiler_hint' => ['type' => 'string', 'default' => 'Сюжетные спойлеры оформляйте кнопкой «Спойлер» или тегами [spoiler]текст[/spoiler]. Ссылки запрещены.', 'group' => 'reviews', 'label' => 'Подсказка к полю'],
+            'reviews_ui_spoiler_reveal' => ['type' => 'string', 'default' => 'Спойлер', 'group' => 'reviews', 'label' => 'Показать спойлер'],
+            'reviews_ui_spoiler_hide' => ['type' => 'string', 'default' => 'Скрыть спойлер', 'group' => 'reviews', 'label' => 'Скрыть спойлер'],
+            'reviews_ui_sort_label' => ['type' => 'string', 'default' => 'Сортировка', 'group' => 'reviews', 'label' => 'Подпись сортировки'],
+            'reviews_ui_sort_date' => ['type' => 'string', 'default' => 'По дате', 'group' => 'reviews', 'label' => 'Сортировка по дате'],
+            'reviews_ui_sort_rating' => ['type' => 'string', 'default' => 'По рейтингу', 'group' => 'reviews', 'label' => 'Сортировка по рейтингу'],
+            'reviews_ui_editorial' => ['type' => 'string', 'default' => 'Редакция', 'group' => 'reviews', 'label' => 'Метка редакционной'],
+            'reviews_label_user' => ['type' => 'string', 'default' => 'Пользователь', 'group' => 'reviews', 'label' => 'Имя пользователя без профиля'],
+            'reviews_label_editorial' => ['type' => 'string', 'default' => 'Редакция', 'group' => 'reviews', 'label' => 'Имя автора по умолчанию'],
 
             // Ratings
             'series_vote_enabled' => ['type' => 'bool', 'default' => '1', 'group' => 'ratings', 'label' => 'Лайк/дизлайк сериала'],
@@ -142,6 +186,8 @@ class SiteConfig
             'notifications_ui_push_label' => ['type' => 'string', 'default' => 'Push-уведомления в браузере', 'group' => 'engagement', 'label' => 'Подпись push в профиле'],
             'notifications_msg_push_enabled' => ['type' => 'string', 'default' => 'Push-уведомления включены.', 'group' => 'engagement', 'label' => 'Push включены'],
             'notifications_msg_push_denied' => ['type' => 'string', 'default' => 'Разрешите уведомления в браузере, чтобы получать push.', 'group' => 'engagement', 'label' => 'Push запрещены'],
+            'notifications_ui_comment_approved' => ['type' => 'string', 'default' => 'Комментарий одобрен', 'group' => 'engagement', 'label' => 'Уведомление: комментарий одобрен'],
+            'notifications_ui_review_approved' => ['type' => 'string', 'default' => 'Рецензия одобрена', 'group' => 'engagement', 'label' => 'Уведомление: рецензия одобрена'],
             'telegram_url' => ['type' => 'string', 'default' => '', 'group' => 'engagement', 'label' => 'Ссылка Telegram на странице сериала'],
             'telegram_label' => ['type' => 'string', 'default' => 'Наш Telegram', 'group' => 'engagement', 'label' => 'Текст кнопки Telegram'],
             'card_badge_popular_days' => ['type' => 'int', 'default' => '3', 'group' => 'engagement', 'label' => 'Дней для бейджа «Популярно»', 'min' => 1, 'max' => 30],
@@ -865,6 +911,7 @@ PROMPT,
             'maintenance' => ['title' => 'Техническое обслуживание', 'fields' => []],
             'auth' => ['title' => 'Авторизация', 'fields' => []],
             'comments' => ['title' => 'Комментарии', 'fields' => []],
+            'reviews' => ['title' => 'Рецензии', 'fields' => []],
             'ratings' => ['title' => 'Рейтинги и реакции', 'fields' => []],
             'engagement' => ['title' => 'Списки и уведомления', 'fields' => []],
             'catalog' => ['title' => 'Каталог и навигация', 'fields' => []],

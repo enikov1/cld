@@ -7,6 +7,7 @@ use App\Http\Controllers\AdminStudioController;
 use App\Http\Controllers\AdminTemplateController;
 use App\Http\Controllers\AdminHomeSectionController;
 use App\Http\Controllers\AdminReactionController;
+use App\Http\Controllers\AdminReviewController;
 use App\Http\Controllers\AdminPlayersController;
 use App\Http\Controllers\AdminScheduleController;
 use App\Http\Controllers\AdminSearchController;
@@ -42,6 +43,7 @@ use App\Support\AdminAudit;
 use App\Support\AdminPath;
 use App\Support\CommentBody;
 use App\Support\CommentModeration;
+use App\Support\ReviewModeration;
 use App\Support\EncryptedSiteSecret;
 use App\Support\RobotsTxt;
 use App\Support\SiteConfig;
@@ -89,6 +91,14 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
 
     Route::get('/me', [AdminTokensController::class, 'me']);
 
+    Route::get('/moderation-counts', function () {
+        return response()->json([
+            'comments_pending' => \App\Models\Comment::query()->where('status', 'pending')->count(),
+            'reviews_pending' => \App\Models\Review::query()->where('status', 'pending')->count(),
+            'player_reports_total' => \App\Models\PlayerReport::query()->count(),
+        ]);
+    });
+
     Route::get('/admin-tokens/meta', [AdminTokensController::class, 'meta']);
     Route::get('/admin-tokens', [AdminTokensController::class, 'index']);
     Route::post('/admin-tokens', [AdminTokensController::class, 'store']);
@@ -110,6 +120,8 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
                 'studios_active' => Studio::query()->where('is_active', true)->count(),
                 'comments_total' => \App\Models\Comment::query()->count(),
                 'comments_pending' => \App\Models\Comment::query()->where('status', 'pending')->count(),
+                'reviews_total' => \App\Models\Review::query()->count(),
+                'reviews_pending' => \App\Models\Review::query()->where('status', 'pending')->count(),
                 'player_reports_total' => \App\Models\PlayerReport::query()->count(),
                 'player_reports_today' => \App\Models\PlayerReport::query()->where('created_at', '>=', now()->startOfDay())->count(),
                 'users_total' => \App\Models\User::query()->count(),
@@ -381,6 +393,12 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
         ]);
     });
 
+    Route::get('/reviews', [AdminReviewController::class, 'index']);
+    Route::post('/reviews', [AdminReviewController::class, 'store']);
+    Route::post('/reviews/{id}/status', [AdminReviewController::class, 'updateStatus'])->where('id', '[0-9]+');
+    Route::post('/reviews/{id}', [AdminReviewController::class, 'update'])->where('id', '[0-9]+');
+    Route::delete('/reviews/{id}', [AdminReviewController::class, 'destroy'])->where('id', '[0-9]+');
+
     Route::get('/player-reports', function (Request $request) {
         $perPage = min(100, max(10, (int)$request->query('per_page', 50)));
         $page = max(1, (int)$request->query('page', 1));
@@ -413,13 +431,16 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
             'status' => ['required', 'in:approved,rejected,pending'],
         ]);
 
-        $comment = \App\Models\Comment::query()->with('series:id')->findOrFail($id);
+        $comment = \App\Models\Comment::query()->with(['series', 'user'])->findOrFail($id);
+        $previousStatus = (string) $comment->status;
         $comment->status = $data['status'];
         $comment->save();
 
         if ($comment->series_id) {
-            TplCache::forgetSeries((int)$comment->series_id);
+            TplCache::forgetSeries((int) $comment->series_id);
         }
+
+        \App\Services\ModerationNotifier::commentApproved($comment, $previousStatus);
 
         return response()->json(['ok' => true, 'item' => $comment]);
     });
@@ -503,6 +524,7 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
             'alloha_api_token_set' => AllohaConfig::isConfigured(),
             'tmdb_api_key_set' => TmdbConfig::isConfigured(),
             'comments_auto_approve' => CommentModeration::autoApproveEnabled(),
+            'reviews_auto_approve' => ReviewModeration::autoApproveEnabled(),
             'admin_path' => AdminPath::path(),
             'admin_base' => AdminPath::base(),
             'robots_txt_default' => RobotsTxt::defaultTemplate(),
@@ -621,6 +643,7 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
                 TmdbConfig::SETTING_KEY,
                 AdminPath::SETTING_KEY,
                 CommentModeration::SETTING_KEY,
+                ReviewModeration::SETTING_KEY,
                 RobotsTxt::SETTING_KEY,
             ],
         )));
@@ -662,7 +685,7 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
                 }
             }
 
-            if ($key === CommentModeration::SETTING_KEY) {
+            if ($key === CommentModeration::SETTING_KEY || $key === ReviewModeration::SETTING_KEY) {
                 $value = ($value === '1' || $value === true || $value === 'true') ? '1' : '0';
             }
 

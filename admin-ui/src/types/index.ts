@@ -177,6 +177,26 @@ export type CommentItem = {
   }
 }
 
+export type ReviewItem = {
+  id: number
+  body: string
+  rating: number
+  status: string
+  created_at: string
+  author_name?: string | null
+  author_display?: string
+  is_editorial?: boolean
+  user?: { id: number; name: string; email: string }
+  series?: {
+    id: number
+    title: string
+    slug: string
+    kp_id?: string | null
+    year?: number | null
+    start_year?: number | null
+  }
+}
+
 export type SettingItem = {
   id?: number
   key: string
@@ -210,6 +230,8 @@ export type AdminStats = {
   studios_active: number
   comments_total: number
   comments_pending: number
+  reviews_total: number
+  reviews_pending: number
   player_reports_total: number
   player_reports_today: number
   users_total: number
@@ -381,6 +403,7 @@ export type AdminPageKey =
   | 'collections'
   | 'studios'
   | 'comments'
+  | 'reviews'
   | 'player-reports'
   | 'cron-runs'
   | 'users'

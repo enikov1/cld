@@ -73,6 +73,7 @@ const PAGE_GROUP: Partial<Record<AdminPageKey, string>> = {
   templates: MENU_GROUPS.site,
   'tpl-docs': MENU_GROUPS.site,
   comments: MENU_GROUPS.moderation,
+  reviews: MENU_GROUPS.moderation,
   'player-reports': MENU_GROUPS.moderation,
   users: MENU_GROUPS.moderation,
   'search-stats': MENU_GROUPS.moderation,
@@ -136,6 +137,11 @@ function buildMenuItems(stats: AdminStats | null, allowedPages: Set<string>): Me
       key: 'comments',
       icon: <CommentOutlined />,
       label: <MenuLabel text="Комментарии" count={stats?.comments_total ?? null} />,
+    },
+    {
+      key: 'reviews',
+      icon: <CommentOutlined />,
+      label: <MenuLabel text="Рецензии" count={stats == null ? null : stats.reviews_pending > 0 ? stats.reviews_pending : undefined} />,
     },
     {
       key: 'player-reports',
@@ -232,22 +238,47 @@ export default function AdminLayout({ isDark, onToggleTheme }: AdminLayoutProps)
   }, [allowedPages, page, navigate, me])
 
   useEffect(() => {
-    if (!canAbility('admin.stats')) {
-      setStats(null)
-      return
-    }
     let cancelled = false
-    api<AdminStats>('/api/admin/stats')
-      .then((data) => {
-        if (!cancelled) setStats(data)
-      })
-      .catch(() => {
-        /* меню работает и без счётчиков */
-      })
+    const apply = (partial: Partial<AdminStats>) => {
+      if (!cancelled) {
+        setStats((prev) => ({ ...(prev ?? ({} as AdminStats)), ...partial }))
+      }
+    }
+
+    if (canAbility('admin.stats')) {
+      api<AdminStats>('/api/admin/stats')
+        .then((data) => {
+          if (!cancelled) setStats(data)
+        })
+        .catch(() => {
+          /* меню работает и без счётчиков */
+        })
+    } else if (
+      allowedPages.has('reviews') ||
+      allowedPages.has('comments') ||
+      allowedPages.has('player-reports')
+    ) {
+      api<{ comments_pending: number; reviews_pending: number; player_reports_total: number }>(
+        '/api/admin/moderation-counts',
+      )
+        .then((data) => {
+          apply({
+            comments_pending: data.comments_pending,
+            reviews_pending: data.reviews_pending,
+            player_reports_total: data.player_reports_total,
+          })
+        })
+        .catch(() => {
+          /* меню работает и без счётчиков */
+        })
+    } else {
+      setStats(null)
+    }
+
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- canAbility derived from me
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- canAbility/allowedPages derived from me
   }, [me])
 
   if ((me?.pages?.length ?? 0) === 0) {

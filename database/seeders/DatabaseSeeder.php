@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
         SiteSetting::set('active_theme', 'default');
         SiteSetting::set('admin_path', 'admin');
         SiteSetting::set('comments_auto_approve', '0');
+        SiteSetting::set('reviews_auto_approve', '0');
         SiteSetting::set('site_background_header_offset', '200');
         SiteSetting::set('site_background_color', '#111');
         SiteSetting::set('site_background_hide_mobile', '0');
