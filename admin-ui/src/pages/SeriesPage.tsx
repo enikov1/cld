@@ -61,6 +61,7 @@ import { BROADCAST_STATUSES, CONTENT_TYPES } from '../types'
 import { resolveMediaUrl, resolveCropperImageUrl, siteOrigin } from '../utils/mediaUrl'
 import { seriesPublicPath } from '../utils/seriesPublicPath'
 import { buildDescriptionAiPrompt } from '../utils/descriptionAiPrompt'
+import { joinSlugParts, slugify } from '../utils/slugify'
 
 type PosterMeta = {
   width?: number | null
@@ -964,6 +965,107 @@ export default function SeriesPage() {
     } catch {
       message.error('Не удалось скопировать')
     }
+  }
+
+  function resolveFirstTaxonomySlug(
+    ids: number[] | undefined,
+    items: TaxonomyOption[],
+    extra?: TaxonomyOption[] | null,
+    fallbackLabels?: SelectOption[],
+  ): string | null {
+    const id = ids?.[0]
+    if (!id) return null
+    const hit = items.find((item) => item.id === id)
+      ?? extra?.find((item) => item.id === id)
+    if (hit) {
+      return hit.slug || slugify(hit.name) || null
+    }
+    const label = fallbackLabels?.find((option) => option.value === id)?.label
+    return label ? slugify(label) || null : null
+  }
+
+  function applySlugTemplate(parts: Array<'type' | 'genre' | 'studio' | 'year' | 'country'> = []) {
+    const values = form.getFieldsValue()
+    const title = String(values.title ?? '').trim()
+    if (!title) {
+      message.warning('Сначала укажите название')
+      return
+    }
+
+    const chunks: string[] = [title]
+
+    for (const part of parts) {
+      if (part === 'type') {
+        const type = String(values.content_type ?? '').trim()
+        if (!type) {
+          message.warning('Сначала выберите тип')
+          return
+        }
+        chunks.push(type)
+        continue
+      }
+      if (part === 'genre') {
+        const genreSlug = resolveFirstTaxonomySlug(
+          values.genre_ids,
+          taxonomy.genres,
+          editing?.genres,
+          genreOptions,
+        )
+        if (!genreSlug) {
+          message.warning('Сначала выберите жанр')
+          return
+        }
+        chunks.push(genreSlug)
+        continue
+      }
+      if (part === 'studio') {
+        const studioId = (values.studio_ids as number[] | undefined)?.[0]
+        if (!studioId) {
+          message.warning('Сначала выберите студию')
+          return
+        }
+        const studio = studios.find((s) => s.id === studioId)
+          ?? editing?.studios?.find((s) => s.id === studioId)
+          ?? (editing?.studio?.id === studioId ? editing.studio : null)
+        const studioSlug = studio?.slug || slugify(studio?.title)
+        if (!studioSlug) {
+          message.warning('Не удалось взять slug студии')
+          return
+        }
+        chunks.push(studioSlug)
+        continue
+      }
+      if (part === 'year') {
+        const year = values.year ?? values.start_year
+        if (year == null || year === '') {
+          message.warning('Сначала укажите год')
+          return
+        }
+        chunks.push(String(year))
+        continue
+      }
+      if (part === 'country') {
+        const countrySlug = resolveFirstTaxonomySlug(
+          values.country_ids,
+          taxonomy.countries,
+          editing?.countries,
+          countryOptions,
+        )
+        if (!countrySlug) {
+          message.warning('Сначала выберите страну')
+          return
+        }
+        chunks.push(countrySlug)
+      }
+    }
+
+    const next = joinSlugParts(...chunks)
+    if (!next) {
+      message.warning('Не удалось собрать slug')
+      return
+    }
+    form.setFieldValue('slug', next)
+    setFormDirty(true)
   }
 
   async function importKp() {
@@ -1994,11 +2096,6 @@ export default function SeriesPage() {
                     </Row>
                     <Row gutter={16}>
                       <Col span={8}>
-                        <Form.Item label="Slug" name="slug" extra="Если пусто — из названия">
-                          <Input placeholder="avto-iz-nazvaniya" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={8}>
                         <Form.Item label="Тип" name="content_type">
                           <Select options={CONTENT_TYPES.map((x) => ({ value: x.value, label: x.label }))} />
                         </Form.Item>
@@ -2009,6 +2106,29 @@ export default function SeriesPage() {
                         </Form.Item>
                       </Col>
                     </Row>
+                    <Form.Item
+                      label="Slug"
+                      name="slug"
+                      extra={
+                        <Space size={[4, 4]} wrap style={{ marginTop: 4 }}>
+                          <Typography.Text type="secondary" style={{ marginRight: 4 }}>
+                            Сгенерировать:
+                          </Typography.Text>
+                          <Button size="small" onClick={() => applySlugTemplate([])}>Название</Button>
+                          <Button size="small" onClick={() => applySlugTemplate(['type'])}>+ тип</Button>
+                          <Button size="small" onClick={() => applySlugTemplate(['genre'])}>+ жанр</Button>
+                          <Button size="small" onClick={() => applySlugTemplate(['studio'])}>+ студия</Button>
+                          <Button size="small" onClick={() => applySlugTemplate(['year'])}>+ год</Button>
+                          <Button size="small" onClick={() => applySlugTemplate(['country'])}>+ страна</Button>
+                          <Button size="small" onClick={() => applySlugTemplate(['type', 'genre'])}>тип + жанр</Button>
+                        </Space>
+                      }
+                    >
+                      <Input placeholder="avto-iz-nazvaniya" />
+                    </Form.Item>
+                    <Typography.Paragraph type="secondary" style={{ marginTop: -8, marginBottom: 16 }}>
+                      Если пусто при сохранении — из названия. Жанр / студия / страна — первый выбранный.
+                    </Typography.Paragraph>
                   </>
                 ),
               },
