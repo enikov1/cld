@@ -5,6 +5,7 @@ export type CollectionImageAiPromptVars = {
 }
 
 export const COLLECTION_COVER_AI_PROMPT_KEY = 'collection_cover_ai_prompt'
+export const COLLECTION_COVER_ALICE_AI_PROMPT_KEY = 'collection_cover_alice_ai_prompt'
 export const COLLECTION_BANNER_AI_PROMPT_KEY = 'collection_banner_ai_prompt'
 
 export const DEFAULT_COLLECTION_COVER_AI_PROMPT = `Ты — арт-директор каталога зарубежных сериалов.
@@ -25,6 +26,16 @@ export const DEFAULT_COLLECTION_COVER_AI_PROMPT = `Ты — арт-директ�
 - Высокая детализация, естественный свет, без «AI-артефактов» на лицах
 
 Верни ТОЛЬКО готовый англоязычный image prompt (1–3 предложения), без пояснений до и после.`
+
+/** Готовый запрос для вставки в Яндекс Алису AI (генерация изображений). */
+export const DEFAULT_COLLECTION_COVER_ALICE_AI_PROMPT = `Нарисуй обложку для подборки зарубежных сериалов «{name}».
+
+Формат: горизонтальная картинка 4:3 (например 1200×900), как плитка каталога.
+
+Объект: крупный выразительный кинематографичный кадр или сцена, передающая атмосферу темы «{name}».
+Окружение: мир зарубежных сериалов по этой теме, естественный свет, глубина кадра.
+Стиль: фотореалистичный cinematic look, высокая детализация, без коллажа.
+Детали: без текста, логотипов, водяных знаков, UI и рамок; без узнаваемых чужих постеров и логотипов студий; лица без артефактов; композиция читается даже в маленькой плитке.`
 
 export const DEFAULT_COLLECTION_BANNER_AI_PROMPT = `Ты — арт-директор каталога зарубежных сериалов.
 

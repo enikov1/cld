@@ -16,6 +16,7 @@ class RobotsTxt
             'Disallow: /{admin_path}/',
             'Disallow: /api/',
             'Disallow: /password/',
+            'Disallow: /search',
             '',
             'Sitemap: {sitemap_url}',
         ]);

@@ -20,8 +20,10 @@ import {
 import {
   COLLECTION_BANNER_AI_PROMPT_KEY,
   COLLECTION_COVER_AI_PROMPT_KEY,
+  COLLECTION_COVER_ALICE_AI_PROMPT_KEY,
   DEFAULT_COLLECTION_BANNER_AI_PROMPT,
   DEFAULT_COLLECTION_COVER_AI_PROMPT,
+  DEFAULT_COLLECTION_COVER_ALICE_AI_PROMPT,
 } from '../utils/collectionImageAiPrompt'
 import {
   COLLECTION_SEO_AI_PROMPT_KEY,
@@ -875,6 +877,25 @@ export default function CollectionsPage() {
               defaultTemplate={DEFAULT_COLLECTION_COVER_AI_PROMPT}
               label="обложки подборки (4:3)"
               aspectLabel="обложки 4:3"
+              buildVars={() => {
+                const name = String(form.getFieldValue('title') || '').trim()
+                if (!name) return null
+                const slug = String(form.getFieldValue('slug') || editing?.slug || '').trim()
+                return {
+                  name,
+                  slug,
+                  url: `/collections/${slug || '{slug}'}/`,
+                }
+              }}
+            />
+            <CollectionImageAiControls
+              settingKey={COLLECTION_COVER_ALICE_AI_PROMPT_KEY}
+              defaultTemplate={DEFAULT_COLLECTION_COVER_ALICE_AI_PROMPT}
+              label="обложки для Алисы AI (4:3)"
+              aspectLabel="Алисы 4:3"
+              buttonLabel="Промпт Алисы 4:3"
+              templateButtonLabel="Шаблон Алисы"
+              helpText="Скопируйте запрос в Яндекс Алису AI (генерация изображений), сохраните картинку и загрузите её кнопкой выше."
               buildVars={() => {
                 const name = String(form.getFieldValue('title') || '').trim()
                 if (!name) return null

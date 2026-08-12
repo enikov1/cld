@@ -15,6 +15,12 @@ type CollectionImageAiControlsProps = {
   label: string
   aspectLabel: string
   buildVars: () => CollectionImageAiPromptVars | null
+  /** Текст кнопки открытия промпта (по умолчанию «Промпт {aspectLabel}»). */
+  buttonLabel?: string
+  /** Текст кнопки шаблона (по умолчанию «Шаблон»). */
+  templateButtonLabel?: string
+  /** Подсказка в модалке промпта. */
+  helpText?: string
 }
 
 export default function CollectionImageAiControls({
@@ -23,6 +29,9 @@ export default function CollectionImageAiControls({
   label,
   aspectLabel,
   buildVars,
+  buttonLabel,
+  templateButtonLabel = 'Шаблон',
+  helpText = 'Скопируйте промпт в ChatGPT / Claude / генератор картинок, сохраните изображение и загрузите его кнопкой выше.',
 }: CollectionImageAiControlsProps) {
   const [promptModalOpen, setPromptModalOpen] = useState(false)
   const [promptLoading, setPromptLoading] = useState(false)
@@ -107,10 +116,10 @@ export default function CollectionImageAiControls({
   return (
     <>
       <Button icon={<CopyOutlined />} onClick={() => void openPromptModal()}>
-        Промпт {aspectLabel}
+        {buttonLabel ?? `Промпт ${aspectLabel}`}
       </Button>
       <Button icon={<EditOutlined />} onClick={() => void openTemplateModal()}>
-        Шаблон
+        {templateButtonLabel}
       </Button>
 
       <Modal
@@ -118,7 +127,7 @@ export default function CollectionImageAiControls({
         open={promptModalOpen}
         onCancel={() => setPromptModalOpen(false)}
         footer={[
-          <Button key="template" onClick={() => void openTemplateModal()}>Шаблон</Button>,
+          <Button key="template" onClick={() => void openTemplateModal()}>{templateButtonLabel}</Button>,
           <Button key="copy" type="primary" icon={<CopyOutlined />} onClick={() => void copyPrompt()} disabled={!promptText.trim()}>
             Скопировать
           </Button>,
@@ -128,7 +137,7 @@ export default function CollectionImageAiControls({
         destroyOnHidden
       >
         <Typography.Paragraph type="secondary">
-          Скопируйте промпт в ChatGPT / Claude / генератор картинок, сохраните изображение и загрузите его кнопкой выше.
+          {helpText}
         </Typography.Paragraph>
         {promptLoading ? (
           <Typography.Text type="secondary">Загрузка…</Typography.Text>

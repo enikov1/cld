@@ -178,6 +178,7 @@ class TplSampleValues
             'seo.title' => 'Поиск по сериалам',
             'seo.description' => 'Поиск сериалов и фильмов по названию и описанию',
             'seo.canonical' => url('/search'),
+            'seo.robots' => 'noindex,follow',
             'item.title' => $series?->title ?? '',
             'item.slug' => $series?->slug ?? '',
             'item.url' => $series ? SeriesUrl::path($series) : '',

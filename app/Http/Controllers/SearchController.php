@@ -106,7 +106,7 @@ class SearchController extends TplController
             'canonical' => $canonical,
             'prev' => $pagination['prev_url'] ? url($pagination['prev_url']) : '',
             'next' => $pagination['next_url'] ? url($pagination['next_url']) : '',
-            'robots' => $page > 1 ? 'noindex,follow' : '',
+            'robots' => 'noindex,follow',
         ];
 
         return $this->renderTplPage('search.tpl', $vars, $meta);
