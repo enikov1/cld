@@ -55,15 +55,17 @@ export default function SeriesSearchSelect({
         `/api/admin/redirects/series-options?${params}`,
       )
       setOptions((prev) => {
-        const map = new Map<number, SeriesSearchOption>()
-        for (const item of prev) map.set(item.id, item)
-        for (const item of data.items) map.set(item.id, item)
-        return Array.from(map.values())
+        const selected = value != null ? prev.find((item) => item.id === value) : null
+        const next = [...data.items]
+        if (selected && !next.some((item) => item.id === selected.id)) {
+          next.unshift(selected)
+        }
+        return next
       })
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [value])
 
   useEffect(() => {
     fetchOptions('').catch(() => {
