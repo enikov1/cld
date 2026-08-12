@@ -74,7 +74,7 @@
                 </a>
             [/favourites_enabled]
             [auth.is_admin]
-                <a class="dontusebuttonclass ls-action ls-action--admin" href="{admin_url|raw}/" title="Админ-панель" id="headerAdminLink">
+                <a class="dontusebuttonclass ls-action ls-action--admin" href="{admin_url|raw}/" title="Админ-панель" id="headerAdminLink" target="_blank" rel="noopener noreferrer">
                     <span class="fa fa-cog"></span>
                 </a>
             [/auth.is_admin]
@@ -172,7 +172,7 @@
             </a>
         [/favourites_enabled]
         [auth.is_admin]
-            <a class="ls-mobile-link ls-mobile-link--admin" href="{admin_url|raw}/" id="mobileAdminLink">
+            <a class="ls-mobile-link ls-mobile-link--admin" href="{admin_url|raw}/" id="mobileAdminLink" target="_blank" rel="noopener noreferrer">
                 <span class="fa fa-cog" aria-hidden="true"></span>
                 Админ-панель
             </a>

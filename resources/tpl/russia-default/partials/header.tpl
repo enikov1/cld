@@ -28,7 +28,7 @@
             </button>
             [/has_notifications]
             [auth.is_admin]
-            <a href="{admin_url|raw}/" title="Админ-панель"><span class="fa fa-cog"></span></a>
+            <a href="{admin_url|raw}/" title="Админ-панель" target="_blank" rel="noopener noreferrer"><span class="fa fa-cog"></span></a>
             [/auth.is_admin]
         [/auth.logged_in]
         [not-auth.logged_in]

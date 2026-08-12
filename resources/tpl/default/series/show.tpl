@@ -44,7 +44,7 @@ HD качестве бесплатно[/meta-title] [meta-description][series.sh
                         [/series.status_badge_label]
                     </div>
 
-                    <div class="serial-details__rows">
+                    <div class="serial-details__rows" data-details-collapse>
                         [series.title_original]
                         <div class="serial-detail">
                             <div class="serial-detail__name">Оригинальное название:</div>
@@ -187,6 +187,13 @@ HD качестве бесплатно[/meta-title] [meta-description][series.sh
                 [/has_series_vote]
 
                 <div class="serial-side-actions">
+                    <a class="serial-side-btn serial-side-btn--watch" href="#player" data-scroll-to-player>
+                        <span class="serial-side-btn__ico">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7L8 5Z"/></svg>
+                        </span>
+                        <span class="serial-side-btn__text">Смотреть онлайн</span>
+                        <span class="serial-side-btn__arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9.29 6.71a1 1 0 0 0 0 1.41L13.17 12l-3.88 3.88a1 1 0 1 0 1.41 1.41l4.59-4.59a1 1 0 0 0 0-1.41L10.7 6.7a1 1 0 0 0-1.41.01Z"/></svg></span>
+                    </a>
                     [has_coming_soon]
                     <button type="button" class="serial-side-btn serial-side-btn--soon dontusebuttonclass expected-watch-btn[anticipation.watch_active] is-active[/anticipation.watch_active]" data-anticipation-root data-series-id="{series.id}" data-anticipation-vote="1">
                             <span class="serial-side-btn__ico"><span class="fa fa-bell"></span></span>
@@ -260,7 +267,7 @@ HD качестве бесплатно[/meta-title] [meta-description][series.sh
     </div>
     [/has_notifications]
 
-    <section class="trailer-box" data-trailer-box>
+    <section class="trailer-box" id="player" data-trailer-box>
         [has_players]
         <div class="trailer-box__top">
             <div class="trailer-tabs-wrap" data-trailer-tabs>

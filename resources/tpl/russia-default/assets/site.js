@@ -665,6 +665,8 @@
                 adminLink.id = 'headerAdminLink';
                 adminLink.href = adminUrl;
                 adminLink.title = 'Админ-панель';
+                adminLink.target = '_blank';
+                adminLink.rel = 'noopener noreferrer';
                 adminLink.innerHTML = '<span class="fa fa-cog"></span>';
                 var favLink = actions.querySelector('.ls-action--favourites');
                 var afterFav = favLink && favLink.nextSibling;
@@ -677,6 +679,8 @@
                     mobileAdmin.className = 'ls-mobile-link ls-mobile-link--admin';
                     mobileAdmin.id = 'mobileAdminLink';
                     mobileAdmin.href = adminUrl;
+                    mobileAdmin.target = '_blank';
+                    mobileAdmin.rel = 'noopener noreferrer';
                     mobileAdmin.innerHTML = '<span class="fa fa-cog" aria-hidden="true"></span> Админ-панель';
                     mobileMenu.appendChild(mobileAdmin);
                 }

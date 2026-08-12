@@ -665,6 +665,8 @@
                 adminLink.id = 'headerAdminLink';
                 adminLink.href = adminUrl;
                 adminLink.title = 'Админ-панель';
+                adminLink.target = '_blank';
+                adminLink.rel = 'noopener noreferrer';
                 adminLink.innerHTML = '<span class="fa fa-cog"></span>';
                 var favLink = actions.querySelector('.ls-action--favourites');
                 var afterFav = favLink && favLink.nextSibling;
@@ -677,6 +679,8 @@
                     mobileAdmin.className = 'ls-mobile-link ls-mobile-link--admin';
                     mobileAdmin.id = 'mobileAdminLink';
                     mobileAdmin.href = adminUrl;
+                    mobileAdmin.target = '_blank';
+                    mobileAdmin.rel = 'noopener noreferrer';
                     mobileAdmin.innerHTML = '<span class="fa fa-cog" aria-hidden="true"></span> Админ-панель';
                     mobileMenu.appendChild(mobileAdmin);
                 }
@@ -4893,6 +4897,141 @@
         }
     }
 
+    function initDescriptionSlice() {
+        var nodes = document.querySelectorAll('.slice-this');
+        if (!nodes.length) return;
+
+        var collapsedMax = window.matchMedia('(max-width: 640px)').matches ? 88 : 110;
+
+        nodes.forEach(function (el) {
+            if (el.getAttribute('data-slice-ready') === '1') return;
+            el.setAttribute('data-slice-ready', '1');
+
+            var fullHeight = el.scrollHeight;
+            if (fullHeight <= collapsedMax + 24) return;
+
+            el.classList.add('slice', 'slice-masked');
+            el.style.height = collapsedMax + 'px';
+
+            var btn = document.createElement('div');
+            btn.className = 'slice-btn slice-btn--compact';
+            var label = document.createElement('span');
+            label.setAttribute('role', 'button');
+            label.setAttribute('tabindex', '0');
+            label.textContent = 'показать полностью';
+            btn.appendChild(label);
+            el.insertAdjacentElement('afterend', btn);
+
+            var expanded = false;
+
+            function toggle() {
+                expanded = !expanded;
+                if (expanded) {
+                    el.classList.remove('slice-masked');
+                    el.style.height = el.scrollHeight + 'px';
+                    label.textContent = 'свернуть';
+                    window.setTimeout(function () {
+                        if (expanded) el.style.height = 'auto';
+                    }, 220);
+                } else {
+                    var current = el.scrollHeight;
+                    el.style.height = current + 'px';
+                    // force reflow before collapsing
+                    void el.offsetHeight;
+                    el.classList.add('slice-masked');
+                    el.style.height = collapsedMax + 'px';
+                    label.textContent = 'показать полностью';
+                }
+            }
+
+            label.addEventListener('click', toggle);
+            label.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    toggle();
+                }
+            });
+        });
+    }
+
+    function initDetailsCollapse() {
+        var rows = document.querySelector('[data-details-collapse]');
+        if (!rows) return;
+
+        var mq = window.matchMedia('(max-width: 1024px)');
+        var visibleCount = 3;
+        var details = rows.querySelectorAll('.serial-detail');
+        if (details.length <= visibleCount) return;
+
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'dontusebuttonclass serial-details__toggle';
+        btn.setAttribute('aria-expanded', 'false');
+        rows.insertAdjacentElement('afterend', btn);
+
+        function isExpanded() {
+            return rows.classList.contains('is-expanded');
+        }
+
+        function update() {
+            var compact = mq.matches;
+            if (!compact) {
+                rows.classList.remove('is-collapsed', 'is-expanded');
+                btn.hidden = true;
+                btn.setAttribute('aria-expanded', 'false');
+                return;
+            }
+
+            btn.hidden = false;
+            if (isExpanded()) {
+                rows.classList.remove('is-collapsed');
+                btn.textContent = 'Скрыть информацию';
+                btn.setAttribute('aria-expanded', 'true');
+            } else {
+                rows.classList.add('is-collapsed');
+                rows.classList.remove('is-expanded');
+                btn.textContent = 'Показать всю информацию';
+                btn.setAttribute('aria-expanded', 'false');
+            }
+        }
+
+        btn.addEventListener('click', function () {
+            if (!mq.matches) return;
+            if (isExpanded()) {
+                rows.classList.remove('is-expanded');
+            } else {
+                rows.classList.add('is-expanded');
+            }
+            update();
+        });
+
+        if (typeof mq.addEventListener === 'function') {
+            mq.addEventListener('change', update);
+        } else if (typeof mq.addListener === 'function') {
+            mq.addListener(update);
+        }
+
+        update();
+    }
+
+    function initScrollToPlayer() {
+        var links = document.querySelectorAll('[data-scroll-to-player]');
+        if (!links.length) return;
+
+        links.forEach(function (link) {
+            link.addEventListener('click', function (e) {
+                var target = document.getElementById('player')
+                    || document.querySelector('[data-trailer-box]');
+                if (!target) return;
+                e.preventDefault();
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                try {
+                    history.replaceState(null, '', '#player');
+                } catch (err) {}
+            });
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         initCsrfRefresh();
         initAuthModal();
@@ -4932,6 +5071,9 @@
         initSeriesPreview();
         initPersonPhotoHints();
         initSeriesGallery();
+        initDescriptionSlice();
+        initDetailsCollapse();
+        initScrollToPlayer();
     });
 
     function initSeriesGallery() {
