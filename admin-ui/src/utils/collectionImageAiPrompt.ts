@@ -7,6 +7,7 @@ export type CollectionImageAiPromptVars = {
 export const COLLECTION_COVER_AI_PROMPT_KEY = 'collection_cover_ai_prompt'
 export const COLLECTION_COVER_ALICE_AI_PROMPT_KEY = 'collection_cover_alice_ai_prompt'
 export const COLLECTION_BANNER_AI_PROMPT_KEY = 'collection_banner_ai_prompt'
+export const COLLECTION_BANNER_ALICE_AI_PROMPT_KEY = 'collection_banner_alice_ai_prompt'
 
 export const DEFAULT_COLLECTION_COVER_AI_PROMPT = `Ты — арт-директор каталога зарубежных сериалов.
 
@@ -55,6 +56,16 @@ export const DEFAULT_COLLECTION_BANNER_AI_PROMPT = `Ты — арт-директ
 - Высокая детализация, cinematic lighting
 
 Верни ТОЛЬКО готовый англоязычный image prompt (1–3 предложения), без пояснений до и после.`
+
+/** Готовый запрос для вставки в Яндекс Алису AI (генерация изображений). */
+export const DEFAULT_COLLECTION_BANNER_ALICE_AI_PROMPT = `Нарисуй широкий баннер для подборки зарубежных сериалов «{name}».
+
+Формат: панорамная картинка 16:4 (например 1600×400), как промо-блок на главной странице.
+
+Объект: кинематографичная сцена или образ, передающий атмосферу темы «{name}», с горизонтальной композицией и «воздухом» по краям.
+Окружение: мир зарубежных сериалов по этой теме, естественный свет, глубина кадра; важное не у самых краёв (на мобильных обрежется).
+Стиль: фотореалистичный cinematic look, высокая детализация, без коллажа.
+Детали: без текста, логотипов, водяных знаков, UI и рамок; без узнаваемых чужих постеров и логотипов студий; лица без артефактов.`
 
 export function fillCollectionImageAiPrompt(
   template: string,

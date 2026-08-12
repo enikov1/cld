@@ -351,6 +351,7 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
     Route::post('/collections/upsert', [AdminCollectionController::class, 'upsert']);
     Route::post('/collections/{collection_slug}/auto-sync', [AdminCollectionController::class, 'autoSync']);
     Route::post('/collections/{slug}/cover', [AdminCollectionController::class, 'uploadCover']);
+    Route::delete('/collections/{slug}/cover', [AdminCollectionController::class, 'destroyCover']);
     Route::get('/collections/{collection_slug}/items', [AdminCollectionController::class, 'items']);
     Route::post('/collections/{collection_slug}/items', [AdminCollectionController::class, 'saveItems']);
     Route::delete('/collections/{collection_slug}/items/{seriesKey}', [AdminCollectionController::class, 'destroyItem']);

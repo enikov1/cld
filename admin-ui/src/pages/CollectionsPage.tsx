@@ -1,5 +1,5 @@
 import { CopyOutlined, DeleteOutlined, EditOutlined, ExportOutlined } from '@ant-design/icons'
-import { Button, Col, Empty, Form, Input, InputNumber, Modal, Popconfirm, Row, Select, Space, Switch, Table, Tag, Tooltip, Typography, Upload, message } from 'antd'
+import { Button, Col, Empty, Form, Input, InputNumber, Modal, Popconfirm, Row, Select, Space, Switch, Table, Tabs, Tag, Tooltip, Typography, Upload, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -19,9 +19,11 @@ import {
 } from '../utils/collectionAiPrompt'
 import {
   COLLECTION_BANNER_AI_PROMPT_KEY,
+  COLLECTION_BANNER_ALICE_AI_PROMPT_KEY,
   COLLECTION_COVER_AI_PROMPT_KEY,
   COLLECTION_COVER_ALICE_AI_PROMPT_KEY,
   DEFAULT_COLLECTION_BANNER_AI_PROMPT,
+  DEFAULT_COLLECTION_BANNER_ALICE_AI_PROMPT,
   DEFAULT_COLLECTION_COVER_AI_PROMPT,
   DEFAULT_COLLECTION_COVER_ALICE_AI_PROMPT,
 } from '../utils/collectionImageAiPrompt'
@@ -29,7 +31,7 @@ import {
   COLLECTION_SEO_AI_PROMPT_KEY,
   DEFAULT_COLLECTION_SEO_AI_PROMPT,
 } from '../utils/entitySeoAiPrompt'
-import { siteOrigin } from '../utils/mediaUrl'
+import { resolveMediaUrl, siteOrigin } from '../utils/mediaUrl'
 
 function collectionPublicPath(slug: string): string {
   return `/collections/${slug}/`
@@ -73,6 +75,7 @@ export default function CollectionsPage() {
   const [loading, setLoading] = useState(false)
   const [collectionsLoading, setCollectionsLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
+  const [editorTab, setEditorTab] = useState('main')
   const [editing, setEditing] = useState<CollectionItem | null>(null)
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [autoSyncing, setAutoSyncing] = useState(false)
@@ -94,6 +97,10 @@ export default function CollectionsPage() {
   const watchedSeriesIds = (Form.useWatch('series_ids', form) as number[] | undefined) ?? []
   const watchedSlug = String(Form.useWatch('slug', form) ?? '').trim()
   const watchedTitle = String(Form.useWatch('title', form) ?? '').trim()
+  const watchedCoverUrl = String(Form.useWatch('cover_url', form) ?? '').trim()
+  const watchedBannerUrl = String(Form.useWatch('home_banner_url', form) ?? '').trim()
+  const [coverCacheBust, setCoverCacheBust] = useState<number | null>(null)
+  const [bannerCacheBust, setBannerCacheBust] = useState<number | null>(null)
 
   useDocumentTitle(
     importModalOpen
@@ -192,6 +199,9 @@ export default function CollectionsPage() {
 
   function openCreate() {
     setEditing(null)
+    setEditorTab('main')
+    setCoverCacheBust(null)
+    setBannerCacheBust(null)
     form.resetFields()
     form.setFieldsValue({
       is_active: true,
@@ -211,6 +221,9 @@ export default function CollectionsPage() {
   async function openEdit(row: CollectionItem) {
     const seq = ++openEditSeqRef.current
     setEditing(row)
+    setEditorTab('main')
+    setCoverCacheBust(null)
+    setBannerCacheBust(null)
     form.setFieldsValue({
       ...row,
       seo_html: row.seo_html ?? '',
@@ -639,23 +652,69 @@ export default function CollectionsPage() {
       fd.append('title', title)
     }
     try {
-      const res = await apiUpload<{ cover_url?: string | null; home_banner_url?: string | null; slug?: string }>(
+      const res = await apiUpload<{ cover_url?: string | null; home_banner_url?: string | null; slug?: string; item?: CollectionItem | null }>(
         `/api/admin/collections/${encodeURIComponent(slug || '_draft')}/cover`,
         fd,
       )
       if (variant === 'banner') {
         form.setFieldValue('home_banner_url', res.home_banner_url ?? '')
+        setBannerCacheBust(Date.now())
       } else {
         form.setFieldValue('cover_url', res.cover_url ?? '')
+        setCoverCacheBust(Date.now())
       }
       if (!slug && res.slug) {
         form.setFieldValue('slug', res.slug)
       }
+      if (res.item) {
+        setEditing(res.item)
+      }
       message.success(variant === 'banner' ? 'Баннер загружен' : 'Обложка загружена')
+      if (res.item) {
+        await loadCollections()
+      }
     } catch (e) {
       message.error(String((e as Error).message))
     }
     return false
+  }
+
+  async function clearCollectionImage(variant: 'cover' | 'banner') {
+    const field = variant === 'banner' ? 'home_banner_url' : 'cover_url'
+    const current = String(form.getFieldValue(field) ?? '').trim()
+    if (!current) return
+
+    const slug = resolveCoverUploadSlug()
+    if (editing?.id && slug) {
+      try {
+        const res = await api<{ cover_url?: string | null; home_banner_url?: string | null; item?: CollectionItem }>(
+          `/api/admin/collections/${encodeURIComponent(slug)}/cover?variant=${variant}`,
+          { method: 'DELETE' },
+        )
+        form.setFieldValue(field, '')
+        if (variant === 'banner') {
+          setBannerCacheBust(Date.now())
+        } else {
+          setCoverCacheBust(Date.now())
+        }
+        if (res.item) {
+          setEditing(res.item)
+        }
+        message.success(variant === 'banner' ? 'Баннер удалён' : 'Обложка удалена')
+        await loadCollections()
+      } catch (e) {
+        message.error(String((e as Error).message))
+      }
+      return
+    }
+
+    form.setFieldValue(field, '')
+    if (variant === 'banner') {
+      setBannerCacheBust(Date.now())
+    } else {
+      setCoverCacheBust(Date.now())
+    }
+    message.success(variant === 'banner' ? 'Баннер удалён' : 'Обложка удалена')
   }
 
   return (
@@ -784,184 +843,341 @@ export default function CollectionsPage() {
           </>
         )}
       >
-        <Form form={form} layout="vertical" onFinish={saveCollection}>
-          <Form.Item
-            label="Slug (URL)"
-            name="slug"
-            extra={editing ? 'Slug нельзя изменить после создания' : 'Если пусто — будет создан автоматически из названия'}
-          >
-            <Input placeholder="novinki-2026" disabled={!!editing} />
-          </Form.Item>
-          <Form.Item label="Название" name="title" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item label="Студия" name="studio_id" extra="Опционально — привязка подборки к студии">
-            <Select allowClear options={studioOptions} placeholder="Не выбрана" />
-          </Form.Item>
-          <Form.Item
-            label="Сериалы (вручную)"
-            name="series_ids"
-            extra="Только ручные позиции. Автодобавленные по ключевым словам сохраняются отдельно и здесь не редактируются."
-          >
-            <Select
-              mode="multiple"
-              allowClear
-              showSearch
-              options={seriesOptions}
-              optionFilterProp="label"
-              placeholder="Выберите один или несколько"
-              disabled={!series.length}
-            />
-          </Form.Item>
-          <Form.Item label="Автодобавление по словам" name="auto_add_enabled" valuePropName="checked">
-            <Switch />
-          </Form.Item>
-          <Form.Item
-            label="Ключевые слова"
-            name="auto_keywords"
-            extra="Через запятую или Enter. Ищется в названии, описании и жанрах сериала (без учёта регистра)."
-          >
-            <Select
-              mode="tags"
-              tokenSeparators={[',', ';']}
-              placeholder="вампир, vampire, упыри"
-              open={false}
-            />
-          </Form.Item>
-          <EntitySeoAiControls
-            form={form}
-            settingKey={COLLECTION_SEO_AI_PROMPT_KEY}
-            defaultTemplate={DEFAULT_COLLECTION_SEO_AI_PROMPT}
-            entityLabel="подборки"
-            buildVars={() => {
-              const name = String(form.getFieldValue('title') || '').trim()
-              if (!name) return null
-              const slug = String(form.getFieldValue('slug') || editing?.slug || '').trim()
-              return {
-                name,
-                slug,
-                url: `/collections/${slug || '{slug}'}/`,
-              }
-            }}
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={saveCollection}
+          preserve
+          onFinishFailed={(info) => {
+            const field = String(info.errorFields[0]?.name?.[0] ?? '')
+            const tabByField: Record<string, string> = {
+              slug: 'main',
+              title: 'main',
+              studio_id: 'main',
+              sort_order: 'main',
+              is_pinned: 'main',
+              show_on_home: 'main',
+              is_active: 'main',
+              is_hidden: 'main',
+              noindex: 'main',
+              series_ids: 'series',
+              auto_add_enabled: 'series',
+              auto_keywords: 'series',
+              meta_title: 'seo',
+              description: 'seo',
+              meta_description: 'seo',
+              seo_html: 'seo',
+              cover_url: 'media',
+              home_banner_url: 'media',
+            }
+            const tab = tabByField[field]
+            if (tab) setEditorTab(tab)
+          }}
+        >
+          <Tabs
+            activeKey={editorTab}
+            onChange={setEditorTab}
+            destroyInactiveTabPane={false}
+            items={[
+              {
+                key: 'main',
+                label: 'Основное',
+                forceRender: true,
+                children: (
+                  <>
+                    <Form.Item
+                      label="Slug (URL)"
+                      name="slug"
+                      extra={editing ? 'Slug нельзя изменить после создания' : 'Если пусто — будет создан автоматически из названия'}
+                    >
+                      <Input placeholder="novinki-2026" disabled={!!editing} />
+                    </Form.Item>
+                    <Form.Item label="Название" name="title" rules={[{ required: true }]}>
+                      <Input />
+                    </Form.Item>
+                    <Form.Item label="Студия" name="studio_id" extra="Опционально — привязка подборки к студии">
+                      <Select allowClear options={studioOptions} placeholder="Не выбрана" />
+                    </Form.Item>
+                    <Row gutter={16}>
+                      <Col span={6}>
+                        <Form.Item label="Порядок" name="sort_order"><InputNumber style={{ width: '100%' }} /></Form.Item>
+                      </Col>
+                      <Col span={6}>
+                        <Form.Item label="Закрепить" name="is_pinned" valuePropName="checked"><Switch /></Form.Item>
+                      </Col>
+                      <Col span={6}>
+                        <Form.Item label="На главной" name="show_on_home" valuePropName="checked" extra="Промо-блок">
+                          <Switch />
+                        </Form.Item>
+                      </Col>
+                      <Col span={6}>
+                        <Form.Item label="Активна" name="is_active" valuePropName="checked"><Switch /></Form.Item>
+                      </Col>
+                    </Row>
+                    <Row gutter={16}>
+                      <Col span={6}>
+                        <Form.Item label="Скрыть" name="is_hidden" valuePropName="checked"><Switch /></Form.Item>
+                      </Col>
+                      <Col span={10}>
+                        <Form.Item label="Запретить индексацию" name="noindex" valuePropName="checked" extra="meta robots noindex">
+                          <Switch />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                  </>
+                ),
+              },
+              {
+                key: 'series',
+                label: 'Состав',
+                forceRender: true,
+                children: (
+                  <>
+                    <Form.Item
+                      label="Сериалы (вручную)"
+                      name="series_ids"
+                      extra="Только ручные позиции. Автодобавленные по ключевым словам сохраняются отдельно и здесь не редактируются."
+                    >
+                      <Select
+                        mode="multiple"
+                        allowClear
+                        showSearch
+                        options={seriesOptions}
+                        optionFilterProp="label"
+                        placeholder="Выберите один или несколько"
+                        disabled={!series.length}
+                      />
+                    </Form.Item>
+                    <Form.Item label="Автодобавление по словам" name="auto_add_enabled" valuePropName="checked">
+                      <Switch />
+                    </Form.Item>
+                    <Form.Item
+                      label="Ключевые слова"
+                      name="auto_keywords"
+                      extra="Через запятую или Enter. Ищется в названии, описании и жанрах сериала (без учёта регистра)."
+                    >
+                      <Select
+                        mode="tags"
+                        tokenSeparators={[',', ';']}
+                        placeholder="вампир, vampire, упыри"
+                        open={false}
+                      />
+                    </Form.Item>
+                    <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+                      После сохранения настроек автоподбора можно нажать «Применить автоподбор» внизу окна.
+                    </Typography.Paragraph>
+                  </>
+                ),
+              },
+              {
+                key: 'seo',
+                label: 'SEO',
+                forceRender: true,
+                children: (
+                  <>
+                    <EntitySeoAiControls
+                      form={form}
+                      settingKey={COLLECTION_SEO_AI_PROMPT_KEY}
+                      defaultTemplate={DEFAULT_COLLECTION_SEO_AI_PROMPT}
+                      entityLabel="подборки"
+                      buildVars={() => {
+                        const name = String(form.getFieldValue('title') || '').trim()
+                        if (!name) return null
+                        const slug = String(form.getFieldValue('slug') || editing?.slug || '').trim()
+                        return {
+                          name,
+                          slug,
+                          url: `/collections/${slug || '{slug}'}/`,
+                        }
+                      }}
+                    />
+                    <Form.Item label="Meta title" name="meta_title" extra="Если пусто — «{название} — подборка сериалов»">
+                      <Input />
+                    </Form.Item>
+                    <Form.Item label="Описание" name="description">
+                      <Input.TextArea rows={3} />
+                    </Form.Item>
+                    <Form.Item label="Meta description" name="meta_description" extra="Если пусто — из описания или шаблона">
+                      <Input.TextArea rows={2} />
+                    </Form.Item>
+                    <Form.Item label="SEO-блок (HTML)" name="seo_html" extra="Выводится внизу страницы подборки">
+                      <TemplateCodeEditor filePath="collection-seo.html" isDark={isDark} height="220px" />
+                    </Form.Item>
+                    <Typography.Paragraph type="secondary" style={{ marginTop: -8, marginBottom: 0 }}>
+                      HTML-текст для SEO внизу страницы подборки.
+                    </Typography.Paragraph>
+                  </>
+                ),
+              },
+              {
+                key: 'media',
+                label: 'Обложки',
+                forceRender: true,
+                children: (
+                  <>
+                    <Form.Item label="Обложка для каталога (4:3)" name="cover_url" extra="Используется на странице /collections/">
+                      <Input />
+                    </Form.Item>
+                    <Space align="start" size={16} wrap style={{ marginBottom: 24 }}>
+                      {watchedCoverUrl ? (
+                        <img
+                          key={coverCacheBust ?? watchedCoverUrl}
+                          src={resolveMediaUrl(watchedCoverUrl, coverCacheBust)}
+                          alt="Превью обложки 4:3"
+                          style={{
+                            width: 160,
+                            height: 120,
+                            objectFit: 'cover',
+                            borderRadius: 6,
+                            display: 'block',
+                            background: '#f5f5f5',
+                          }}
+                        />
+                      ) : null}
+                      <Space wrap>
+                        <Upload
+                          beforeUpload={(file) => uploadCollectionImage(file, 'cover')}
+                          showUploadList={false}
+                          accept="image/*"
+                        >
+                          <Button disabled={!coverSlug && !watchedTitle}>
+                            Загрузить обложку 4:3
+                          </Button>
+                        </Upload>
+                        {watchedCoverUrl ? (
+                          <Popconfirm
+                            title="Удалить обложку?"
+                            onConfirm={() => void clearCollectionImage('cover')}
+                            okText="Удалить"
+                            cancelText="Отмена"
+                            okButtonProps={{ danger: true }}
+                          >
+                            <Button danger icon={<DeleteOutlined />}>
+                              Удалить
+                            </Button>
+                          </Popconfirm>
+                        ) : null}
+                        <CollectionImageAiControls
+                          settingKey={COLLECTION_COVER_AI_PROMPT_KEY}
+                          defaultTemplate={DEFAULT_COLLECTION_COVER_AI_PROMPT}
+                          label="обложки подборки (4:3)"
+                          aspectLabel="обложки 4:3"
+                          buildVars={() => {
+                            const name = String(form.getFieldValue('title') || '').trim()
+                            if (!name) return null
+                            const slug = String(form.getFieldValue('slug') || editing?.slug || '').trim()
+                            return {
+                              name,
+                              slug,
+                              url: `/collections/${slug || '{slug}'}/`,
+                            }
+                          }}
+                        />
+                        <CollectionImageAiControls
+                          settingKey={COLLECTION_COVER_ALICE_AI_PROMPT_KEY}
+                          defaultTemplate={DEFAULT_COLLECTION_COVER_ALICE_AI_PROMPT}
+                          label="обложки для Алисы AI (4:3)"
+                          aspectLabel="Алисы 4:3"
+                          buttonLabel="Промпт Алисы 4:3"
+                          templateButtonLabel="Шаблон Алисы"
+                          helpText="Скопируйте запрос в Яндекс Алису AI (генерация изображений), сохраните картинку и загрузите её кнопкой выше."
+                          buildVars={() => {
+                            const name = String(form.getFieldValue('title') || '').trim()
+                            if (!name) return null
+                            const slug = String(form.getFieldValue('slug') || editing?.slug || '').trim()
+                            return {
+                              name,
+                              slug,
+                              url: `/collections/${slug || '{slug}'}/`,
+                            }
+                          }}
+                        />
+                      </Space>
+                    </Space>
+                    <Form.Item label="Баннер для главной (16:4)" name="home_banner_url" extra="Широкий баннер для блока на главной странице">
+                      <Input />
+                    </Form.Item>
+                    <Space align="start" size={16} wrap style={{ marginBottom: 8 }}>
+                      {watchedBannerUrl ? (
+                        <img
+                          key={bannerCacheBust ?? watchedBannerUrl}
+                          src={resolveMediaUrl(watchedBannerUrl, bannerCacheBust)}
+                          alt="Превью баннера 16:4"
+                          style={{
+                            width: 320,
+                            height: 80,
+                            objectFit: 'cover',
+                            borderRadius: 6,
+                            display: 'block',
+                            background: '#f5f5f5',
+                          }}
+                        />
+                      ) : null}
+                      <Space wrap>
+                        <Upload
+                          beforeUpload={(file) => uploadCollectionImage(file, 'banner')}
+                          showUploadList={false}
+                          accept="image/*"
+                        >
+                          <Button disabled={!coverSlug && !watchedTitle}>
+                            Загрузить баннер 16:4
+                          </Button>
+                        </Upload>
+                        {watchedBannerUrl ? (
+                          <Popconfirm
+                            title="Удалить баннер?"
+                            onConfirm={() => void clearCollectionImage('banner')}
+                            okText="Удалить"
+                            cancelText="Отмена"
+                            okButtonProps={{ danger: true }}
+                          >
+                            <Button danger icon={<DeleteOutlined />}>
+                              Удалить
+                            </Button>
+                          </Popconfirm>
+                        ) : null}
+                        <CollectionImageAiControls
+                          settingKey={COLLECTION_BANNER_AI_PROMPT_KEY}
+                          defaultTemplate={DEFAULT_COLLECTION_BANNER_AI_PROMPT}
+                          label="баннера подборки (16:4)"
+                          aspectLabel="баннера 16:4"
+                          buildVars={() => {
+                            const name = String(form.getFieldValue('title') || '').trim()
+                            if (!name) return null
+                            const slug = String(form.getFieldValue('slug') || editing?.slug || '').trim()
+                            return {
+                              name,
+                              slug,
+                              url: `/collections/${slug || '{slug}'}/`,
+                            }
+                          }}
+                        />
+                        <CollectionImageAiControls
+                          settingKey={COLLECTION_BANNER_ALICE_AI_PROMPT_KEY}
+                          defaultTemplate={DEFAULT_COLLECTION_BANNER_ALICE_AI_PROMPT}
+                          label="баннера для Алисы AI (16:4)"
+                          aspectLabel="Алисы 16:4"
+                          buttonLabel="Промпт Алисы 16:4"
+                          templateButtonLabel="Шаблон Алисы"
+                          helpText="Скопируйте запрос в Яндекс Алису AI (генерация изображений), сохраните картинку и загрузите её кнопкой выше."
+                          buildVars={() => {
+                            const name = String(form.getFieldValue('title') || '').trim()
+                            if (!name) return null
+                            const slug = String(form.getFieldValue('slug') || editing?.slug || '').trim()
+                            return {
+                              name,
+                              slug,
+                              url: `/collections/${slug || '{slug}'}/`,
+                            }
+                          }}
+                        />
+                      </Space>
+                    </Space>
+                  </>
+                ),
+              },
+            ]}
           />
-          <Form.Item label="Meta title" name="meta_title" extra="Если пусто — «{название} — подборка сериалов»">
-            <Input />
-          </Form.Item>
-          <Form.Item label="Описание" name="description">
-            <Input.TextArea rows={3} />
-          </Form.Item>
-          <Form.Item label="Meta description" name="meta_description" extra="Если пусто — из описания или шаблона">
-            <Input.TextArea rows={2} />
-          </Form.Item>
-          <Form.Item label="SEO-блок (HTML)" name="seo_html" extra="Выводится внизу страницы подборки">
-            <TemplateCodeEditor filePath="collection-seo.html" isDark={isDark} height="220px" />
-          </Form.Item>
-          <Typography.Paragraph type="secondary" style={{ marginTop: -8, marginBottom: 16 }}>
-            HTML-текст для SEO внизу страницы подборки.
-          </Typography.Paragraph>
-          <Form.Item label="Обложка для каталога (4:3)" name="cover_url" extra="Используется на странице /collections/">
-            <Input />
-          </Form.Item>
-          <Space wrap style={{ marginBottom: 12 }}>
-            <Upload
-              beforeUpload={(file) => uploadCollectionImage(file, 'cover')}
-              showUploadList={false}
-              accept="image/*"
-            >
-              <Button disabled={!coverSlug && !watchedTitle}>
-                Загрузить обложку 4:3
-              </Button>
-            </Upload>
-            <CollectionImageAiControls
-              settingKey={COLLECTION_COVER_AI_PROMPT_KEY}
-              defaultTemplate={DEFAULT_COLLECTION_COVER_AI_PROMPT}
-              label="обложки подборки (4:3)"
-              aspectLabel="обложки 4:3"
-              buildVars={() => {
-                const name = String(form.getFieldValue('title') || '').trim()
-                if (!name) return null
-                const slug = String(form.getFieldValue('slug') || editing?.slug || '').trim()
-                return {
-                  name,
-                  slug,
-                  url: `/collections/${slug || '{slug}'}/`,
-                }
-              }}
-            />
-            <CollectionImageAiControls
-              settingKey={COLLECTION_COVER_ALICE_AI_PROMPT_KEY}
-              defaultTemplate={DEFAULT_COLLECTION_COVER_ALICE_AI_PROMPT}
-              label="обложки для Алисы AI (4:3)"
-              aspectLabel="Алисы 4:3"
-              buttonLabel="Промпт Алисы 4:3"
-              templateButtonLabel="Шаблон Алисы"
-              helpText="Скопируйте запрос в Яндекс Алису AI (генерация изображений), сохраните картинку и загрузите её кнопкой выше."
-              buildVars={() => {
-                const name = String(form.getFieldValue('title') || '').trim()
-                if (!name) return null
-                const slug = String(form.getFieldValue('slug') || editing?.slug || '').trim()
-                return {
-                  name,
-                  slug,
-                  url: `/collections/${slug || '{slug}'}/`,
-                }
-              }}
-            />
-          </Space>
-          <Form.Item label="Баннер для главной (16:4)" name="home_banner_url" extra="Широкий баннер для блока на главной странице">
-            <Input />
-          </Form.Item>
-          <Space wrap style={{ marginBottom: 12 }}>
-            <Upload
-              beforeUpload={(file) => uploadCollectionImage(file, 'banner')}
-              showUploadList={false}
-              accept="image/*"
-            >
-              <Button disabled={!coverSlug && !watchedTitle}>
-                Загрузить баннер 16:4
-              </Button>
-            </Upload>
-            <CollectionImageAiControls
-              settingKey={COLLECTION_BANNER_AI_PROMPT_KEY}
-              defaultTemplate={DEFAULT_COLLECTION_BANNER_AI_PROMPT}
-              label="баннера подборки (16:4)"
-              aspectLabel="баннера 16:4"
-              buildVars={() => {
-                const name = String(form.getFieldValue('title') || '').trim()
-                if (!name) return null
-                const slug = String(form.getFieldValue('slug') || editing?.slug || '').trim()
-                return {
-                  name,
-                  slug,
-                  url: `/collections/${slug || '{slug}'}/`,
-                }
-              }}
-            />
-          </Space>
-          <Row gutter={16}>
-            <Col span={6}>
-              <Form.Item label="Порядок" name="sort_order"><InputNumber style={{ width: '100%' }} /></Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item label="Закрепить" name="is_pinned" valuePropName="checked"><Switch /></Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item label="На главной" name="show_on_home" valuePropName="checked" extra="Промо-блок">
-                <Switch />
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item label="Активна" name="is_active" valuePropName="checked"><Switch /></Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={6}>
-              <Form.Item label="Скрыть" name="is_hidden" valuePropName="checked"><Switch /></Form.Item>
-            </Col>
-          </Row>
-          <Form.Item label="Запретить индексацию" name="noindex" valuePropName="checked" extra="meta robots noindex">
-            <Switch />
-          </Form.Item>
         </Form>
       </Modal>
 

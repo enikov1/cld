@@ -265,6 +265,33 @@ class AdminCollectionController extends Controller
         ]);
     }
 
+    public function destroyCover(Request $request, string $slug)
+    {
+        $data = $request->validate([
+            'variant' => ['nullable', 'string', 'in:cover,banner'],
+        ]);
+
+        $variant = $data['variant'] ?? 'cover';
+        $isBanner = $variant === 'banner';
+        $collection = Collection::query()->where('slug', $slug)->firstOrFail();
+
+        if ($isBanner) {
+            $collection->home_banner_url = null;
+        } else {
+            $collection->cover_url = null;
+        }
+        $collection->save();
+
+        TplCache::bumpGlobalVersion();
+
+        return response()->json([
+            'ok' => true,
+            'cover_url' => $collection->cover_url,
+            'home_banner_url' => $collection->home_banner_url,
+            'item' => $collection->fresh(),
+        ]);
+    }
+
     public function items(string $collection_slug)
     {
         $collection = Collection::query()->where('slug', $collection_slug)->firstOrFail();
