@@ -236,6 +236,7 @@ class HomeController extends TplController
             'canonical' => url('/page/' . $pagination['current'] . '/'),
             'prev' => $pagination['prev_url'] ? url($pagination['prev_url']) : '',
             'next' => $pagination['next_url'] ? url($pagination['next_url']) : '',
+            'robots' => PaginationHelper::robotsMeta($page),
         ];
 
         return $this->renderTplPage('catalog.tpl', $vars, $meta);

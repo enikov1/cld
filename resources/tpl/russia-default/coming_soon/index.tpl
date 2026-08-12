@@ -3,6 +3,7 @@
 [meta-canonical]{seo.canonical|raw}[/meta-canonical]
 [meta-prev]{seo.prev|raw}[/meta-prev]
 [meta-next]{seo.next|raw}[/meta-next]
+[meta-robots]{seo.robots|raw}[/meta-robots]
 
 <main class="main expected-page" id="comingSoonRoot" data-sort="{sort|raw}">
     [speedbar_block]

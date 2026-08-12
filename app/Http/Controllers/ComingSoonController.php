@@ -58,6 +58,7 @@ class ComingSoonController extends TplController
             'canonical' => $page > 1 ? url('/skoro/page/' . $page . '/') : url('/skoro/'),
             'prev' => $pagination['prev_url'] ? url($pagination['prev_url']) : '',
             'next' => $pagination['next_url'] ? url($pagination['next_url']) : '',
+            'robots' => PaginationHelper::robotsMeta($page),
         ];
 
         return $this->renderTplPage('coming_soon/index.tpl', $vars, $meta);

@@ -8,6 +8,28 @@ use Illuminate\Http\Request;
 
 class PaginationHelper
 {
+    public static function robotsMeta(int $page, bool $entityNoindex = false): string
+    {
+        if ($entityNoindex || $page > 1) {
+            return 'noindex,follow';
+        }
+
+        return '';
+    }
+
+    public static function isPaginatedRequest(int $page, ?string $path = null): bool
+    {
+        if ($page > 1) {
+            return true;
+        }
+
+        if ($path !== null && preg_match('#/page/([2-9]\d*)/#', $path)) {
+            return true;
+        }
+
+        return false;
+    }
+
     /**
      * @param array<string, scalar|null> $queryParams
      * @return array<string,mixed>

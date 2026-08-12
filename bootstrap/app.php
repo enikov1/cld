@@ -30,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->web(append: [
             \App\Http\Middleware\EnsureUserNotBlocked::class,
+            \App\Http\Middleware\NoindexPaginationPages::class,
         ]);
         // Guest library endpoints must work over plain HTTP even when the browser
         // drops/ignores session cookies between page render and the AJAX call.
