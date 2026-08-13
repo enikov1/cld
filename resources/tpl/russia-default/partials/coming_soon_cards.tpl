@@ -13,6 +13,9 @@
                     [item.premiere_date_label]
                         <span class="expected-date">{item.premiere_date_label}</span>
                     [/item.premiere_date_label]
+                    [item.premiere_countdown_label]
+                        <span class="expected-countdown">{item.premiere_countdown_label}</span>
+                    [/item.premiere_countdown_label]
                 </div>
                 <h2><a href="{item.url|raw}">{item.title}</a></h2>
                 [item.title_en]

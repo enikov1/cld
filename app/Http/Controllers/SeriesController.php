@@ -150,6 +150,7 @@ class SeriesController extends TplController
             'next_episode_days_until' => isset($nextReminder['days_until']) ? (string)$nextReminder['days_until'] : '',
             'premiere_date_label' => $premiereLabel,
             'premiere_day_month_label' => $series->premiereDayMonthLabel(),
+            'premiere_countdown_label' => $series->premiereCountdownLabel() ?? '',
             'translation' => $series->translation,
             'channel_name' => $series->channel_name,
             'channel_url' => $series->channel_url,

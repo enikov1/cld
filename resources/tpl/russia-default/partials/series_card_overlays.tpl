@@ -1,4 +1,7 @@
 <div class="th-card-badges th-card-badges--status">
+    [item.badge_coming_soon]
+        <span class="th-card-badge th-card-badge--soon">{item.badge_coming_soon_label}</span>
+    [/item.badge_coming_soon]
     [item.badge_new_episode]
         <span class="th-card-badge th-card-badge--new">{item.badge_new_episode_label}</span>
     [/item.badge_new_episode]

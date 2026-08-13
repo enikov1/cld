@@ -207,8 +207,15 @@ class TplRenderer
 
     private function isEmptyValue(mixed $val): bool
     {
-        if ($val === null || $val === false || $val === '' || $val === 0 || $val === 0.0 || $val === '0') {
+        if ($val === null || $val === false || $val === '') {
             return true;
+        }
+
+        // Hide zero ratings like 0 / 0.0 / "0.0" from decimal casts.
+        if (is_int($val) || is_float($val) || (is_string($val) && is_numeric($val))) {
+            if ((float) $val == 0.0) {
+                return true;
+            }
         }
 
         if (is_array($val) && count($val) === 0) {

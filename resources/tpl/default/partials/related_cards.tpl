@@ -3,6 +3,9 @@
         <a class="th-in with-mask" href="{item.url|raw}">
             <div class="th-img img-resp-vert">
                 <div class="th-card-badges th-card-badges--status">
+                    [item.badge_coming_soon]
+                        <span class="th-card-badge th-card-badge--soon">{item.badge_coming_soon_label}</span>
+                    [/item.badge_coming_soon]
                     [item.badge_new_episode]
                         <span class="th-card-badge th-card-badge--new">{item.badge_new_episode_label}</span>
                     [/item.badge_new_episode]
@@ -28,6 +31,9 @@
                 [item.year]
                     <div class="th-year">{item.year}</div>
                 [/item.year]
+                [item.premiere_countdown_label]
+                    <div class="th-countdown">{item.premiere_countdown_label}</div>
+                [/item.premiere_countdown_label]
                 <div class="th-rates fx-row">
                     [item.kp_rating]
                         <div class="th-rate th-rate-kp" data-text="КП"><span>{item.kp_rating}</span></div>

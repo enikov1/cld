@@ -196,6 +196,7 @@ class SiteConfig
             'card_badge_new_episode_days' => ['type' => 'int', 'default' => '2', 'group' => 'engagement', 'label' => 'Дней для бейджа «Новая серия»', 'min' => 1, 'max' => 14],
             'card_badge_new_episode_label' => ['type' => 'string', 'default' => 'Новая серия', 'group' => 'engagement', 'label' => 'Текст бейджа новой серии'],
             'card_badge_popular_label' => ['type' => 'string', 'default' => 'Популярно', 'group' => 'engagement', 'label' => 'Текст бейджа популярности'],
+            'card_badge_coming_soon_label' => ['type' => 'string', 'default' => 'Скоро', 'group' => 'engagement', 'label' => 'Текст бейджа «Скоро»'],
             'card_reaction_min_votes' => ['type' => 'int', 'default' => '1', 'group' => 'engagement', 'label' => 'Мин. голосов для эмоджи на карточке', 'min' => 1, 'max' => 100],
 
             // CDN VideoHub auto-player

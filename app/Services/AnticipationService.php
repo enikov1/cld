@@ -174,6 +174,7 @@ class AnticipationService
             'title_en' => $series->title_en ?: $series->title_original ?: '',
             'poster_url' => $series->poster_url ?? '',
             'premiere_date_label' => $series->premiereDateLabel() ?? '',
+            'premiere_countdown_label' => $series->premiereCountdownLabel() ?? '',
             'genres' => array_map(static fn (string $name) => ['name' => $name], $genres),
             'genres_text' => implode(', ', $genres),
             'percent' => $payload['percent'],

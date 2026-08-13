@@ -64,7 +64,7 @@ class RestoreBackup extends Command
             CronRunLogger::JOB_BACKUP_RESTORE,
             'backup:restore',
             $trigger,
-            static fn () => $backup->restore($name, $source, $restoreDatabase, $restoreFiles),
+            static fn ($run) => $backup->restore($name, $source, $restoreDatabase, $restoreFiles, $run),
             [
                 'name' => $name,
                 'source' => $source,

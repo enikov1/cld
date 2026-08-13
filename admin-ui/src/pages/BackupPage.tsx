@@ -9,6 +9,7 @@ import {
   Input,
   InputNumber,
   Modal,
+  Progress,
   Select,
   Space,
   Switch,
@@ -57,6 +58,13 @@ type RestoreTarget = {
   source: 'local' | 'remote'
 }
 
+type JobProgress = {
+  percent?: number
+  stage?: string | null
+  step?: number | null
+  steps?: number | null
+}
+
 type JobRun = {
   id: number
   status: string
@@ -64,6 +72,7 @@ type JobRun = {
   error?: string | null
   log?: string | null
   counts?: Record<string, number> | null
+  progress?: JobProgress | null
   started_at?: string | null
   finished_at?: string | null
   duration_ms?: number | null
@@ -100,6 +109,7 @@ export default function BackupPage() {
   const [restoreFiles, setRestoreFiles] = useState(true)
   const [restoreConfirmToken, setRestoreConfirmToken] = useState('')
   const [jobMessage, setJobMessage] = useState<string | null>(null)
+  const [jobProgress, setJobProgress] = useState<JobProgress | null>(null)
   const [form] = Form.useForm()
   const pollAbortRef = useRef(false)
 
@@ -176,23 +186,30 @@ export default function BackupPage() {
 
     while (!pollAbortRef.current) {
       try {
-        const res = await api<{ running: boolean; run: JobRun | null }>(
+        const res = await api<{ running: boolean; run: JobRun | null; progress?: JobProgress | null }>(
           `/api/admin/backup/job?type=${type}`,
         )
         const run = res.run
+        const progress = res.progress ?? run?.progress ?? null
+        if (progress) {
+          setJobProgress(progress)
+        }
 
         if (run?.status === 'running' || res.running) {
           sawRunning = true
           setJobMessage(run?.message || (type === 'run' ? 'Создание архива…' : 'Восстановление…'))
         } else if (run && sawRunning) {
           if (run.status === 'success' || run.status === 'skipped') {
+            setJobProgress({ percent: 100, step: progress?.steps ?? null, steps: progress?.steps ?? null })
             message.success(run.message || (type === 'run' ? 'Бэкап создан' : 'Восстановление завершено'))
             setJobMessage(null)
+            setJobProgress(null)
             return run
           }
           if (run.status === 'failed') {
             message.error(run.error || run.message || 'Ошибка')
             setJobMessage(null)
+            setJobProgress(null)
             throw new Error(run.error || run.message || 'Ошибка')
           }
         } else if (run && !sawRunning && run.finished_at) {
@@ -201,11 +218,13 @@ export default function BackupPage() {
             if (run.status === 'success' || run.status === 'skipped') {
               message.success(run.message || (type === 'run' ? 'Бэкап создан' : 'Восстановление завершено'))
               setJobMessage(null)
+              setJobProgress(null)
               return run
             }
             if (run.status === 'failed') {
               message.error(run.error || run.message || 'Ошибка')
               setJobMessage(null)
+              setJobProgress(null)
               throw new Error(run.error || run.message || 'Ошибка')
             }
           }
@@ -249,6 +268,7 @@ export default function BackupPage() {
           if (type === 'run') setRunning(false)
           else setRestoring(false)
           setJobMessage(null)
+          setJobProgress(null)
         }
       }
     })()
@@ -316,6 +336,7 @@ export default function BackupPage() {
 
     setRunning(true)
     setJobMessage('Запуск бэкапа…')
+    setJobProgress({ percent: 0, step: 0, steps: null })
     try {
       const res = await api<{ ok: boolean; message?: string; already_running?: boolean }>(
         '/api/admin/backup/run',
@@ -326,6 +347,7 @@ export default function BackupPage() {
     } catch (e) {
       setRunning(false)
       setJobMessage(null)
+      setJobProgress(null)
       message.error(String((e as Error).message))
     }
   }
@@ -354,6 +376,7 @@ export default function BackupPage() {
 
     setRestoring(true)
     setJobMessage('Запуск восстановления…')
+    setJobProgress({ percent: 0, step: 0, steps: null })
     try {
       const res = await api<{ ok: boolean; message?: string }>('/api/admin/backup/restore', {
         method: 'POST',
@@ -371,6 +394,7 @@ export default function BackupPage() {
     } catch (e) {
       setRestoring(false)
       setJobMessage(null)
+      setJobProgress(null)
       message.error(String((e as Error).message))
     }
   }
@@ -402,6 +426,17 @@ export default function BackupPage() {
     }
   }
 
+  const progressPercent =
+    typeof jobProgress?.percent === 'number' && Number.isFinite(jobProgress.percent)
+      ? Math.max(0, Math.min(100, Math.round(jobProgress.percent)))
+      : 0
+  const progressStepLabel =
+    typeof jobProgress?.step === 'number' &&
+    typeof jobProgress?.steps === 'number' &&
+    jobProgress.steps > 0
+      ? `Этап ${Math.min(jobProgress.step, jobProgress.steps)} из ${jobProgress.steps}`
+      : null
+
   const busyAlert =
     running || restoring ? (
       <Alert
@@ -410,8 +445,18 @@ export default function BackupPage() {
         style={{ marginBottom: 16 }}
         message={running ? 'Идёт создание бэкапа' : 'Идёт восстановление'}
         description={
-          jobMessage ||
-          'Операция выполняется в фоне. Архивы > 500 МБ могут занимать несколько минут — страница не зависает.'
+          <div>
+            <div style={{ marginBottom: 8 }}>
+              {jobMessage ||
+                'Операция выполняется в фоне. Архивы > 500 МБ могут занимать несколько минут — страница не зависает.'}
+            </div>
+            <Progress percent={progressPercent} status="active" />
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              {progressStepLabel
+                ? `${progressStepLabel} · прогресс по этапам, не по времени`
+                : 'Прогресс по этапам (точное время неизвестно)'}
+            </Typography.Text>
+          </div>
         }
       />
     ) : null

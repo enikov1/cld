@@ -59,6 +59,9 @@
                     <div class="sd-line"><span>Год выпуска:</span>
                         [series.year_url]<a href="{series.year_url|raw}">{series.year_label}</a>[/series.year_url]
                         [not-series.year_url]{series.year_label}[/not-series.year_url]
+                        [series.premiere_countdown_label]
+                        <span class="serial-premiere-countdown">({series.premiere_countdown_label})</span>
+                        [/series.premiere_countdown_label]
                     </div>
                     [/series.year_label]
                     [series.genres]

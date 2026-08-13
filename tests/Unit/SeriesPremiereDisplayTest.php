@@ -5,7 +5,7 @@ namespace Tests\Unit;
 use App\Models\Series;
 use App\Services\KinoPoiskMapper;
 use Carbon\Carbon;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 class SeriesPremiereDisplayTest extends TestCase
 {
@@ -19,6 +19,36 @@ class SeriesPremiereDisplayTest extends TestCase
         $this->assertFalse($series->premiereIsYearOnly());
         $this->assertSame('15 мая', $series->premiereDayMonthLabel());
         $this->assertSame('15 мая 2026', $series->premiereDateLabel());
+    }
+
+    public function test_premiere_countdown_for_coming_soon_series(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-13'));
+
+        $series = new Series([
+            'premiere_date' => Carbon::parse('2026-08-16'),
+            'year' => 2026,
+            'is_coming_soon' => true,
+        ]);
+
+        $this->assertSame('через 3 дня', $series->premiereCountdownLabel());
+
+        Carbon::setTestNow();
+    }
+
+    public function test_premiere_countdown_hidden_when_not_coming_soon(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-13'));
+
+        $series = new Series([
+            'premiere_date' => Carbon::parse('2026-08-16'),
+            'year' => 2026,
+            'is_coming_soon' => false,
+        ]);
+
+        $this->assertNull($series->premiereCountdownLabel());
+
+        Carbon::setTestNow();
     }
 
     public function test_treats_january_first_as_year_only_placeholder(): void

@@ -459,6 +459,9 @@ class TplSampleValues
             'item.badge_new_episode_label' => 'Новая серия',
             'item.badge_popular' => '1',
             'item.badge_popular_label' => 'Популярно',
+            'item.badge_coming_soon' => '1',
+            'item.badge_coming_soon_label' => 'Скоро',
+            'item.premiere_countdown_label' => 'через 3 дня',
         ];
     }
 

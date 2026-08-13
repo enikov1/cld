@@ -60,4 +60,28 @@ TPL);
 
         $this->assertSame('мультсериал', $html);
     }
+
+    public function test_zero_decimal_ratings_are_treated_as_empty(): void
+    {
+        $renderer = new TplRenderer(__DIR__ . '/../../resources/tpl/default');
+
+        $html = $renderer->interpolate(
+            '[item.imdb_rating]IMDb {item.imdb_rating}[/item.imdb_rating][item.kp_rating]КП {item.kp_rating}[/item.kp_rating]',
+            [
+                'item' => [
+                    'imdb_rating' => '0.0',
+                    'kp_rating' => 0,
+                ],
+            ],
+        );
+
+        $this->assertSame('', $html);
+
+        $htmlVisible = $renderer->interpolate(
+            '[item.imdb_rating]IMDb {item.imdb_rating}[/item.imdb_rating]',
+            ['item' => ['imdb_rating' => '7.5']],
+        );
+
+        $this->assertSame('IMDb 7.5', $htmlVisible);
+    }
 }

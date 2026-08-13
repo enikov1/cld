@@ -1406,19 +1406,19 @@
     }
 
     function initWatchlistDropdown() {
-        document.querySelectorAll('[data-watchlist-toggle]').forEach(function (btn) {
-            btn.addEventListener('click', function (e) {
+        document.addEventListener('click', function (e) {
+            var toggle = e.target.closest('[data-watchlist-toggle]');
+            if (toggle) {
                 e.stopPropagation();
-                var el = btn.closest('[data-watchlist-root]');
+                var el = toggle.closest('[data-watchlist-root]');
                 if (!el) return;
                 document.querySelectorAll('[data-watchlist-root].is-open').forEach(function (open) {
                     if (open !== el) open.classList.remove('is-open');
                 });
                 el.classList.toggle('is-open');
-            });
-        });
+                return;
+            }
 
-        document.addEventListener('click', function (e) {
             if (e.target.closest('[data-watchlist-root]')) return;
             document.querySelectorAll('[data-watchlist-root].is-open').forEach(function (el) {
                 el.classList.remove('is-open');
@@ -1426,12 +1426,21 @@
         });
     }
 
-    function updateWatchlistLabel(lists, listIds) {
-        var label = document.querySelector('[data-watchlist-label]');
-        if (!label) return;
+    function selectableWatchlists(lists) {
+        return (lists || []).filter(function (list) {
+            return list && list.system_key !== 'favourite';
+        });
+    }
 
-        if (!lists || !lists.length) {
-            label.textContent = 'Добавить в список';
+    function updateWatchlistLabel(lists, listIds, root) {
+        var scope = root || document;
+        var label = scope.querySelector('[data-watchlist-label]');
+        if (!label) return;
+        lists = selectableWatchlists(lists);
+        var addLabel = cfg('watchlist_ui_add_label', 'Добавить в список');
+
+        if (!lists.length) {
+            label.textContent = addLabel;
             return;
         }
 
@@ -1440,7 +1449,7 @@
         });
 
         if (active.length === 0) {
-            label.textContent = 'Добавить в список';
+            label.textContent = addLabel;
         } else if (active.length === 1) {
             label.textContent = active[0].name;
         } else {
@@ -1448,14 +1457,16 @@
         }
     }
 
-    function renderWatchlistMenu(menu, lists, listIds, loggedIn, seriesId) {
+    function renderWatchlistMenu(menu, lists, listIds, loggedIn, seriesId, root) {
         if (!menu) return;
         menu.innerHTML = '';
+        lists = selectableWatchlists(lists);
+        var scope = root || menu.closest('[data-watchlist-root]') || document;
 
         if (!loggedIn) {
             var hint = document.createElement('p');
             hint.className = 'serial-list-dropdown__hint';
-            hint.textContent = 'Войдите, чтобы сохранять списки';
+            hint.textContent = menu.getAttribute('data-login-hint') || cfg('watchlist_ui_login_hint', 'Войдите, чтобы сохранять списки');
             var loginBtn = document.createElement('button');
             loginBtn.type = 'button';
             loginBtn.className = 'dontusebuttonclass watchlist-btn';
@@ -1491,8 +1502,8 @@
                     })
                     .then(function (data) {
                         if (!data) return;
-                        renderWatchlistMenu(menu, lists, data.list_ids || [], true, seriesId);
-                        updateWatchlistLabel(lists, data.list_ids || []);
+                        renderWatchlistMenu(menu, lists, data.list_ids || [], true, seriesId, scope);
+                        updateWatchlistLabel(lists, data.list_ids || [], scope);
                     })
                     .catch(function () {
                         flashNotice('Не удалось обновить список. Попробуйте ещё раз.', true);
@@ -1500,6 +1511,51 @@
             });
             menu.appendChild(btn);
         });
+    }
+
+    function toggleFavouriteForButton(favBtn, seriesId) {
+        if (!favBtn || !seriesId || !cfgBool('favourites_enabled', true)) return;
+
+        var nextState = !favBtn.classList.contains('is-active');
+        if (!isSiteLoggedIn()) {
+            updateFavouriteButton(favBtn, nextState);
+            setLocalFavourite(seriesId, nextState);
+        }
+
+        postJson(seriesApiPath(seriesId) + '/favourite', guestLibraryPayload({
+            active: nextState,
+        }))
+            .then(readJsonResponse)
+            .then(function (res) {
+                if (!res.ok) {
+                    if (!isSiteLoggedIn()) return;
+                    var errMsg = (res.data && res.data.message) || '';
+                    if (res.status === 419 || /419|csrf/i.test(errMsg)) {
+                        flashNotice(cfg('ui_msg_session_expired', 'Сессия истекла. Обновите страницу и попробуйте снова.'), true);
+                    } else {
+                        flashNotice('Не удалось обновить избранное.', true);
+                    }
+                    return;
+                }
+                var isFav = !!(res.data && res.data.is_favourite);
+                if (!isSiteLoggedIn()) {
+                    isFav = nextState;
+                }
+                updateFavouriteButton(favBtn, isFav);
+                setLocalFavourite(seriesId, isFav);
+                document.querySelectorAll('[data-favourite-toggle][data-series-id="' + seriesId + '"]').forEach(function (btn) {
+                    updateFavouriteButton(btn, isFav);
+                });
+                if (!isSiteLoggedIn()) {
+                    updateHeaderFavouritesCount(getLocalFavourites().length);
+                } else if (res.data && typeof res.data.count === 'number') {
+                    updateHeaderFavouritesCount(res.data.count);
+                }
+            })
+            .catch(function () {
+                if (!isSiteLoggedIn()) return;
+                flashNotice('Не удалось обновить избранное. Попробуйте ещё раз.', true);
+            });
     }
 
     function initSeriesEngagement() {
@@ -1545,10 +1601,11 @@
                         }
                     });
 
-                    var lists = data.lists || [];
+                    var lists = selectableWatchlists(data.lists || []);
                     var listIds = data.list_ids || [];
-                    renderWatchlistMenu(menu, lists, listIds, data.logged_in, seriesId);
-                    updateWatchlistLabel(lists, listIds);
+                    var wlRoot = document.querySelector('[data-watchlist-root]');
+                    renderWatchlistMenu(menu, lists, listIds, data.logged_in, seriesId, wlRoot);
+                    updateWatchlistLabel(lists, listIds, wlRoot);
 
                     var favBtn = document.querySelector('[data-favourite-toggle][data-series-id="' + seriesId + '"]');
                     if (favBtn) {
@@ -1597,50 +1654,7 @@
             }
 
             favBtn.addEventListener('click', function () {
-                var nextState = !favBtn.classList.contains('is-active');
-
-                // Guests: update UI/localStorage immediately so избранное works
-                // even if session cookies are missing on plain HTTP.
-                if (!isSiteLoggedIn()) {
-                    updateFavouriteButton(favBtn, nextState);
-                    setLocalFavourite(seriesId, nextState);
-                }
-
-                postJson(seriesApiPath(seriesId) + '/favourite', guestLibraryPayload({
-                    active: nextState,
-                }))
-                    .then(readJsonResponse)
-                    .then(function (res) {
-                        if (!res.ok) {
-                            if (!isSiteLoggedIn()) {
-                                // Local state already applied for guests.
-                                return;
-                            }
-                            var errMsg = (res.data && res.data.message) || '';
-                            if (res.status === 419 || /419|csrf/i.test(errMsg)) {
-                                flashNotice(cfg('ui_msg_session_expired', 'Сессия истекла. Обновите страницу и попробуйте снова.'), true);
-                            } else {
-                                flashNotice('Не удалось обновить избранное.', true);
-                            }
-                            return;
-                        }
-                        var isFav = !!(res.data && res.data.is_favourite);
-                        // For guests keep the requested state; server may lag on flaky sessions.
-                        if (!isSiteLoggedIn()) {
-                            isFav = nextState;
-                        }
-                        updateFavouriteButton(favBtn, isFav);
-                        setLocalFavourite(seriesId, isFav);
-                        if (!isSiteLoggedIn()) {
-                            updateHeaderFavouritesCount(getLocalFavourites().length);
-                        } else if (res.data && typeof res.data.count === 'number') {
-                            updateHeaderFavouritesCount(res.data.count);
-                        }
-                    })
-                    .catch(function () {
-                        if (!isSiteLoggedIn()) return;
-                        flashNotice('Не удалось обновить избранное. Попробуйте ещё раз.', true);
-                    });
+                toggleFavouriteForButton(favBtn, seriesId);
             });
         }
     }
@@ -4176,6 +4190,18 @@
         tip.setAttribute('aria-hidden', 'true');
         document.body.appendChild(tip);
 
+        var trailerModal = document.createElement('div');
+        trailerModal.className = 'movie-trailer-modal';
+        trailerModal.hidden = true;
+        trailerModal.innerHTML = ''
+            + '<div class="movie-trailer-modal__backdrop" data-trailer-close></div>'
+            + '<div class="movie-trailer-modal__dialog" role="dialog" aria-modal="true" aria-label="Трейлер">'
+            + '<button type="button" class="movie-trailer-modal__close dontusebuttonclass" data-trailer-close aria-label="Закрыть">&times;</button>'
+            + '<div class="movie-trailer-modal__frame" data-trailer-frame></div>'
+            + '</div>';
+        document.body.appendChild(trailerModal);
+        var trailerFrame = trailerModal.querySelector('[data-trailer-frame]');
+
         var cache = Object.create(null);
         var activeItem = null;
         var loadToken = 0;
@@ -4224,11 +4250,95 @@
             scheduleHide();
         });
 
+        function closeTrailerModal() {
+            trailerModal.hidden = true;
+            trailerModal.classList.remove('is-open');
+            if (trailerFrame) trailerFrame.innerHTML = '';
+            document.documentElement.classList.remove('movie-trailer-open');
+        }
+
+        function openTrailerModal(trailer) {
+            if (!trailerFrame || !trailer) return;
+            var html = '';
+            if (trailer.is_embed && trailer.html) {
+                html = trailer.html;
+            } else if (trailer.url) {
+                html = '<iframe src="' + String(trailer.url).replace(/"/g, '&quot;') + '" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy"></iframe>';
+            }
+            if (!html) {
+                flashNotice('Трейлер недоступен.', true);
+                return;
+            }
+            trailerFrame.innerHTML = html;
+            trailerModal.hidden = false;
+            trailerModal.classList.add('is-open');
+            document.documentElement.classList.add('movie-trailer-open');
+            clearHoverTimers();
+        }
+
+        function loadTrailer(seriesId) {
+            fetchJson(seriesApiPath(seriesId) + '/trailer')
+                .then(function (data) {
+                    if (!data || !data.ok || !data.trailer) {
+                        flashNotice((data && data.message) || 'Трейлер не найден.', true);
+                        return;
+                    }
+                    openTrailerModal(data.trailer);
+                })
+                .catch(function () {
+                    flashNotice('Не удалось загрузить трейлер.', true);
+                });
+        }
+
+        function hydrateTipActions(seriesId) {
+            var actions = tip.querySelector('[data-movie-tip-actions]');
+            if (!actions) return;
+
+            var favBtn = actions.querySelector('[data-favourite-toggle]');
+            var menu = actions.querySelector('[data-watchlist-menu]');
+            var wlRoot = actions.querySelector('[data-watchlist-root]');
+
+            if (favBtn && isLocalFavourite(seriesId)) {
+                updateFavouriteButton(favBtn, true);
+            }
+
+            if (menu || favBtn) {
+                fetchJson(seriesApiPath(seriesId) + '/engagement')
+                    .then(function (data) {
+                        if (!data) return;
+                        var lists = selectableWatchlists(data.lists || []);
+                        var listIds = data.list_ids || [];
+                        if (menu) {
+                            renderWatchlistMenu(menu, lists, listIds, !!data.logged_in, seriesId, wlRoot || tip);
+                        }
+                        if (wlRoot) {
+                            updateWatchlistLabel(lists, listIds, wlRoot);
+                        }
+                        if (favBtn) {
+                            var isFav = !!data.is_favourite;
+                            if (!data.logged_in && isLocalFavourite(seriesId)) {
+                                isFav = true;
+                            }
+                            updateFavouriteButton(favBtn, isFav);
+                            setLocalFavourite(seriesId, isFav);
+                        }
+                    })
+                    .catch(function () {
+                        if (menu && !isSiteLoggedIn()) {
+                            renderWatchlistMenu(menu, [], [], false, seriesId, wlRoot || tip);
+                        }
+                    });
+            }
+        }
+
         function closeTip() {
             tip.classList.remove('is-show');
             tip.setAttribute('aria-hidden', 'true');
             mobileOpen = false;
             clearHoverTimers();
+            tip.querySelectorAll('[data-watchlist-root].is-open').forEach(function (el) {
+                el.classList.remove('is-open');
+            });
             if (activeItem) {
                 activeItem.classList.remove('is-info-active');
                 activeItem.querySelectorAll('[data-series-info]').forEach(function (btn) {
@@ -4315,6 +4425,16 @@
             }
         }
 
+        function renderTipHtml(seriesId, html, item) {
+            tip.innerHTML = html;
+            tip.classList.add('is-show');
+            tip.setAttribute('aria-hidden', 'false');
+            hydrateTipActions(seriesId);
+            window.requestAnimationFrame(function () {
+                positionTip(item);
+            });
+        }
+
         function handleInfoClick(e) {
             if (!isMobileLayout()) return;
 
@@ -4387,12 +4507,7 @@
             activeItem.classList.add('is-info-active');
 
             if (cache[seriesId]) {
-                tip.innerHTML = cache[seriesId];
-                tip.classList.add('is-show');
-                tip.setAttribute('aria-hidden', 'false');
-                window.requestAnimationFrame(function () {
-                    positionTip(item);
-                });
+                renderTipHtml(seriesId, cache[seriesId], item);
                 return;
             }
 
@@ -4407,12 +4522,7 @@
                         return;
                     }
                     cache[seriesId] = data.html;
-                    tip.innerHTML = data.html;
-                    tip.classList.add('is-show');
-                    tip.setAttribute('aria-hidden', 'false');
-                    window.requestAnimationFrame(function () {
-                        positionTip(item);
-                    });
+                    renderTipHtml(seriesId, data.html, item);
                 })
                 .catch(function () {
                     if (token !== loadToken) return;
@@ -4423,6 +4533,30 @@
         document.addEventListener('mouseover', handleDesktopHover);
         document.addEventListener('mouseout', handleDesktopLeave);
         document.addEventListener('click', handleInfoClick, true);
+
+        tip.addEventListener('click', function (e) {
+            var favBtn = e.target.closest('[data-favourite-toggle]');
+            if (favBtn && tip.contains(favBtn)) {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleFavouriteForButton(favBtn, favBtn.getAttribute('data-series-id'));
+                return;
+            }
+
+            var trailerBtn = e.target.closest('[data-movie-tip-trailer]');
+            if (trailerBtn && tip.contains(trailerBtn)) {
+                e.preventDefault();
+                e.stopPropagation();
+                loadTrailer(trailerBtn.getAttribute('data-series-id'));
+            }
+        });
+
+        trailerModal.addEventListener('click', function (e) {
+            if (e.target.closest('[data-trailer-close]')) {
+                e.preventDefault();
+                closeTrailerModal();
+            }
+        });
 
         document.addEventListener('click', function (e) {
             if (e.target.closest('[data-movie-tip-close]')) {
@@ -4439,8 +4573,20 @@
         });
 
         document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape' && tip.classList.contains('is-show')) {
+            if (e.key !== 'Escape') return;
+            if (!trailerModal.hidden) {
+                closeTrailerModal();
+                return;
+            }
+            if (tip.classList.contains('is-show')) {
                 closeTip();
+            }
+        });
+
+        document.addEventListener('lordserial:auth-login', function () {
+            var actions = tip.querySelector('[data-movie-tip-actions]');
+            if (actions && tip.classList.contains('is-show')) {
+                hydrateTipActions(actions.getAttribute('data-series-id'));
             }
         });
 
@@ -4897,6 +5043,141 @@
         }
     }
 
+    function initDescriptionSlice() {
+        var nodes = document.querySelectorAll('.slice-this');
+        if (!nodes.length) return;
+
+        var collapsedMax = window.matchMedia('(max-width: 640px)').matches ? 88 : 110;
+
+        nodes.forEach(function (el) {
+            if (el.getAttribute('data-slice-ready') === '1') return;
+            el.setAttribute('data-slice-ready', '1');
+
+            var fullHeight = el.scrollHeight;
+            if (fullHeight <= collapsedMax + 24) return;
+
+            el.classList.add('slice', 'slice-masked');
+            el.style.height = collapsedMax + 'px';
+
+            var btn = document.createElement('div');
+            btn.className = 'slice-btn slice-btn--compact';
+            var label = document.createElement('span');
+            label.setAttribute('role', 'button');
+            label.setAttribute('tabindex', '0');
+            label.textContent = 'показать полностью';
+            btn.appendChild(label);
+            el.insertAdjacentElement('afterend', btn);
+
+            var expanded = false;
+
+            function toggle() {
+                expanded = !expanded;
+                if (expanded) {
+                    el.classList.remove('slice-masked');
+                    el.style.height = el.scrollHeight + 'px';
+                    label.textContent = 'свернуть';
+                    window.setTimeout(function () {
+                        if (expanded) el.style.height = 'auto';
+                    }, 220);
+                } else {
+                    var current = el.scrollHeight;
+                    el.style.height = current + 'px';
+                    // force reflow before collapsing
+                    void el.offsetHeight;
+                    el.classList.add('slice-masked');
+                    el.style.height = collapsedMax + 'px';
+                    label.textContent = 'показать полностью';
+                }
+            }
+
+            label.addEventListener('click', toggle);
+            label.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    toggle();
+                }
+            });
+        });
+    }
+
+    function initDetailsCollapse() {
+        var rows = document.querySelector('[data-details-collapse]');
+        if (!rows) return;
+
+        var mq = window.matchMedia('(max-width: 1024px)');
+        var visibleCount = 3;
+        var details = rows.querySelectorAll('.serial-detail');
+        if (details.length <= visibleCount) return;
+
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'dontusebuttonclass serial-details__toggle';
+        btn.setAttribute('aria-expanded', 'false');
+        rows.insertAdjacentElement('afterend', btn);
+
+        function isExpanded() {
+            return rows.classList.contains('is-expanded');
+        }
+
+        function update() {
+            var compact = mq.matches;
+            if (!compact) {
+                rows.classList.remove('is-collapsed', 'is-expanded');
+                btn.hidden = true;
+                btn.setAttribute('aria-expanded', 'false');
+                return;
+            }
+
+            btn.hidden = false;
+            if (isExpanded()) {
+                rows.classList.remove('is-collapsed');
+                btn.textContent = 'Скрыть информацию';
+                btn.setAttribute('aria-expanded', 'true');
+            } else {
+                rows.classList.add('is-collapsed');
+                rows.classList.remove('is-expanded');
+                btn.textContent = 'Показать всю информацию';
+                btn.setAttribute('aria-expanded', 'false');
+            }
+        }
+
+        btn.addEventListener('click', function () {
+            if (!mq.matches) return;
+            if (isExpanded()) {
+                rows.classList.remove('is-expanded');
+            } else {
+                rows.classList.add('is-expanded');
+            }
+            update();
+        });
+
+        if (typeof mq.addEventListener === 'function') {
+            mq.addEventListener('change', update);
+        } else if (typeof mq.addListener === 'function') {
+            mq.addListener(update);
+        }
+
+        update();
+    }
+
+    function initScrollToPlayer() {
+        var links = document.querySelectorAll('[data-scroll-to-player]');
+        if (!links.length) return;
+
+        links.forEach(function (link) {
+            link.addEventListener('click', function (e) {
+                var target = document.getElementById('player')
+                    || document.querySelector('[data-trailer-box]');
+                if (!target) return;
+                e.preventDefault();
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                try {
+                    history.replaceState(null, '', '#player');
+                } catch (err) {}
+            });
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         initCsrfRefresh();
         initAuthModal();
@@ -4936,6 +5217,9 @@
         initSeriesPreview();
         initPersonPhotoHints();
         initSeriesGallery();
+        initDescriptionSlice();
+        initDetailsCollapse();
+        initScrollToPlayer();
     });
 
     function initSeriesGallery() {

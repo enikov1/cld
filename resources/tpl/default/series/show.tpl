@@ -55,7 +55,8 @@ HD качестве бесплатно[/meta-title] [meta-description][series.sh
                             <div class="serial-detail__name">Дата выхода:</div>
                             <div class="serial-detail__value">
                                 [not-series.premiere_is_year_only] [series.premiere_day_month_label]{series.premiere_day_month_label} [/series.premiere_day_month_label] [/not-series.premiere_is_year_only] [series.year_label] [series.year_url]
-                                <a href="{series.year_url|raw}" class="serial-detail__link">{series.year_label}</a> [/series.year_url] [not-series.year_url]{series.year_label}[/not-series.year_url] [/series.year_label] [series.age_limit_label]
+                                <a href="{series.year_url|raw}" class="serial-detail__link">{series.year_label}</a> [/series.year_url] [not-series.year_url]{series.year_label}[/not-series.year_url] [/series.year_label] [series.premiere_countdown_label]
+                                <span class="serial-premiere-countdown">({series.premiere_countdown_label})</span> [/series.premiere_countdown_label] [series.age_limit_label]
                                 <span class="serial-age" title="{series.age_limit_tooltip|raw}">{series.age_limit_label}</span> [/series.age_limit_label]
                             </div>
                         </div>

@@ -31,6 +31,7 @@ class SeriesCardMapper
 
         $newEpisodeLabel = SiteConfig::str('card_badge_new_episode_label') ?: 'Новая серия';
         $popularLabel = SiteConfig::str('card_badge_popular_label') ?: 'Популярно';
+        $comingSoonLabel = SiteConfig::str('card_badge_coming_soon_label') ?: 'Скоро';
 
         $progressMap = EpisodeProgressService::resolvedProgressForSeries($seriesList);
 
@@ -40,6 +41,8 @@ class SeriesCardMapper
             $progress = $progressMap[$id] ?? EpisodeProgressService::resolvedProgress($s);
             $season = $progress['season_number'];
             $episode = $progress['last_episode_number'];
+            $isComingSoon = (bool)$s->is_coming_soon;
+            $premiereCountdown = $isComingSoon ? ($s->premiereCountdownLabel() ?? '') : '';
 
             $shortDescription = trim((string)($s->short_description ?? ''));
             if ($shortDescription === '') {
@@ -70,6 +73,9 @@ class SeriesCardMapper
                 'badge_new_episode_label' => $newEpisodeLabel,
                 'badge_popular' => (bool)$s->popular_badge_active,
                 'badge_popular_label' => $popularLabel,
+                'badge_coming_soon' => $isComingSoon,
+                'badge_coming_soon_label' => $comingSoonLabel,
+                'premiere_countdown_label' => $premiereCountdown,
                 'is_pinned' => $s->is_pinned,
             ];
         }

@@ -45,6 +45,36 @@ class CronRunLogger
      * @param array<string, mixed>|null $counts
      * @param list<string>|string|null $log
      */
+    /**
+     * Mid-run progress for long jobs (backup/restore). Persists message + meta.progress for UI polling.
+     *
+     * @param array{percent?: int, stage?: string|null, step?: int|null, steps?: int|null}|null $progress
+     */
+    public static function progress(CronRun $run, string $message, ?array $progress = null): void
+    {
+        if ($run->status !== CronRun::STATUS_RUNNING) {
+            return;
+        }
+
+        $meta = is_array($run->meta) ? $run->meta : [];
+        if ($progress !== null) {
+            $percent = isset($progress['percent']) ? (int)$progress['percent'] : 0;
+            $meta['progress'] = [
+                'percent' => max(0, min(100, $percent)),
+                'stage' => isset($progress['stage']) ? (string)$progress['stage'] : null,
+                'step' => isset($progress['step']) ? (int)$progress['step'] : null,
+                'steps' => isset($progress['steps']) ? (int)$progress['steps'] : null,
+                'updated_at' => now()->toIso8601String(),
+            ];
+        }
+
+        $run->fill([
+            'message' => Str::limit((string)Utf8::sanitize($message), 500, ''),
+            'meta' => $meta,
+        ]);
+        $run->save();
+    }
+
     public static function finish(
         CronRun $run,
         string $status,

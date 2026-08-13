@@ -32,7 +32,7 @@ class RunBackup extends Command
             CronRunLogger::JOB_BACKUP,
             'backup:run',
             $trigger,
-            static fn () => $backup->run(),
+            static fn ($run) => $backup->run($run),
             ['force' => (bool)$this->option('force')],
             'Резервное копирование',
         );

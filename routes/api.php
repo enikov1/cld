@@ -1205,10 +1205,15 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
         $type = trim((string)$request->query('type', 'run'));
         $jobKey = $type === 'restore' ? CronRunLogger::JOB_BACKUP_RESTORE : CronRunLogger::JOB_BACKUP;
         $run = CronRunLogger::latestJob($jobKey);
+        $progress = null;
+        if ($run && is_array($run->meta) && isset($run->meta['progress']) && is_array($run->meta['progress'])) {
+            $progress = $run->meta['progress'];
+        }
 
         return response()->json([
             'type' => $type === 'restore' ? 'restore' : 'run',
             'running' => $run !== null && $run->status === CronRun::STATUS_RUNNING,
+            'progress' => $progress,
             'run' => $run ? [
                 'id' => $run->id,
                 'status' => $run->status,
@@ -1216,6 +1221,7 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
                 'error' => $run->error,
                 'log' => $run->log,
                 'counts' => $run->counts,
+                'progress' => $progress,
                 'started_at' => optional($run->started_at)?->toIso8601String(),
                 'finished_at' => optional($run->finished_at)?->toIso8601String(),
                 'duration_ms' => $run->duration_ms,

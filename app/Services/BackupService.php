@@ -30,7 +30,7 @@ class BackupService
      *     log?: list<string>
      * }
      */
-    public function run(): array
+    public function run(?CronRun $cronRun = null): array
     {
         $this->prepareLongRunningProcess();
 
@@ -44,6 +44,20 @@ class BackupService
             ];
         }
 
+        $stageDefs = [];
+        if ($settings['include_database']) {
+            $stageDefs[] = ['database', 'Дамп базы данных…'];
+        }
+        $stageDefs[] = ['archive', 'Создание ZIP-архива…'];
+        if ($settings['remote_enabled']) {
+            $stageDefs[] = ['upload', 'Загрузка на удалённый сервер (' . strtoupper((string)$settings['protocol']) . ')…'];
+        }
+        $stageDefs[] = ['prune', 'Очистка старых копий…'];
+        $totalStages = count($stageDefs);
+        $stageIndex = 0;
+
+        $this->reportProgress($cronRun, $log, 'Подготовка бэкапа…', 'prepare', 0, 0, $totalStages);
+
         $this->ensureBackupDirectory();
         $lock = $this->acquireLock('.run.lock', 'Бэкап уже выполняется. Дождитесь завершения.');
         $workDir = storage_path('app/backups/tmp_' . date('Ymd_His') . '_' . bin2hex(random_bytes(3)));
@@ -56,31 +70,36 @@ class BackupService
 
         try {
             if ($settings['include_database']) {
-                $log[] = 'Дамп базы данных…';
+                $this->beginStage($cronRun, $log, $stageDefs[$stageIndex], $stageIndex, $totalStages);
                 $this->dumpDatabase($workDir);
+                $stageIndex++;
             }
 
-            $log[] = 'Создание ZIP-архива…';
+            $this->beginStage($cronRun, $log, $stageDefs[$stageIndex], $stageIndex, $totalStages);
             $this->createZipArchive($workDir, $settings['include_files'], $archivePath);
             $archiveSize = is_file($archivePath) ? (int)filesize($archivePath) : 0;
             $log[] = 'Архив: ' . $archiveName . ' (' . $this->formatBytes($archiveSize) . ')';
+            $stageIndex++;
 
             if ($settings['remote_enabled']) {
-                $log[] = 'Загрузка на удалённый сервер (' . strtoupper($settings['protocol']) . ')…';
+                $this->beginStage($cronRun, $log, $stageDefs[$stageIndex], $stageIndex, $totalStages);
                 $this->remoteStorage->upload($archivePath, $archiveName);
                 $uploaded = true;
                 $deletedRemote = $this->remoteStorage->prune($settings['retention_count']);
                 if ($deletedRemote > 0) {
                     $log[] = 'Удалено старых копий на сервере: ' . $deletedRemote;
                 }
+                $stageIndex++;
             }
 
+            $this->beginStage($cronRun, $log, $stageDefs[$stageIndex], $stageIndex, $totalStages);
             $deletedLocal = $this->pruneLocal($settings['retention_count']);
             if ($deletedLocal > 0) {
                 $log[] = 'Удалено старых локальных копий: ' . $deletedLocal;
             }
 
             BackupSettings::markRun();
+            $this->reportProgress($cronRun, $log, 'Завершение…', 'finalize', 100, $totalStages, $totalStages, false);
 
             $parts = [];
             if ($settings['include_database']) {
@@ -219,8 +238,13 @@ class BackupService
      *     log?: list<string>
      * }
      */
-    public function restore(string $name, string $source, bool $restoreDatabase = true, bool $restoreFiles = true): array
-    {
+    public function restore(
+        string $name,
+        string $source,
+        bool $restoreDatabase = true,
+        bool $restoreFiles = true,
+        ?CronRun $cronRun = null,
+    ): array {
         $this->prepareLongRunningProcess();
 
         $log = [];
@@ -237,6 +261,24 @@ class BackupService
             throw new RuntimeException('Некорректный источник бэкапа.');
         }
 
+        $stageDefs = [];
+        if ($source === 'remote') {
+            $stageDefs[] = ['download', 'Скачивание архива с удалённого сервера…'];
+        } else {
+            $stageDefs[] = ['resolve', 'Подготовка локального архива…'];
+        }
+        $stageDefs[] = ['extract', 'Распаковка архива…'];
+        if ($restoreDatabase) {
+            $stageDefs[] = ['database', 'Восстановление базы данных…'];
+        }
+        if ($restoreFiles) {
+            $stageDefs[] = ['files', 'Восстановление файлов сайта…'];
+        }
+        $totalStages = count($stageDefs);
+        $stageIndex = 0;
+
+        $this->reportProgress($cronRun, $log, 'Подготовка восстановления…', 'prepare', 0, 0, $totalStages);
+
         $this->ensureBackupDirectory();
         $lock = $this->acquireLock('.restore.lock', 'Восстановление уже выполняется. Дождитесь завершения.');
 
@@ -245,30 +287,36 @@ class BackupService
         $workDir = storage_path('app/backups/restore_' . date('Ymd_His') . '_' . bin2hex(random_bytes(3)));
 
         try {
+            $this->beginStage($cronRun, $log, $stageDefs[$stageIndex], $stageIndex, $totalStages);
             [$archivePath, $downloaded] = $this->resolveArchivePath($name, $source);
             $log[] = $source === 'remote'
                 ? 'Скачан архив с удалённого сервера: ' . $name
                 : 'Локальный архив: ' . $name;
+            $stageIndex++;
 
             File::makeDirectory($workDir, 0755, true);
-            $log[] = 'Распаковка архива…';
+            $this->beginStage($cronRun, $log, $stageDefs[$stageIndex], $stageIndex, $totalStages);
             $this->extractArchive($archivePath, $workDir);
+            $stageIndex++;
 
             $restoredDb = false;
             $restoredFiles = false;
 
             if ($restoreDatabase) {
-                $log[] = 'Восстановление базы данных…';
+                $this->beginStage($cronRun, $log, $stageDefs[$stageIndex], $stageIndex, $totalStages);
                 $this->restoreDatabaseFromExtract($workDir);
                 $restoredDb = true;
+                $stageIndex++;
             }
 
             if ($restoreFiles) {
-                $log[] = 'Восстановление файлов сайта…';
+                $this->beginStage($cronRun, $log, $stageDefs[$stageIndex], $stageIndex, $totalStages);
                 $this->restoreSiteFilesFromExtract($workDir);
                 TplCache::bumpGlobalVersion();
                 $restoredFiles = true;
             }
+
+            $this->reportProgress($cronRun, $log, 'Завершение…', 'finalize', 100, $totalStages, $totalStages, false);
 
             $parts = [];
             if ($restoredDb) {
@@ -303,6 +351,53 @@ class BackupService
             }
             $this->releaseLock($lock);
         }
+    }
+
+    /**
+     * @param array{0: string, 1: string} $stage
+     * @param list<string> $log
+     */
+    private function beginStage(
+        ?CronRun $cronRun,
+        array &$log,
+        array $stage,
+        int $stageIndex,
+        int $totalStages,
+    ): void {
+        [$key, $label] = $stage;
+        $percent = $totalStages > 0
+            ? (int)round(($stageIndex / $totalStages) * 100)
+            : 0;
+        $this->reportProgress($cronRun, $log, $label, $key, $percent, $stageIndex + 1, $totalStages);
+    }
+
+    /**
+     * @param list<string> $log
+     */
+    private function reportProgress(
+        ?CronRun $cronRun,
+        array &$log,
+        string $message,
+        string $stage,
+        int $percent,
+        ?int $step = null,
+        ?int $steps = null,
+        bool $appendLog = true,
+    ): void {
+        if ($appendLog) {
+            $log[] = $message;
+        }
+
+        if ($cronRun === null) {
+            return;
+        }
+
+        CronRunLogger::progress($cronRun, $message, [
+            'percent' => $percent,
+            'stage' => $stage,
+            'step' => $step,
+            'steps' => $steps,
+        ]);
     }
 
     private function prepareLongRunningProcess(): void

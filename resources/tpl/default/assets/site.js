@@ -1,7 +1,7 @@
-(function () {
+(function() {
     'use strict';
 
-    var siteCfg = (function () {
+    var siteCfg = (function() {
         var el = document.getElementById('site-config');
         if (!el) return {};
         try {
@@ -37,7 +37,7 @@
             'padding:10px 16px;border-radius:8px;background:' + (isError ? '#5c1a1a' : '#1a3a2a') +
             ';color:#fff;font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,.35);max-width:90vw;';
         document.body.appendChild(el);
-        setTimeout(function () { el.remove(); }, 3200);
+        setTimeout(function() { el.remove(); }, 3200);
     }
 
     var LS_FAV_KEY = 'ls_favourites';
@@ -57,7 +57,7 @@
             } else {
                 for (var i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
             }
-            var key = Array.prototype.map.call(bytes, function (b) {
+            var key = Array.prototype.map.call(bytes, function(b) {
                 return ('0' + b.toString(16)).slice(-2);
             }).join('');
             persistGuestLibKey(key);
@@ -73,9 +73,9 @@
             localStorage.setItem(LS_GUEST_KEY, key);
         } catch (e) {}
         try {
-            document.cookie = LS_GUEST_KEY + '=' + encodeURIComponent(key)
-                + '; path=/; max-age=' + String(60 * 60 * 24 * 365)
-                + '; samesite=lax';
+            document.cookie = LS_GUEST_KEY + '=' + encodeURIComponent(key) +
+                '; path=/; max-age=' + String(60 * 60 * 24 * 365) +
+                '; samesite=lax';
         } catch (e) {}
     }
 
@@ -106,9 +106,9 @@
     }
 
     function getLocalFavourites() {
-        return readLocalJson(LS_FAV_KEY, []).map(function (id) {
+        return readLocalJson(LS_FAV_KEY, []).map(function(id) {
             return parseInt(id, 10);
-        }).filter(function (id) { return id > 0; });
+        }).filter(function(id) { return id > 0; });
     }
 
     function setLocalFavourites(ids) {
@@ -122,7 +122,7 @@
     function setLocalFavourite(seriesId, active) {
         var id = parseInt(seriesId, 10);
         if (!id) return;
-        var ids = getLocalFavourites().filter(function (item) { return item !== id; });
+        var ids = getLocalFavourites().filter(function(item) { return item !== id; });
         if (active) ids.unshift(id);
         setLocalFavourites(ids.slice(0, cfgInt('favourites_list_limit', 100)));
         updateHeaderFavouritesCount(ids.length);
@@ -166,24 +166,24 @@
             var guestKey = getGuestLibKey();
             var params = [];
             if (guestKey) params.push('guest_key=' + encodeURIComponent(guestKey));
-            getLocalFavourites().forEach(function (id) {
+            getLocalFavourites().forEach(function(id) {
                 params.push('ids[]=' + encodeURIComponent(String(id)));
             });
             if (params.length) url += '?' + params.join('&');
         }
 
         fetchJson(url)
-            .then(function (data) {
+            .then(function(data) {
                 if (data && typeof data.count === 'number') {
                     updateHeaderFavouritesCount(data.count);
                     if (!isSiteLoggedIn() && Array.isArray(data.items)) {
-                        setLocalFavourites(data.items.map(function (item) {
+                        setLocalFavourites(data.items.map(function(item) {
                             return parseInt(item.id, 10);
-                        }).filter(function (id) { return id > 0; }));
+                        }).filter(function(id) { return id > 0; }));
                     }
                 }
             })
-            .catch(function () {
+            .catch(function() {
                 if (!isSiteLoggedIn()) {
                     updateHeaderFavouritesCount(getLocalFavourites().length);
                 }
@@ -195,15 +195,15 @@
     }
 
     function getLocalHistory() {
-        return readLocalJson(LS_HISTORY_KEY, []).map(function (id) {
+        return readLocalJson(LS_HISTORY_KEY, []).map(function(id) {
             return parseInt(id, 10);
-        }).filter(function (id) { return id > 0; });
+        }).filter(function(id) { return id > 0; });
     }
 
     function pushLocalHistory(seriesId) {
         var id = parseInt(seriesId, 10);
         if (!id) return;
-        var ids = getLocalHistory().filter(function (item) { return item !== id; });
+        var ids = getLocalHistory().filter(function(item) { return item !== id; });
         ids.unshift(id);
         writeLocalJson(LS_HISTORY_KEY, ids.slice(0, cfgInt('watch_history_max_items', 100)));
     }
@@ -219,9 +219,9 @@
         btn.setAttribute('aria-pressed', isFavourite ? 'true' : 'false');
         var label = btn.querySelector('[data-favourite-label]');
         if (label) {
-            label.textContent = isFavourite
-                ? cfg('favourites_ui_remove_label', 'В избранном')
-                : cfg('favourites_ui_add_label', 'В избранное');
+            label.textContent = isFavourite ?
+                cfg('favourites_ui_remove_label', 'В избранном') :
+                cfg('favourites_ui_add_label', 'В избранное');
         }
     }
 
@@ -231,9 +231,9 @@
         postJson('/api/user-library/merge-guest', guestLibraryPayload({
             favourites: getLocalFavourites(),
             history: getLocalHistory(),
-        })).then(function () {
+        })).then(function() {
             refreshHeaderFavouritesCount();
-        }).catch(function () {
+        }).catch(function() {
             flashNotice('Не удалось перенести локальную библиотеку.', true);
         });
     }
@@ -247,7 +247,7 @@
         if (!token) return;
         var meta = document.querySelector('meta[name="csrf-token"]');
         if (meta) meta.setAttribute('content', token);
-        document.querySelectorAll('input[name="_token"]').forEach(function (input) {
+        document.querySelectorAll('input[name="_token"]').forEach(function(input) {
             input.value = token;
         });
     }
@@ -268,21 +268,21 @@
     function refreshCsrfToken() {
         if (csrfRefreshPromise) return csrfRefreshPromise;
         csrfRefreshPromise = fetch('/api/csrf', {
-            credentials: 'same-origin',
-            headers: { Accept: 'application/json' },
-        })
-            .then(function (r) {
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json' },
+            })
+            .then(function(r) {
                 if (!r.ok) throw new Error('csrf refresh failed');
                 return r.json();
             })
-            .then(function (data) {
+            .then(function(data) {
                 if (data && data.token) setCsrfToken(data.token);
                 return csrfToken() || readXsrfCookie();
             })
-            .catch(function () {
+            .catch(function() {
                 return csrfToken() || readXsrfCookie();
             })
-            .finally(function () {
+            .finally(function() {
                 csrfRefreshPromise = null;
             });
         return csrfRefreshPromise;
@@ -321,7 +321,7 @@
     function fetchWithCsrf(url, options, retried) {
         options = options || {};
 
-        var run = function () {
+        var run = function() {
             var headers = csrfHeaders(options.headers);
             if (options.body && !headers['Content-Type']) {
                 headers['Content-Type'] = 'application/json';
@@ -330,10 +330,10 @@
             return fetch(url, Object.assign({}, options, {
                 credentials: 'same-origin',
                 headers: headers,
-            })).then(function (response) {
+            })).then(function(response) {
                 if (response.status === 419 && !retried) {
                     csrfReadyPromise = null;
-                    return refreshCsrfToken().then(function () {
+                    return refreshCsrfToken().then(function() {
                         csrfReadyPromise = Promise.resolve(csrfToken() || readXsrfCookie());
                         return fetchWithCsrf(url, options, true);
                     });
@@ -358,9 +358,9 @@
     }
 
     function readJsonResponse(response) {
-        return response.json().then(function (data) {
+        return response.json().then(function(data) {
             return { ok: response.ok, status: response.status, data: data };
-        }).catch(function () {
+        }).catch(function() {
             return {
                 ok: false,
                 status: response.status,
@@ -371,7 +371,7 @@
 
     function humanizeApiMessage(message) {
         if (!message) return message;
-        if (/csrf token mismatch/i.test(message) || /ошибка\s*419/i.test(message) || /^419$/.test(String(message))) {
+        if (/csrf token mismatch/i.test(message)) {
             return cfg('ui_msg_session_expired', 'Сессия истекла. Обновите страницу и попробуйте снова.');
         }
         var known = {
@@ -406,7 +406,7 @@
         var passwordInput = form.querySelector('input[name="password"]');
         var passwordConfirm = form.querySelector('input[name="password_confirmation"]');
 
-        form.querySelectorAll('input, textarea, select').forEach(function (input) {
+        form.querySelectorAll('input, textarea, select').forEach(function(input) {
             if (!input.name || input.type === 'hidden' || input.disabled) return;
 
             var value = String(input.value || '').trim();
@@ -441,7 +441,7 @@
             return { fieldErrors: fieldErrors, general: general };
         }
 
-        Object.keys(errors).forEach(function (field) {
+        Object.keys(errors).forEach(function(field) {
             var input = form.querySelector('[name="' + field + '"]');
             var val = errors[field];
             var msgs = Array.isArray(val) ? val.slice() : [String(val)];
@@ -474,7 +474,7 @@
         if (!data) return humanizeApiMessage('Произошла ошибка');
         if (data.errors) {
             var parts = [];
-            Object.keys(data.errors).forEach(function (key) {
+            Object.keys(data.errors).forEach(function(key) {
                 var val = data.errors[key];
                 if (Array.isArray(val)) parts = parts.concat(val);
                 else if (val) parts.push(String(val));
@@ -503,13 +503,13 @@
     }
 
     function clearFieldErrors(form) {
-        form.querySelectorAll('.field-error').forEach(function (el) { el.remove(); });
-        form.querySelectorAll('.is-invalid').forEach(function (el) { el.classList.remove('is-invalid'); });
+        form.querySelectorAll('.field-error').forEach(function(el) { el.remove(); });
+        form.querySelectorAll('.is-invalid').forEach(function(el) { el.classList.remove('is-invalid'); });
     }
 
     function applyFieldErrors(form, errors) {
         if (!errors) return;
-        Object.keys(errors).forEach(function (field) {
+        Object.keys(errors).forEach(function(field) {
             var input = form.querySelector('[name="' + field + '"]');
             if (!input) return;
             input.classList.add('is-invalid');
@@ -524,7 +524,7 @@
     function formToObject(form) {
         var fd = new FormData(form);
         var out = {};
-        fd.forEach(function (value, key) {
+        fd.forEach(function(value, key) {
             if (key === '_token') return;
             if (out[key] !== undefined) {
                 if (!Array.isArray(out[key])) out[key] = [out[key]];
@@ -543,14 +543,14 @@
         form.setAttribute('data-ajax-bound', '1');
         form.setAttribute('novalidate', 'novalidate');
 
-        form.addEventListener('submit', function (e) {
+        form.addEventListener('submit', function(e) {
             e.preventDefault();
             var action = form.getAttribute('action');
             if (!action) return;
 
-            var feedback = opts.feedback
-                || form.querySelector('[data-form-feedback]')
-                || (form.closest('[data-auth-panel]') ? form.closest('[data-auth-panel]').querySelector('.auth-form-feedback') : null);
+            var feedback = opts.feedback ||
+                form.querySelector('[data-form-feedback]') ||
+                (form.closest('[data-auth-panel]') ? form.closest('[data-auth-panel]').querySelector('.auth-form-feedback') : null);
             var submitBtn = form.querySelector('[type="submit"]');
             if (submitBtn) submitBtn.disabled = true;
             clearFieldErrors(form);
@@ -565,7 +565,7 @@
 
             postJson(form.getAttribute('action'), formToObject(form))
                 .then(readJsonResponse)
-                .then(function (res) {
+                .then(function(res) {
                     if (!res.ok) {
                         showFormErrors(form, feedback, res.data.errors || {});
                         if (!res.data.errors && (res.data.message || res.data.error)) {
@@ -584,7 +584,7 @@
                     if (data.message) showFeedback(feedback, data.message, false);
                     if (typeof opts.onSuccess === 'function') opts.onSuccess(data, form);
                     if (data.close_auth) {
-                        window.setTimeout(function () {
+                        window.setTimeout(function() {
                             closeAuthModal();
                             form.reset();
                         }, 900);
@@ -597,10 +597,10 @@
                         window.lordSerialOpenAuth(data.panel);
                     }
                 })
-                .catch(function () {
+                .catch(function() {
                     showFeedback(feedback, 'Не удалось отправить форму. Проверьте соединение.', true);
                 })
-                .finally(function () {
+                .finally(function() {
                     if (submitBtn) submitBtn.disabled = false;
                 });
         });
@@ -610,7 +610,7 @@
         var overlay = document.getElementById('loginOverlay');
         if (!overlay) return;
         overlay.classList.add('is-active');
-        overlay.querySelectorAll('[data-auth-panel]').forEach(function (panel) {
+        overlay.querySelectorAll('[data-auth-panel]').forEach(function(panel) {
             panel.hidden = panel.getAttribute('data-auth-panel') !== name;
         });
     }
@@ -621,7 +621,7 @@
     }
 
     function markLoggedInRoots() {
-        document.querySelectorAll('.fmain[data-series-id], #commentsSection').forEach(function (el) {
+        document.querySelectorAll('.fmain[data-series-id], #commentsSection').forEach(function(el) {
             if (!el.querySelector('[data-logged-in]')) {
                 var marker = document.createElement('span');
                 marker.hidden = true;
@@ -634,7 +634,7 @@
     function cleanAuthUrlParams() {
         var url = new URL(window.location.href);
         var changed = false;
-        ['auth', 'token', 'email'].forEach(function (key) {
+        ['auth', 'token', 'email'].forEach(function(key) {
             if (!url.searchParams.has(key)) return;
             url.searchParams.delete(key);
             changed = true;
@@ -658,15 +658,13 @@
         var insertBefore = themeBtn || null;
 
         if (data && data.is_admin) {
-            var adminUrl = (data.admin_url || cfg('admin_url', '/admin')).replace(/\/?$/, '/') ;
+            var adminUrl = (data.admin_url || cfg('admin_url', '/admin')).replace(/\/?$/, '/');
             if (!document.getElementById('headerAdminLink')) {
                 var adminLink = document.createElement('a');
                 adminLink.className = 'dontusebuttonclass ls-action ls-action--admin';
                 adminLink.id = 'headerAdminLink';
                 adminLink.href = adminUrl;
                 adminLink.title = 'Админ-панель';
-                adminLink.target = '_blank';
-                adminLink.rel = 'noopener noreferrer';
                 adminLink.innerHTML = '<span class="fa fa-cog"></span>';
                 var favLink = actions.querySelector('.ls-action--favourites');
                 var afterFav = favLink && favLink.nextSibling;
@@ -679,8 +677,6 @@
                     mobileAdmin.className = 'ls-mobile-link ls-mobile-link--admin';
                     mobileAdmin.id = 'mobileAdminLink';
                     mobileAdmin.href = adminUrl;
-                    mobileAdmin.target = '_blank';
-                    mobileAdmin.rel = 'noopener noreferrer';
                     mobileAdmin.innerHTML = '<span class="fa fa-cog" aria-hidden="true"></span> Админ-панель';
                     mobileMenu.appendChild(mobileAdmin);
                 }
@@ -710,7 +706,7 @@
             initHeaderNotifications();
             var countEl = document.getElementById('headerNotifyCount');
             if (countEl) {
-                fetchJson('/api/notifications/').then(function (payload) {
+                fetchJson('/api/notifications/').then(function(payload) {
                     if (!countEl) return;
                     var unread = (payload && payload.unread) || 0;
                     if (unread > 0) {
@@ -719,7 +715,7 @@
                     } else {
                         countEl.hidden = true;
                     }
-                }).catch(function () {});
+                }).catch(function() {});
             }
         }
 
@@ -784,22 +780,22 @@
         var overlay = document.getElementById('loginOverlay');
         if (!overlay) return;
 
-        document.querySelectorAll('.js-login-open').forEach(function (btn) {
-            btn.addEventListener('click', function () { openAuthPanel('login'); });
+        document.querySelectorAll('.js-login-open').forEach(function(btn) {
+            btn.addEventListener('click', function() { openAuthPanel('login'); });
         });
 
-        document.querySelectorAll('.js-login-close, .login-modal__close').forEach(function (el) {
-            el.addEventListener('click', function () {
+        document.querySelectorAll('.js-login-close, .login-modal__close').forEach(function(el) {
+            el.addEventListener('click', function() {
                 overlay.classList.remove('is-active');
             });
         });
 
-        overlay.addEventListener('click', function (e) {
+        overlay.addEventListener('click', function(e) {
             if (e.target === overlay) overlay.classList.remove('is-active');
         });
 
-        document.querySelectorAll('.js-auth-switch').forEach(function (btn) {
-            btn.addEventListener('click', function () {
+        document.querySelectorAll('.js-auth-switch').forEach(function(btn) {
+            btn.addEventListener('click', function() {
                 openAuthPanel(btn.getAttribute('data-auth-open') || 'login');
             });
         });
@@ -830,10 +826,10 @@
 
         window.lordSerialOpenAuth = openAuthPanel;
 
-        overlay.querySelectorAll('.login-form').forEach(function (form) {
+        overlay.querySelectorAll('.login-form').forEach(function(form) {
             bindAjaxForm(form, {
                 feedback: form.parentElement ? form.parentElement.querySelector('.auth-form-feedback') : null,
-                onSuccess: function (data) {
+                onSuccess: function(data) {
                     if (data.logged_in) applyAuthSession(data);
                 },
             });
@@ -857,7 +853,7 @@
         function openHeaderSearch() {
             header.classList.add('search-is-open');
             if (closeBtn) closeBtn.hidden = false;
-            window.setTimeout(function () {
+            window.setTimeout(function() {
                 input.focus();
                 var len = input.value.length;
                 try {
@@ -880,32 +876,32 @@
         }
 
         if (openBtn) {
-            openBtn.addEventListener('click', function (e) {
+            openBtn.addEventListener('click', function(e) {
                 e.preventDefault();
                 openHeaderSearch();
             });
         }
 
         if (closeBtn) {
-            closeBtn.addEventListener('click', function (e) {
+            closeBtn.addEventListener('click', function(e) {
                 e.preventDefault();
                 closeHeaderSearch();
             });
         }
 
-        document.addEventListener('keydown', function (e) {
+        document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape' && header.classList.contains('search-is-open')) {
                 closeHeaderSearch();
             }
         });
 
-        document.addEventListener('click', function (e) {
+        document.addEventListener('click', function(e) {
             if (!header.classList.contains('search-is-open')) return;
             if (searchForm.contains(e.target) || (openBtn && openBtn.contains(e.target))) return;
             closeHeaderSearch();
         });
 
-        window.addEventListener('resize', function () {
+        window.addEventListener('resize', function() {
             if (!header.classList.contains('search-is-open')) return;
             if (!isCompactSearchMode()) {
                 closeHeaderSearch();
@@ -914,7 +910,7 @@
     }
 
     function initQuickSearch() {
-        document.querySelectorAll('.js-quick-search').forEach(function (form) {
+        document.querySelectorAll('.js-quick-search').forEach(function(form) {
             var input = form.querySelector('input[name="q"]');
             var panel = form.querySelector('.ls-search__panel');
             if (!input || !panel) return;
@@ -963,11 +959,11 @@
                 }
 
                 var html = '';
-                data.groups.forEach(function (group) {
+                data.groups.forEach(function(group) {
                     html += '<div class="ls-search__group">';
                     html += '<div class="ls-search__group-title">' + escapeHtml(group.label) + '</div>';
                     html += '<div class="ls-search__group-list">';
-                    group.items.forEach(function (item) {
+                    group.items.forEach(function(item) {
                         html += '<a class="ls-search__item ls-search__item--' + escapeHtml(group.type) + '" href="' + escapeHtml(item.url) + '">';
                         if (item.image) {
                             html += '<span class="ls-search__item-media"><img src="' + escapeHtml(item.image) + '" alt="" loading="lazy"></span>';
@@ -1000,14 +996,14 @@
                 openPanel();
 
                 fetch('/api/search/suggest?q=' + encodeURIComponent(q), {
-                    headers: {
-                        Accept: 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                    credentials: 'same-origin',
-                })
+                        headers: {
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        credentials: 'same-origin',
+                    })
                     .then(readJsonResponse)
-                    .then(function (res) {
+                    .then(function(res) {
                         if (current !== requestId) return;
                         if (!res.ok || !res.data) {
                             closePanel();
@@ -1015,17 +1011,17 @@
                         }
                         render(res.data);
                     })
-                    .catch(function () {
+                    .catch(function() {
                         if (current === requestId) closePanel();
                     });
             }
 
-            input.addEventListener('input', function () {
+            input.addEventListener('input', function() {
                 clearTimeout(timer);
                 timer = setTimeout(fetchSuggest, 280);
             });
 
-            input.addEventListener('focus', function () {
+            input.addEventListener('focus', function() {
                 var q = input.value.trim();
                 if (q.length >= minChars) {
                     if (panel.innerHTML) openPanel();
@@ -1033,11 +1029,11 @@
                 }
             });
 
-            input.addEventListener('keydown', function (e) {
+            input.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape') closePanel();
             });
 
-            document.addEventListener('click', function (e) {
+            document.addEventListener('click', function(e) {
                 if (!form.contains(e.target)) closePanel();
             });
         });
@@ -1049,7 +1045,7 @@
         if (!menu) return;
 
         function closeMobileSections() {
-            menu.querySelectorAll('.ls-mobile-section.is-open').forEach(function (section) {
+            menu.querySelectorAll('.ls-mobile-section.is-open').forEach(function(section) {
                 section.classList.remove('is-open');
                 var toggle = section.querySelector('.js-mobile-section-toggle');
                 if (toggle) toggle.setAttribute('aria-expanded', 'false');
@@ -1075,8 +1071,8 @@
             closeMobileSections();
         }
 
-        document.querySelectorAll('.js-mobile-menu-open').forEach(function (btn) {
-            btn.addEventListener('click', function (e) {
+        document.querySelectorAll('.js-mobile-menu-open').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
                 e.preventDefault();
                 if (document.body.classList.contains('ls-menu-open')) {
                     closeMobileMenu();
@@ -1086,20 +1082,20 @@
             });
         });
 
-        document.querySelectorAll('.js-mobile-menu-close').forEach(function (el) {
-            el.addEventListener('click', function (e) {
+        document.querySelectorAll('.js-mobile-menu-close').forEach(function(el) {
+            el.addEventListener('click', function(e) {
                 e.preventDefault();
                 closeMobileMenu();
             });
         });
 
-        menu.querySelectorAll('.js-mobile-section-toggle').forEach(function (btn) {
-            btn.addEventListener('click', function () {
+        menu.querySelectorAll('.js-mobile-section-toggle').forEach(function(btn) {
+            btn.addEventListener('click', function() {
                 var section = btn.closest('.js-mobile-section');
                 if (!section) return;
 
                 var willOpen = !section.classList.contains('is-open');
-                menu.querySelectorAll('.js-mobile-section.is-open').forEach(function (openSection) {
+                menu.querySelectorAll('.js-mobile-section.is-open').forEach(function(openSection) {
                     if (openSection !== section) {
                         openSection.classList.remove('is-open');
                         var openToggle = openSection.querySelector('.js-mobile-section-toggle');
@@ -1112,13 +1108,13 @@
             });
         });
 
-        menu.querySelectorAll('.ls-mobile-link, .ls-mobile-section__body a').forEach(function (link) {
-            link.addEventListener('click', function () {
+        menu.querySelectorAll('.ls-mobile-link, .ls-mobile-section__body a').forEach(function(link) {
+            link.addEventListener('click', function() {
                 closeMobileMenu();
             });
         });
 
-        document.addEventListener('keydown', function (e) {
+        document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape' && document.body.classList.contains('ls-menu-open')) {
                 closeMobileMenu();
             }
@@ -1152,7 +1148,7 @@
             disableDarkTheme();
         }
 
-        themeToggle.addEventListener('click', function (e) {
+        themeToggle.addEventListener('click', function(e) {
             e.preventDefault();
             if (themeToggle.classList.contains('fa-moon-o')) {
                 enableDarkTheme();
@@ -1176,7 +1172,7 @@
             return Promise.resolve();
         }
 
-        window.__lsHomeCarouselsLoading = new Promise(function (resolve, reject) {
+        window.__lsHomeCarouselsLoading = new Promise(function(resolve, reject) {
             var cssUrl = cfg('home_carousels_css', '');
             if (cssUrl && !document.querySelector('link[data-ls-home-carousels]')) {
                 var link = document.createElement('link');
@@ -1190,10 +1186,10 @@
             script.src = jsUrl;
             script.async = true;
             script.setAttribute('data-ls-home-carousels', '1');
-            script.onload = function () {
+            script.onload = function() {
                 resolve();
             };
-            script.onerror = function () {
+            script.onerror = function() {
                 window.__lsHomeCarouselsLoading = null;
                 reject(new Error('home-carousels load failed'));
             };
@@ -1209,16 +1205,16 @@
         }
 
         loadHomeCarouselsAssets()
-            .then(function () {
+            .then(function() {
                 if (typeof window.lsInitHomeCarousels === 'function') {
                     window.lsInitHomeCarousels();
                 }
             })
-            .catch(function () {});
+            .catch(function() {});
     }
 
     function initHomeSectionTabs() {
-        document.querySelectorAll('[data-home-section-type]').forEach(function (sect) {
+        document.querySelectorAll('[data-home-section-type]').forEach(function(sect) {
             var tabs = sect.querySelector('[data-section-tabs]');
             var cards = sect.querySelector('[data-section-cards]');
             if (!tabs || !cards) return;
@@ -1227,7 +1223,7 @@
             var sectionId = sect.getAttribute('data-home-section-id');
             var activeSort = null;
 
-            tabs.querySelectorAll('[data-sort]').forEach(function (tab) {
+            tabs.querySelectorAll('[data-sort]').forEach(function(tab) {
                 if (tab.classList.contains('is-active')) {
                     activeSort = tab.getAttribute('data-sort');
                 }
@@ -1235,7 +1231,7 @@
             if (!activeSort) activeSort = 'latest';
 
             function setActiveTab(sort) {
-                tabs.querySelectorAll('[data-sort]').forEach(function (tab) {
+                tabs.querySelectorAll('[data-sort]').forEach(function(tab) {
                     tab.classList.toggle('is-active', tab.getAttribute('data-sort') === sort);
                 });
             }
@@ -1247,29 +1243,29 @@
                 cards.classList.add('is-loading');
 
                 fetch('/api/home/sections/' + encodeURIComponent(sectionType) + '/' + encodeURIComponent(sectionId) + '/series?sort=' + encodeURIComponent(sort), {
-                    credentials: 'same-origin',
-                    headers: { Accept: 'application/json' },
-                })
-                    .then(function (r) {
+                        credentials: 'same-origin',
+                        headers: { Accept: 'application/json' },
+                    })
+                    .then(function(r) {
                         if (!r.ok) throw new Error('HTTP ' + r.status);
                         return r.json();
                     })
-                    .then(function (data) {
+                    .then(function(data) {
                         cards.innerHTML = data && data.html ? data.html : '';
                     })
-                    .catch(function () {
+                    .catch(function() {
                         cards.innerHTML = '<p class="home-section-error">Не удалось загрузить список. Попробуйте ещё раз.</p>';
                     })
-                    .finally(function () {
+                    .finally(function() {
                         cards.classList.remove('is-loading');
                     });
             }
 
-            tabs.querySelectorAll('[data-sort]').forEach(function (tab) {
-                tab.addEventListener('click', function () {
+            tabs.querySelectorAll('[data-sort]').forEach(function(tab) {
+                tab.addEventListener('click', function() {
                     loadSort(tab.getAttribute('data-sort') || 'latest');
                 });
-                tab.addEventListener('keydown', function (e) {
+                tab.addEventListener('keydown', function(e) {
                     if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
                         loadSort(tab.getAttribute('data-sort') || 'latest');
@@ -1280,7 +1276,7 @@
     }
 
     function initHomeBlockTabs() {
-        document.querySelectorAll('[data-home-block-id]').forEach(function (sect) {
+        document.querySelectorAll('[data-home-block-id]').forEach(function(sect) {
             var tabs = sect.querySelector('[data-section-tabs]');
             var cards = sect.querySelector('[data-section-cards]');
             if (!tabs || !cards) return;
@@ -1288,7 +1284,7 @@
             var blockId = sect.getAttribute('data-home-block-id');
             var activeSort = null;
 
-            tabs.querySelectorAll('[data-sort]').forEach(function (tab) {
+            tabs.querySelectorAll('[data-sort]').forEach(function(tab) {
                 if (tab.classList.contains('is-active')) {
                     activeSort = tab.getAttribute('data-sort');
                 }
@@ -1296,7 +1292,7 @@
             if (!activeSort) activeSort = 'latest';
 
             function setActiveTab(sort) {
-                tabs.querySelectorAll('[data-sort]').forEach(function (tab) {
+                tabs.querySelectorAll('[data-sort]').forEach(function(tab) {
                     tab.classList.toggle('is-active', tab.getAttribute('data-sort') === sort);
                 });
             }
@@ -1308,29 +1304,29 @@
                 cards.classList.add('is-loading');
 
                 fetch('/api/home/blocks/' + encodeURIComponent(blockId) + '/series?sort=' + encodeURIComponent(sort), {
-                    credentials: 'same-origin',
-                    headers: { Accept: 'application/json' },
-                })
-                    .then(function (r) {
+                        credentials: 'same-origin',
+                        headers: { Accept: 'application/json' },
+                    })
+                    .then(function(r) {
                         if (!r.ok) throw new Error('HTTP ' + r.status);
                         return r.json();
                     })
-                    .then(function (data) {
+                    .then(function(data) {
                         cards.innerHTML = data && data.html ? data.html : '';
                     })
-                    .catch(function () {
+                    .catch(function() {
                         cards.innerHTML = '<p class="home-section-error">Не удалось загрузить список. Попробуйте ещё раз.</p>';
                     })
-                    .finally(function () {
+                    .finally(function() {
                         cards.classList.remove('is-loading');
                     });
             }
 
-            tabs.querySelectorAll('[data-sort]').forEach(function (tab) {
-                tab.addEventListener('click', function () {
+            tabs.querySelectorAll('[data-sort]').forEach(function(tab) {
+                tab.addEventListener('click', function() {
                     loadSort(tab.getAttribute('data-sort') || 'latest');
                 });
-                tab.addEventListener('keydown', function (e) {
+                tab.addEventListener('keydown', function(e) {
                     if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
                         loadSort(tab.getAttribute('data-sort') || 'latest');
@@ -1341,7 +1337,7 @@
     }
 
     function initHomeContentTypeTabs() {
-        document.querySelectorAll('[data-home-content-type]').forEach(function (sect) {
+        document.querySelectorAll('[data-home-content-type]').forEach(function(sect) {
             if (sect.getAttribute('data-home-section-type') || sect.getAttribute('data-home-block-id')) {
                 return;
             }
@@ -1353,7 +1349,7 @@
             var contentType = sect.getAttribute('data-home-content-type');
             var activeSort = null;
 
-            tabs.querySelectorAll('[data-sort]').forEach(function (tab) {
+            tabs.querySelectorAll('[data-sort]').forEach(function(tab) {
                 if (tab.classList.contains('is-active')) {
                     activeSort = tab.getAttribute('data-sort');
                 }
@@ -1361,7 +1357,7 @@
             if (!activeSort) activeSort = 'latest';
 
             function setActiveTab(sort) {
-                tabs.querySelectorAll('[data-sort]').forEach(function (tab) {
+                tabs.querySelectorAll('[data-sort]').forEach(function(tab) {
                     tab.classList.toggle('is-active', tab.getAttribute('data-sort') === sort);
                 });
             }
@@ -1373,29 +1369,29 @@
                 cards.classList.add('is-loading');
 
                 fetch('/api/home/content-types/' + encodeURIComponent(contentType) + '/series?sort=' + encodeURIComponent(sort), {
-                    credentials: 'same-origin',
-                    headers: { Accept: 'application/json' },
-                })
-                    .then(function (r) {
+                        credentials: 'same-origin',
+                        headers: { Accept: 'application/json' },
+                    })
+                    .then(function(r) {
                         if (!r.ok) throw new Error('HTTP ' + r.status);
                         return r.json();
                     })
-                    .then(function (data) {
+                    .then(function(data) {
                         cards.innerHTML = data && data.html ? data.html : '';
                     })
-                    .catch(function () {
+                    .catch(function() {
                         cards.innerHTML = '<p class="home-section-error">Не удалось загрузить список. Попробуйте ещё раз.</p>';
                     })
-                    .finally(function () {
+                    .finally(function() {
                         cards.classList.remove('is-loading');
                     });
             }
 
-            tabs.querySelectorAll('[data-sort]').forEach(function (tab) {
-                tab.addEventListener('click', function () {
+            tabs.querySelectorAll('[data-sort]').forEach(function(tab) {
+                tab.addEventListener('click', function() {
                     loadSort(tab.getAttribute('data-sort') || 'latest');
                 });
-                tab.addEventListener('keydown', function (e) {
+                tab.addEventListener('keydown', function(e) {
                     if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
                         loadSort(tab.getAttribute('data-sort') || 'latest');
@@ -1406,21 +1402,21 @@
     }
 
     function initWatchlistDropdown() {
-        document.querySelectorAll('[data-watchlist-toggle]').forEach(function (btn) {
-            btn.addEventListener('click', function (e) {
+        document.querySelectorAll('[data-watchlist-toggle]').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 var el = btn.closest('[data-watchlist-root]');
                 if (!el) return;
-                document.querySelectorAll('[data-watchlist-root].is-open').forEach(function (open) {
+                document.querySelectorAll('[data-watchlist-root].is-open').forEach(function(open) {
                     if (open !== el) open.classList.remove('is-open');
                 });
                 el.classList.toggle('is-open');
             });
         });
 
-        document.addEventListener('click', function (e) {
+        document.addEventListener('click', function(e) {
             if (e.target.closest('[data-watchlist-root]')) return;
-            document.querySelectorAll('[data-watchlist-root].is-open').forEach(function (el) {
+            document.querySelectorAll('[data-watchlist-root].is-open').forEach(function(el) {
                 el.classList.remove('is-open');
             });
         });
@@ -1435,7 +1431,7 @@
             return;
         }
 
-        var active = lists.filter(function (l) {
+        var active = lists.filter(function(l) {
             return listIds.indexOf(l.id) !== -1;
         });
 
@@ -1460,7 +1456,7 @@
             loginBtn.type = 'button';
             loginBtn.className = 'dontusebuttonclass watchlist-btn';
             loginBtn.textContent = 'Войти';
-            loginBtn.addEventListener('click', function () {
+            loginBtn.addEventListener('click', function() {
                 if (window.lordSerialOpenAuth) window.lordSerialOpenAuth('login');
             });
             menu.appendChild(hint);
@@ -1468,7 +1464,7 @@
             return;
         }
 
-        lists.forEach(function (list) {
+        lists.forEach(function(list) {
             var btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'dontusebuttonclass watchlist-btn';
@@ -1477,24 +1473,24 @@
             if (listIds.indexOf(list.id) !== -1) {
                 btn.classList.add('active');
             }
-            btn.addEventListener('click', function () {
+            btn.addEventListener('click', function() {
                 postJson('/api/series/' + encodeURIComponent(seriesId) + '/watchlist', {
-                    list_id: list.id,
-                    action: 'toggle',
-                })
-                    .then(function (r) {
+                        list_id: list.id,
+                        action: 'toggle',
+                    })
+                    .then(function(r) {
                         if (r.status === 401) {
                             if (window.lordSerialOpenAuth) window.lordSerialOpenAuth('login');
                             return null;
                         }
                         return r.json();
                     })
-                    .then(function (data) {
+                    .then(function(data) {
                         if (!data) return;
                         renderWatchlistMenu(menu, lists, data.list_ids || [], true, seriesId);
                         updateWatchlistLabel(lists, data.list_ids || []);
                     })
-                    .catch(function () {
+                    .catch(function() {
                         flashNotice('Не удалось обновить список. Попробуйте ещё раз.', true);
                     });
             });
@@ -1526,18 +1522,18 @@
 
         function refreshEngagement() {
             fetch('/api/series/' + encodeURIComponent(seriesId) + '/engagement', {
-                credentials: 'same-origin',
-                headers: { Accept: 'application/json' },
-            })
-                .then(function (r) { return r.json(); })
-                .then(function (data) {
+                    credentials: 'same-origin',
+                    headers: { Accept: 'application/json' },
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
                     var likes = root.querySelector('[data-likes]');
                     var dislikes = root.querySelector('[data-dislikes]');
                     if (likes) likes.textContent = data.likes;
                     if (dislikes) dislikes.textContent = data.dislikes;
                     updateUserRating(data.user_rating);
 
-                    root.querySelectorAll('.vote-btn').forEach(function (btn) {
+                    root.querySelectorAll('.vote-btn').forEach(function(btn) {
                         btn.classList.remove('active-like', 'active-dislike');
                         var v = parseInt(btn.getAttribute('data-vote'), 10);
                         if (data.user_vote === v) {
@@ -1560,18 +1556,18 @@
                         setLocalFavourite(seriesId, isFav);
                     }
                 })
-                .catch(function () {
+                .catch(function() {
                     flashNotice('Не удалось обновить данные. Обновите страницу.', true);
                 });
         }
 
-        root.querySelectorAll('.vote-btn').forEach(function (btn) {
-            btn.addEventListener('click', function () {
+        root.querySelectorAll('.vote-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
                 postJson('/api/series/' + encodeURIComponent(seriesId) + '/vote', {
-                    value: parseInt(btn.getAttribute('data-vote'), 10),
-                })
-                    .then(function (r) { return r.json(); })
-                    .then(function (data) {
+                        value: parseInt(btn.getAttribute('data-vote'), 10),
+                    })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
                         if (data && data.ok) {
                             var likes = root.querySelector('[data-likes]');
                             var dislikes = root.querySelector('[data-dislikes]');
@@ -1581,7 +1577,7 @@
                         }
                         refreshEngagement();
                     })
-                    .catch(function () {
+                    .catch(function() {
                         flashNotice('Не удалось сохранить голос. Попробуйте ещё раз.', true);
                     });
             });
@@ -1596,7 +1592,7 @@
                 updateFavouriteButton(favBtn, true);
             }
 
-            favBtn.addEventListener('click', function () {
+            favBtn.addEventListener('click', function() {
                 var nextState = !favBtn.classList.contains('is-active');
 
                 // Guests: update UI/localStorage immediately so избранное works
@@ -1607,10 +1603,10 @@
                 }
 
                 postJson(seriesApiPath(seriesId) + '/favourite', guestLibraryPayload({
-                    active: nextState,
-                }))
+                        active: nextState,
+                    }))
                     .then(readJsonResponse)
-                    .then(function (res) {
+                    .then(function(res) {
                         if (!res.ok) {
                             if (!isSiteLoggedIn()) {
                                 // Local state already applied for guests.
@@ -1637,7 +1633,7 @@
                             updateHeaderFavouritesCount(res.data.count);
                         }
                     })
-                    .catch(function () {
+                    .catch(function() {
                         if (!isSiteLoggedIn()) return;
                         flashNotice('Не удалось обновить избранное. Попробуйте ещё раз.', true);
                     });
@@ -1650,12 +1646,12 @@
 
         document.querySelectorAll(
             '.profile-form, .profile-new-list, .profile-rename-list, .profile-delete-list, .profile-logout'
-        ).forEach(function (form) {
+        ).forEach(function(form) {
             bindAjaxForm(form, {
                 feedback: form.querySelector('[data-form-feedback]') || flash,
-                onSuccess: function (data, form) {
+                onSuccess: function(data, form) {
                     if (data.profile) {
-                        document.querySelectorAll('.profile-sidebar__name').forEach(function (el) {
+                        document.querySelectorAll('.profile-sidebar__name').forEach(function(el) {
                             el.textContent = data.profile.name;
                         });
                         var initial = document.querySelector('.profile-avatar');
@@ -1680,11 +1676,11 @@
     function initProfileWatchlistRemove() {
         var flash = document.getElementById('profileFlash');
 
-        document.querySelectorAll('[data-watchlist-remove]').forEach(function (btn) {
+        document.querySelectorAll('[data-watchlist-remove]').forEach(function(btn) {
             if (btn.getAttribute('data-bound') === '1') return;
             btn.setAttribute('data-bound', '1');
 
-            btn.addEventListener('click', function () {
+            btn.addEventListener('click', function() {
                 var listId = btn.getAttribute('data-list-id');
                 var seriesId = btn.getAttribute('data-series-id');
                 if (!listId || !seriesId) return;
@@ -1692,10 +1688,10 @@
                 btn.disabled = true;
 
                 postJson('/profile/lists/' + encodeURIComponent(listId) + '/remove-item', {
-                    series_id: parseInt(seriesId, 10),
-                })
+                        series_id: parseInt(seriesId, 10),
+                    })
                     .then(readJsonResponse)
-                    .then(function (res) {
+                    .then(function(res) {
                         if (!res.ok || (res.data && res.data.ok === false)) {
                             if (flash) {
                                 flash.hidden = false;
@@ -1712,7 +1708,7 @@
 
                         if (item) {
                             item.classList.add('is-removing');
-                            window.setTimeout(function () {
+                            window.setTimeout(function() {
                                 item.remove();
                                 if (block) {
                                     var itemsWrap = block.querySelector('[data-watchlist-items]');
@@ -1741,7 +1737,7 @@
                             flash.className = 'profile-flash profile-flash--success';
                         }
                     })
-                    .catch(function () {
+                    .catch(function() {
                         if (flash) {
                             flash.hidden = false;
                             flash.textContent = 'Не удалось убрать сериал из списка.';
@@ -1757,11 +1753,11 @@
         var tabs = document.querySelectorAll('[data-profile-tab]');
         if (!tabs.length) return;
 
-        tabs.forEach(function (tab) {
-            tab.addEventListener('click', function () {
+        tabs.forEach(function(tab) {
+            tab.addEventListener('click', function() {
                 var name = tab.getAttribute('data-profile-tab');
-                tabs.forEach(function (t) { t.classList.toggle('is-active', t === tab); });
-                document.querySelectorAll('[data-profile-panel]').forEach(function (panel) {
+                tabs.forEach(function(t) { t.classList.toggle('is-active', t === tab); });
+                document.querySelectorAll('[data-profile-panel]').forEach(function(panel) {
                     var active = panel.getAttribute('data-profile-panel') === name;
                     panel.hidden = !active;
                     panel.classList.toggle('is-active', active);
@@ -2201,6 +2197,7 @@
 
         var seriesId = section.getAttribute('data-series-id');
         if (!seriesId) return;
+
         function isCommentsLoggedIn() {
             return !!section.querySelector('[data-logged-in]');
         }
@@ -2347,24 +2344,13 @@
         }
 
         function updateCommentsCount(items) {
-            if (countEl) {
-                var total = countComments(items);
-                if (total > 0) {
-                    countEl.textContent = pluralComments(total);
-                    countEl.hidden = false;
-                } else {
-                    countEl.hidden = true;
-                }
-            }
-            var tabCount = document.querySelector('[data-engagement-comments-count]');
-            if (tabCount) {
-                var totalTab = countComments(items);
-                if (totalTab > 0) {
-                    tabCount.textContent = '(' + totalTab + ')';
-                    tabCount.hidden = false;
-                } else {
-                    tabCount.hidden = true;
-                }
+            if (!countEl) return;
+            var total = countComments(items);
+            if (total > 0) {
+                countEl.textContent = pluralComments(total);
+                countEl.hidden = false;
+            } else {
+                countEl.hidden = true;
             }
         }
 
@@ -2411,7 +2397,7 @@
 
             return postJson('/api/series/' + encodeURIComponent(seriesId) + '/comments', payload)
                 .then(readJsonResponse)
-                .then(function (res) {
+                .then(function(res) {
                     if (!res.ok) {
                         showNotice(parseApiErrors(res.data), true);
                         return;
@@ -2427,10 +2413,10 @@
                         loadComments();
                     }
                 })
-                .catch(function () {
+                .catch(function() {
                     showNotice(cfg('comments_msg_submit_failed', 'Не удалось отправить комментарий.'), true);
                 })
-                .finally(function () {
+                .finally(function() {
                     if (submitBtn) submitBtn.disabled = false;
                 });
         }
@@ -2450,7 +2436,7 @@
 
         function closeReplyForms() {
             openReplyId = null;
-            section.querySelectorAll('[data-comment-reply-wrap]').forEach(function (el) {
+            section.querySelectorAll('[data-comment-reply-wrap]').forEach(function(el) {
                 el.remove();
             });
         }
@@ -2489,7 +2475,7 @@
                 '<button type="button" class="dontusebuttonclass comment-form__cancel">' + cfg('comments_ui_cancel', 'Отмена') + '</button>';
             form.appendChild(actions);
 
-            actions.querySelector('.comment-form__cancel').addEventListener('click', function () {
+            actions.querySelector('.comment-form__cancel').addEventListener('click', function() {
                 closeReplyForms();
             });
 
@@ -2513,7 +2499,7 @@
             var dislikes = scope.querySelector('[data-comment-dislikes]');
             if (likes) likes.textContent = String(data.likes);
             if (dislikes) dislikes.textContent = String(data.dislikes);
-            scope.querySelectorAll('[data-comment-vote]').forEach(function (btn) {
+            scope.querySelectorAll('[data-comment-vote]').forEach(function(btn) {
                 btn.classList.remove('active-like', 'active-dislike');
                 var v = parseInt(btn.getAttribute('data-comment-vote'), 10);
                 if (data.user_vote === v) {
@@ -2584,7 +2570,7 @@
             if (c.children && c.children.length) {
                 var replies = document.createElement('div');
                 replies.className = 'comment-replies';
-                c.children.forEach(function (child) {
+                c.children.forEach(function(child) {
                     replies.appendChild(renderComment(child, depth + 1));
                 });
                 article.appendChild(replies);
@@ -2596,7 +2582,7 @@
         function bindListEvents() {
             if (!listEl) return;
 
-            listEl.addEventListener('click', function (e) {
+            listEl.addEventListener('click', function(e) {
                 var voteBtn = e.target.closest('[data-comment-vote]');
                 if (!voteBtn) return;
                 var article = voteBtn.closest('.comment-item');
@@ -2605,13 +2591,13 @@
                 if (!commentId) return;
 
                 postJson('/api/comments/' + encodeURIComponent(commentId) + '/vote', {
-                    value: parseInt(voteBtn.getAttribute('data-comment-vote'), 10),
-                })
-                    .then(function (r) { return r.json(); })
-                    .then(function (data) {
+                        value: parseInt(voteBtn.getAttribute('data-comment-vote'), 10),
+                    })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
                         if (data && data.ok) updateVoteUi(article, data);
                     })
-                    .catch(function () {
+                    .catch(function() {
                         flashNotice('Не удалось сохранить оценку комментария.', true);
                     });
             });
@@ -2620,7 +2606,7 @@
         function setCommentsSort(nextSort) {
             currentSort = nextSort === 'rating' ? 'rating' : 'date';
             if (!sortEl) return;
-            sortEl.querySelectorAll('[data-comments-sort-value]').forEach(function (btn) {
+            sortEl.querySelectorAll('[data-comments-sort-value]').forEach(function(btn) {
                 var value = btn.getAttribute('data-comments-sort-value');
                 btn.classList.toggle('is-active', value === currentSort);
             });
@@ -2633,11 +2619,11 @@
 
             var url = '/api/series/' + encodeURIComponent(seriesId) + '/comments?sort=' + encodeURIComponent(currentSort);
             fetch(url, {
-                credentials: 'same-origin',
-                headers: { Accept: 'application/json' },
-            })
-                .then(function (r) { return r.json(); })
-                .then(function (data) {
+                    credentials: 'same-origin',
+                    headers: { Accept: 'application/json' },
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
                     listEl.innerHTML = '';
                     if (data.sort) {
                         setCommentsSort(data.sort);
@@ -2648,17 +2634,17 @@
                         listEl.innerHTML = '<p class="comment-empty">' + cfg('comments_ui_empty', 'Пока нет комментариев. Будьте первым!') + '</p>';
                         return;
                     }
-                    items.forEach(function (c) {
+                    items.forEach(function(c) {
                         listEl.appendChild(renderComment(c, 0));
                     });
                 })
-                .catch(function () {
+                .catch(function() {
                     listEl.innerHTML = '<p class="comment-empty">' + cfg('comments_ui_load_error', 'Не удалось загрузить комментарии.') + '</p>';
                 });
         }
 
         if (sortEl) {
-            sortEl.addEventListener('click', function (e) {
+            sortEl.addEventListener('click', function(e) {
                 var btn = e.target.closest('[data-comments-sort-value]');
                 if (!btn || !sortEl.contains(btn)) return;
                 var nextSort = btn.getAttribute('data-comments-sort-value');
@@ -2669,13 +2655,13 @@
             });
         }
 
-        section.addEventListener('submit', function (e) {
+        section.addEventListener('submit', function(e) {
             var form = e.target.closest('[data-comment-form]');
             if (!form || !section.contains(form)) return;
             e.preventDefault();
         });
 
-        section.addEventListener('click', function (e) {
+        section.addEventListener('click', function(e) {
             var spoilerBtn = e.target.closest('[data-comment-spoiler]');
             if (spoilerBtn && section.contains(spoilerBtn)) {
                 var form = spoilerBtn.closest('[data-comment-form]');
@@ -2721,7 +2707,7 @@
 
         bindListEvents();
         section.querySelectorAll('[data-comment-form]').forEach(enhanceCommentForm);
-        document.addEventListener('lordserial:comments-compose-upgrade', function () {
+        document.addEventListener('lordserial:comments-compose-upgrade', function() {
             section.querySelectorAll('[data-comment-form]').forEach(enhanceCommentForm);
         });
         if (!commentsSsr) {
@@ -2730,7 +2716,7 @@
     }
 
     function initCommentSpoilers() {
-        document.addEventListener('click', function (e) {
+        document.addEventListener('click', function(e) {
             var toggleBtn = e.target.closest('.comment-spoiler__toggle');
             if (!toggleBtn || toggleBtn.closest('#commentsSection') || toggleBtn.closest('#reviewsSection')) return;
 
@@ -2763,22 +2749,22 @@
             document.body.classList.remove('episodes-lock');
         }
 
-        document.querySelectorAll('[data-episodes-open]').forEach(function (btn) {
+        document.querySelectorAll('[data-episodes-open]').forEach(function(btn) {
             btn.addEventListener('click', openModal);
         });
 
-        modal.querySelectorAll('[data-episodes-close]').forEach(function (el) {
+        modal.querySelectorAll('[data-episodes-close]').forEach(function(el) {
             el.addEventListener('click', closeModal);
         });
 
-        modal.querySelectorAll('.episodes-season__toggle').forEach(function (btn) {
-            btn.addEventListener('click', function () {
+        modal.querySelectorAll('.episodes-season__toggle').forEach(function(btn) {
+            btn.addEventListener('click', function() {
                 var season = btn.closest('.episodes-season');
                 if (season) season.classList.toggle('is-open');
             });
         });
 
-        document.addEventListener('keydown', function (e) {
+        document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape' && modal.classList.contains('is-active')) {
                 closeModal();
             }
@@ -2814,9 +2800,9 @@
             var totalEl = widget.querySelector('[data-reactions-total]');
             if (totalEl) totalEl.textContent = data.total_label || '0 голосов';
 
-            widget.querySelectorAll('[data-reaction-card]').forEach(function (card) {
+            widget.querySelectorAll('[data-reaction-card]').forEach(function(card) {
                 var id = parseInt(card.getAttribute('data-reaction-id'), 10);
-                var item = (data.items || []).find(function (x) { return x.id === id; });
+                var item = (data.items || []).find(function(x) { return x.id === id; });
                 if (!item) return;
 
                 var selected = !!item.is_selected;
@@ -2845,32 +2831,32 @@
             showFeedback('', false);
 
             postJson('/api/series/' + encodeURIComponent(seriesId) + '/reactions', {
-                reaction_type_id: reactionId,
-            })
+                    reaction_type_id: reactionId,
+                })
                 .then(readJsonResponse)
-                .then(function (res) {
+                .then(function(res) {
                     if (!res.ok) {
                         showFeedback(parseApiErrors(res.data), true);
                         return;
                     }
                     render(res.data);
                 })
-                .catch(function () {
+                .catch(function() {
                     showFeedback('Не удалось сохранить оценку. Попробуйте ещё раз.', true);
                 })
-                .finally(function () {
+                .finally(function() {
                     setLoading(false);
                 });
         }
 
-        widget.addEventListener('click', function (e) {
+        widget.addEventListener('click', function(e) {
             var card = e.target.closest('[data-reaction-card]');
             if (!card || !widget.contains(card)) return;
             var reactionId = parseInt(card.getAttribute('data-reaction-id'), 10);
             vote(reactionId);
         });
 
-        widget.addEventListener('keydown', function (e) {
+        widget.addEventListener('keydown', function(e) {
             if (e.key !== 'Enter' && e.key !== ' ') return;
             var card = e.target.closest('[data-reaction-card]');
             if (!card || !widget.contains(card)) return;
@@ -2880,14 +2866,14 @@
         });
 
         fetch('/api/series/' + encodeURIComponent(seriesId) + '/reactions', {
-            credentials: 'same-origin',
-            headers: { Accept: 'application/json' },
-        })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json' },
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
                 if (data && data.enabled !== false) render(data);
             })
-            .catch(function () {
+            .catch(function() {
                 flashNotice('Не удалось загрузить реакции.', true);
             });
     }
@@ -2896,7 +2882,7 @@
         return fetch(url, Object.assign({
             credentials: 'same-origin',
             headers: { Accept: 'application/json' },
-        }, options || {})).then(function (r) { return r.json(); });
+        }, options || {})).then(function(r) { return r.json(); });
     }
 
     function initHeaderNotifications() {
@@ -2926,7 +2912,7 @@
             }
 
             dropdown.classList.remove('is-empty');
-            listEl.innerHTML = items.map(function (item) {
+            listEl.innerHTML = items.map(function(item) {
                 return '<article class="series-item' + (item.read ? '' : ' is-unread') + '" data-notification-id="' + item.id + '">' +
                     '<button class="series-item__remove" type="button" data-dismiss-notification="' + item.id + '" aria-label="Удалить">×</button>' +
                     '<img class="series-item__poster" src="' + item.poster_url + '" alt="">' +
@@ -2951,10 +2937,10 @@
                 updateCount(0);
                 return Promise.resolve();
             }
-            return fetchJson('/api/notifications/').then(function (data) {
+            return fetchJson('/api/notifications/').then(function(data) {
                 renderItems(data.items || []);
                 updateCount(data.unread || 0);
-            }).catch(function () {
+            }).catch(function() {
                 flashNotice('Не удалось загрузить уведомления.', true);
             });
         }
@@ -2966,17 +2952,17 @@
         function openDropdown() {
             positionDropdown();
             dropdown.classList.add('is-active');
-            loadNotifications().then(function () {
+            loadNotifications().then(function() {
                 return postJson('/api/notifications/read', { all: true });
-            }).then(function () {
+            }).then(function() {
                 updateCount(0);
-                listEl.querySelectorAll('.series-item.is-unread').forEach(function (el) {
+                listEl.querySelectorAll('.series-item.is-unread').forEach(function(el) {
                     el.classList.remove('is-unread');
                 });
             });
         }
 
-        bellBtn.addEventListener('click', function (e) {
+        bellBtn.addEventListener('click', function(e) {
             e.stopPropagation();
             if (!isSiteLoggedIn()) {
                 closeDropdown();
@@ -2990,17 +2976,17 @@
             }
         });
 
-        document.addEventListener('click', function (e) {
+        document.addEventListener('click', function(e) {
             if (!dropdown.classList.contains('is-active')) return;
             if (dropdown.contains(e.target) || bellBtn.contains(e.target)) return;
             closeDropdown();
         });
 
-        window.addEventListener('resize', function () {
+        window.addEventListener('resize', function() {
             if (dropdown.classList.contains('is-active')) positionDropdown();
         });
 
-        listEl.addEventListener('click', function (e) {
+        listEl.addEventListener('click', function(e) {
             var dismissBtn = e.target.closest('[data-dismiss-notification]');
             if (!dismissBtn) return;
             e.preventDefault();
@@ -3008,7 +2994,7 @@
             var id = dismissBtn.getAttribute('data-dismiss-notification');
             var itemEl = dismissBtn.closest('.series-item');
             deleteJson('/api/notifications/' + encodeURIComponent(id))
-                .then(function (response) {
+                .then(function(response) {
                     if (!response.ok) return loadNotifications();
                     if (itemEl) itemEl.remove();
                     var remaining = listEl.querySelectorAll('.series-item').length;
@@ -3017,15 +3003,15 @@
                     }
                     return loadNotifications();
                 })
-                .catch(function () {
+                .catch(function() {
                     return loadNotifications();
                 });
         });
 
         if (clearBtn) {
-            clearBtn.addEventListener('click', function (e) {
+            clearBtn.addEventListener('click', function(e) {
                 e.preventDefault();
-                postJson('/api/notifications/clear', {}).then(function () {
+                postJson('/api/notifications/clear', {}).then(function() {
                     return loadNotifications();
                 });
             });
@@ -3051,8 +3037,8 @@
         if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
             return Promise.reject(new Error('push unsupported'));
         }
-        return navigator.serviceWorker.register('/sw.js').then(function (reg) {
-            return navigator.serviceWorker.ready.then(function () { return reg; });
+        return navigator.serviceWorker.register('/sw.js').then(function(reg) {
+            return navigator.serviceWorker.ready.then(function() { return reg; });
         });
     }
 
@@ -3065,39 +3051,39 @@
         }
 
         var publicKey = cfg('vapid_public_key', '');
-        var keyPromise = publicKey
-            ? Promise.resolve(publicKey)
-            : fetchJson('/api/push/vapid-public-key').then(function (data) {
+        var keyPromise = publicKey ?
+            Promise.resolve(publicKey) :
+            fetchJson('/api/push/vapid-public-key').then(function(data) {
                 return data && data.publicKey ? data.publicKey : '';
             });
 
-        return keyPromise.then(function (key) {
+        return keyPromise.then(function(key) {
             if (!key) return false;
-            return Notification.requestPermission().then(function (permission) {
+            return Notification.requestPermission().then(function(permission) {
                 if (permission !== 'granted') {
                     flashNotice(cfg('notifications_msg_push_denied', 'Разрешите уведомления в браузере, чтобы получать push.'), true);
                     return false;
                 }
-                return ensurePushServiceWorker().then(function (reg) {
-                    return reg.pushManager.getSubscription().then(function (existing) {
+                return ensurePushServiceWorker().then(function(reg) {
+                    return reg.pushManager.getSubscription().then(function(existing) {
                         if (existing) return existing;
                         return reg.pushManager.subscribe({
                             userVisibleOnly: true,
                             applicationServerKey: urlBase64ToUint8Array(key),
                         });
                     });
-                }).then(function (subscription) {
+                }).then(function(subscription) {
                     var json = subscription.toJSON();
                     return postJson('/api/push/subscribe', {
                         endpoint: json.endpoint,
                         keys: json.keys || {},
                         contentEncoding: 'aes128gcm',
-                    }).then(readJsonResponse).then(function (res) {
+                    }).then(readJsonResponse).then(function(res) {
                         return !!(res.ok && res.data && res.data.ok !== false);
                     });
                 });
             });
-        }).catch(function () {
+        }).catch(function() {
             return false;
         });
     }
@@ -3106,14 +3092,14 @@
         var prefsForm = document.getElementById('notificationPrefsForm');
         if (!prefsForm) return;
 
-        prefsForm.addEventListener('submit', function (e) {
+        prefsForm.addEventListener('submit', function(e) {
             e.preventDefault();
             var submitBtn = prefsForm.querySelector('[type="submit"]');
             if (submitBtn) submitBtn.disabled = true;
 
             var pushChecked = !!prefsForm.querySelector('[name="notify_via_push"]')?.checked;
 
-            var savePrefs = function () {
+            var savePrefs = function() {
                 return postJson('/api/notifications/preferences', {
                     notify_via_email: !!prefsForm.querySelector('[name="notify_via_email"]')?.checked,
                     notify_via_site: !!prefsForm.querySelector('[name="notify_via_site"]')?.checked,
@@ -3126,11 +3112,11 @@
                 chain = enableWebPush();
             }
 
-            chain.then(function () {
-                return savePrefs();
-            })
+            chain.then(function() {
+                    return savePrefs();
+                })
                 .then(readJsonResponse)
-                .then(function (res) {
+                .then(function(res) {
                     var flash = document.getElementById('profileFlash');
                     if (!res.ok || (res.data && res.data.ok === false)) {
                         if (flash) {
@@ -3146,7 +3132,7 @@
                         flash.className = 'profile-flash profile-flash--success';
                     }
                 })
-                .catch(function () {
+                .catch(function() {
                     var flash = document.getElementById('profileFlash');
                     if (flash) {
                         flash.hidden = false;
@@ -3154,16 +3140,16 @@
                         flash.className = 'profile-flash profile-flash--error';
                     }
                 })
-                .finally(function () {
+                .finally(function() {
                     if (submitBtn) submitBtn.disabled = false;
                 });
         });
 
-        document.querySelectorAll('[data-unsubscribe-series]').forEach(function (btn) {
-            btn.addEventListener('click', function () {
+        document.querySelectorAll('[data-unsubscribe-series]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
                 var seriesId = btn.getAttribute('data-unsubscribe-series');
                 if (!seriesId || !window.confirm('Отключить уведомления для этого сериала?')) return;
-                deleteJson('/api/notifications/series/' + encodeURIComponent(seriesId)).then(function () {
+                deleteJson('/api/notifications/series/' + encodeURIComponent(seriesId)).then(function() {
                     window.location.reload();
                 });
             });
@@ -3218,31 +3204,31 @@
         }
 
         if (prevBtn) {
-            prevBtn.addEventListener('click', function () {
+            prevBtn.addEventListener('click', function() {
                 scrollTabsBy(-Math.max(180, Math.round(tabsWrap.clientWidth * 0.6)));
             });
         }
         if (nextBtn) {
-            nextBtn.addEventListener('click', function () {
+            nextBtn.addEventListener('click', function() {
                 scrollTabsBy(Math.max(180, Math.round(tabsWrap.clientWidth * 0.6)));
             });
         }
 
         tabsWrap.addEventListener('scroll', updateNavVisibility, { passive: true });
         window.addEventListener('resize', updateNavVisibility);
-        window.requestAnimationFrame(function () {
+        window.requestAnimationFrame(function() {
             updateNavVisibility();
             scrollActiveTabIntoView();
             window.requestAnimationFrame(updateNavVisibility);
         });
 
         function activate(index) {
-            tabs.forEach(function (tab) {
+            tabs.forEach(function(tab) {
                 var active = tab.getAttribute('data-player-index') === String(index);
                 tab.classList.toggle('is-active', active);
             });
 
-            panels.forEach(function (panel) {
+            panels.forEach(function(panel) {
                 var active = panel.getAttribute('data-player-panel') === String(index);
                 panel.hidden = !active;
                 panel.classList.toggle('is-active', active);
@@ -3260,8 +3246,8 @@
             window.requestAnimationFrame(updateNavVisibility);
         }
 
-        tabs.forEach(function (tab) {
-            tab.addEventListener('click', function () {
+        tabs.forEach(function(tab) {
+            tab.addEventListener('click', function() {
                 activate(tab.getAttribute('data-player-index'));
             });
         });
@@ -3275,24 +3261,24 @@
 
         function setLightsOff(on) {
             document.body.classList.toggle('light-off', on);
-            toggles.forEach(function (input) {
+            toggles.forEach(function(input) {
                 input.checked = on;
             });
         }
 
-        toggles.forEach(function (input) {
-            input.addEventListener('change', function () {
+        toggles.forEach(function(input) {
+            input.addEventListener('change', function() {
                 setLightsOff(!!input.checked);
             });
         });
 
         if (overlay) {
-            overlay.addEventListener('click', function () {
+            overlay.addEventListener('click', function() {
                 setLightsOff(false);
             });
         }
 
-        document.addEventListener('keydown', function (e) {
+        document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape' && document.body.classList.contains('light-off')) {
                 setLightsOff(false);
             }
@@ -3347,7 +3333,7 @@
         function resetForm() {
             selectedReason = null;
             if (issues) {
-                issues.querySelectorAll('.report-item').forEach(function (item) {
+                issues.querySelectorAll('.report-item').forEach(function(item) {
                     item.classList.remove('active');
                 });
             }
@@ -3363,7 +3349,7 @@
             modal.hidden = false;
             document.body.style.overflow = 'hidden';
             if (messageEl) {
-                window.setTimeout(function () {
+                window.setTimeout(function() {
                     messageEl.focus();
                 }, 50);
             }
@@ -3375,31 +3361,31 @@
             resetForm();
         }
 
-        openBtns.forEach(function (btn) {
-            btn.addEventListener('click', function (e) {
+        openBtns.forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
                 e.preventDefault();
                 openModal();
             });
         });
 
-        closeBtns.forEach(function (btn) {
+        closeBtns.forEach(function(btn) {
             btn.addEventListener('click', closeModal);
         });
 
-        modal.addEventListener('click', function (e) {
+        modal.addEventListener('click', function(e) {
             if (e.target === modal) closeModal();
         });
 
-        document.addEventListener('keydown', function (e) {
+        document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape' && !modal.hidden) closeModal();
         });
 
         if (issues) {
-            issues.addEventListener('click', function (e) {
+            issues.addEventListener('click', function(e) {
                 var item = e.target.closest('[data-reason]');
                 if (!item || !issues.contains(item)) return;
                 selectedReason = item.getAttribute('data-reason');
-                issues.querySelectorAll('.report-item').forEach(function (el) {
+                issues.querySelectorAll('.report-item').forEach(function(el) {
                     el.classList.toggle('active', el === item);
                 });
                 setFeedback('');
@@ -3434,13 +3420,13 @@
             setFeedback('Отправка…', false);
 
             postJson('/api/series/' + encodeURIComponent(id) + '/player-report', {
-                reason: selectedReason,
-                reason_label: reasonLabels[selectedReason] || selectedReason,
-                message: message,
-                player_label: activePlayerLabel(),
-            })
+                    reason: selectedReason,
+                    reason_label: reasonLabels[selectedReason] || selectedReason,
+                    message: message,
+                    player_label: activePlayerLabel(),
+                })
                 .then(readJsonResponse)
-                .then(function (res) {
+                .then(function(res) {
                     if (!res.ok) {
                         var msg = (res.data && (res.data.message || (res.data.errors && Object.values(res.data.errors)[0]))) || 'Не удалось отправить жалобу';
                         if (Array.isArray(msg)) msg = msg[0];
@@ -3450,10 +3436,10 @@
                     setFeedback((res.data && res.data.message) || 'Спасибо! Жалоба отправлена.', false);
                     window.setTimeout(closeModal, 1200);
                 })
-                .catch(function () {
+                .catch(function() {
                     setFeedback('Не удалось отправить жалобу', true);
                 })
-                .then(function () {
+                .then(function() {
                     sending = false;
                     if (submitBtn) submitBtn.disabled = false;
                 });
@@ -3516,9 +3502,9 @@
                 notifyBtn.textContent = cfg('notifications_ui_subscribe_btn_guest', 'Войти и подписаться');
                 return;
             }
-            notifyBtn.textContent = subscribed
-                ? cfg('notifications_ui_unsubscribe_btn', 'Отписаться')
-                : cfg('notifications_ui_subscribe_btn', 'Подписаться');
+            notifyBtn.textContent = subscribed ?
+                cfg('notifications_ui_unsubscribe_btn', 'Отписаться') :
+                cfg('notifications_ui_subscribe_btn', 'Подписаться');
             if (subscribedBadge) {
                 subscribedBadge.style.cursor = showSubscribed ? 'pointer' : '';
                 subscribedBadge.title = showSubscribed ? 'Настроить озвучки' : '';
@@ -3539,20 +3525,20 @@
                 updateSubscribeUi({ subscribed: false });
                 return Promise.resolve({ subscribed: false });
             }
-            return fetchJson('/api/series/' + encodeURIComponent(seriesId) + '/notifications').then(function (data) {
+            return fetchJson('/api/series/' + encodeURIComponent(seriesId) + '/notifications').then(function(data) {
                 if (requestId !== settingsRequestId) return data;
                 if (notifyForm) {
                     var anyInput = notifyForm.querySelector('input[name="notify_any"]');
                     if (anyInput) anyInput.checked = data.notify_any !== false;
                     var voices = data.voices || [];
-                    notifyForm.querySelectorAll('input[name="voices[]"]').forEach(function (cb) {
+                    notifyForm.querySelectorAll('input[name="voices[]"]').forEach(function(cb) {
                         cb.checked = voices.indexOf(cb.value) !== -1;
                     });
                 }
                 if (unsubscribeBtn) unsubscribeBtn.hidden = !data.subscribed;
                 updateSubscribeUi(data);
                 return data;
-            }).catch(function () {
+            }).catch(function() {
                 if (requestId !== settingsRequestId) return { subscribed: subscribed };
                 return { subscribed: subscribed };
             });
@@ -3568,11 +3554,11 @@
             }
 
             return postJson('/api/series/' + encodeURIComponent(seriesId) + '/notifications', {
-                notify_any: true,
-                voices: [],
-            })
+                    notify_any: true,
+                    voices: [],
+                })
                 .then(readJsonResponse)
-                .then(function (res) {
+                .then(function(res) {
                     subscribeInFlight = false;
                     if (!res.ok) {
                         updateSubscribeUi({ subscribed: false });
@@ -3583,7 +3569,7 @@
                     updateSubscribeUi({ subscribed: true });
                     if (unsubscribeBtn) unsubscribeBtn.hidden = false;
                     showSubscribeFeedback(res.data.message || cfg('notifications_msg_saved', 'Настройки уведомлений сохранены.'), false);
-                    enableWebPush().then(function (ok) {
+                    enableWebPush().then(function(ok) {
                         if (ok) {
                             showSubscribeFeedback(
                                 (res.data.message || cfg('notifications_msg_saved', 'Настройки уведомлений сохранены.')) +
@@ -3593,7 +3579,7 @@
                         }
                     });
                 })
-                .catch(function () {
+                .catch(function() {
                     subscribeInFlight = false;
                     updateSubscribeUi({ subscribed: false });
                     showSubscribeFeedback('Не удалось подписаться. Попробуйте ещё раз.', true);
@@ -3611,7 +3597,7 @@
 
             return postJson('/api/series/' + encodeURIComponent(seriesId) + '/notifications', { enabled: false })
                 .then(readJsonResponse)
-                .then(function (res) {
+                .then(function(res) {
                     subscribeInFlight = false;
                     if (!res.ok) {
                         showSubscribeFeedback(parseApiErrors(res.data) || 'Не удалось отписаться.', true);
@@ -3623,7 +3609,7 @@
                     if (unsubscribeBtn) unsubscribeBtn.hidden = true;
                     showSubscribeFeedback(res.data.message || cfg('notifications_msg_unsubscribed', 'Уведомления отключены.'), false);
                 })
-                .catch(function () {
+                .catch(function() {
                     subscribeInFlight = false;
                     updateSubscribeUi({ subscribed: true });
                     showSubscribeFeedback('Не удалось отписаться. Попробуйте ещё раз.', true);
@@ -3659,15 +3645,15 @@
             subscribeIcon.addEventListener('click', openNotifySettings);
         }
 
-        document.querySelectorAll('[data-notify-close], .notify-close, .notify-cancel').forEach(function (el) {
+        document.querySelectorAll('[data-notify-close], .notify-close, .notify-cancel').forEach(function(el) {
             el.addEventListener('click', closeNotify);
         });
 
         if (unsubscribeBtn) {
-            unsubscribeBtn.addEventListener('click', function () {
+            unsubscribeBtn.addEventListener('click', function() {
                 postJson('/api/series/' + encodeURIComponent(seriesId) + '/notifications', { enabled: false })
                     .then(readJsonResponse)
-                    .then(function (res) {
+                    .then(function(res) {
                         var notifyFeedback = document.getElementById('notifyFeedback');
                         if (!res.ok) {
                             showFeedback(notifyFeedback, parseApiErrors(res.data), true);
@@ -3685,21 +3671,21 @@
 
         if (notifyForm) {
             var notifyFeedback = document.getElementById('notifyFeedback');
-            notifyForm.addEventListener('submit', function (e) {
+            notifyForm.addEventListener('submit', function(e) {
                 e.preventDefault();
                 var voices = [];
-                notifyForm.querySelectorAll('input[name="voices[]"]:checked').forEach(function (cb) {
+                notifyForm.querySelectorAll('input[name="voices[]"]:checked').forEach(function(cb) {
                     voices.push(cb.value);
                 });
                 var notifyAnyInput = notifyForm.querySelector('input[name="notify_any"]');
                 var notifyAny = notifyAnyInput ? notifyAnyInput.checked : true;
 
                 postJson('/api/series/' + encodeURIComponent(seriesId) + '/notifications', {
-                    voices: voices,
-                    notify_any: notifyAny,
-                })
+                        voices: voices,
+                        notify_any: notifyAny,
+                    })
                     .then(readJsonResponse)
-                    .then(function (res) {
+                    .then(function(res) {
                         if (!res.ok) {
                             showFeedback(notifyFeedback, parseApiErrors(res.data), true);
                             return;
@@ -3712,13 +3698,13 @@
                         enableWebPush();
                         setTimeout(closeNotify, 900);
                     })
-                    .catch(function () {
+                    .catch(function() {
                         showFeedback(notifyFeedback, 'Не удалось сохранить настройки.', true);
                     });
             });
         }
 
-        document.addEventListener('lordserial:auth-login', function () {
+        document.addEventListener('lordserial:auth-login', function() {
             updateSubscribeUi({ subscribed: subscribed });
             loadSettings();
         });
@@ -3734,9 +3720,9 @@
         var browseApi = root.getAttribute('data-browse-api') || '/api/catalog/browse';
         var taxonomyType = root.getAttribute('data-taxonomy-type') || '';
         var taxonomySlug = root.getAttribute('data-taxonomy-slug') || '';
-        var primaryFilterKey = taxonomyType === 'person'
-            ? 'actor'
-            : (taxonomyType === 'year' ? 'year_from' : taxonomyType);
+        var primaryFilterKey = taxonomyType === 'person' ?
+            'actor' :
+            (taxonomyType === 'year' ? 'year_from' : taxonomyType);
         var filtersWrap = root.querySelector('[data-catalog-filters-wrap]');
         var gridWrap = root.querySelector('[data-catalog-grid-wrap]');
         var paginationWrap = root.querySelector('[data-catalog-pagination-wrap]');
@@ -3754,7 +3740,7 @@
         function ensureStateKeys() {
             var el = filtersEl();
             if (!el) return;
-            el.querySelectorAll('[data-filter]').forEach(function (node) {
+            el.querySelectorAll('[data-filter]').forEach(function(node) {
                 var key = node.getAttribute('data-filter');
                 if (key && state[key] === undefined) {
                     state[key] = '';
@@ -3771,7 +3757,7 @@
 
         function secondaryFilterParams() {
             var params = {};
-            Object.keys(state).forEach(function (key) {
+            Object.keys(state).forEach(function(key) {
                 if (key === 'page') return;
                 if (taxonomyType && key === primaryFilterKey) return;
                 if (taxonomyType === 'year' && (key === 'year_from' || key === 'year_to')) return;
@@ -3784,7 +3770,7 @@
 
         function buildQueryString(params) {
             var parts = [];
-            Object.keys(params).forEach(function (key) {
+            Object.keys(params).forEach(function(key) {
                 if (params[key]) {
                     parts.push(encodeURIComponent(key) + '=' + encodeURIComponent(params[key]));
                 }
@@ -3852,7 +3838,7 @@
             var el = filtersEl();
             if (!el) return;
             ensureStateKeys();
-            el.querySelectorAll('[data-filter]').forEach(function (node) {
+            el.querySelectorAll('[data-filter]').forEach(function(node) {
                 var key = node.getAttribute('data-filter');
                 if (!key) return;
                 var type = node.getAttribute('data-filter-type') || 'select';
@@ -3882,7 +3868,7 @@
 
         function buildBrowseUrl() {
             var params = new URLSearchParams();
-            Object.keys(state).forEach(function (key) {
+            Object.keys(state).forEach(function(key) {
                 if (key === 'page') return;
                 if (taxonomyType && key === primaryFilterKey) return;
                 if (taxonomyType === 'year' && (key === 'year_from' || key === 'year_to')) return;
@@ -3912,7 +3898,7 @@
         }
 
         function hasActiveSecondaryFilters() {
-            return Object.keys(state).some(function (key) {
+            return Object.keys(state).some(function(key) {
                 if (key === 'page') return false;
                 if (taxonomyType && key === primaryFilterKey) return false;
                 if (taxonomyType === 'year' && (key === 'year_from' || key === 'year_to')) return false;
@@ -3966,7 +3952,7 @@
         }
 
         function resetFilters() {
-            Object.keys(state).forEach(function (key) {
+            Object.keys(state).forEach(function(key) {
                 if (key === 'page') return;
                 if (taxonomyType === 'year' && (key === 'year_from' || key === 'year_to')) {
                     state[key] = taxonomySlug;
@@ -3985,7 +3971,7 @@
 
             var el = filtersEl();
             if (el) {
-                el.querySelectorAll('[data-filter]').forEach(function (node) {
+                el.querySelectorAll('[data-filter]').forEach(function(node) {
                     var key = node.getAttribute('data-filter');
                     if (!key) return;
                     if (taxonomyType === 'year' && (key === 'year_from' || key === 'year_to')) {
@@ -4019,14 +4005,14 @@
             setLoading(true);
 
             fetch(buildBrowseUrl(), {
-                headers: {
-                    Accept: 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                credentials: 'same-origin',
-            })
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    credentials: 'same-origin',
+                })
                 .then(readJsonResponse)
-                .then(function (res) {
+                .then(function(res) {
                     if (currentRequest !== requestId) return;
                     setLoading(false);
                     if (!res.ok || !res.data || !res.data.ok) return;
@@ -4048,13 +4034,13 @@
                     updateBrowserUrl();
                     if (scroll) scrollToResults();
                 })
-                .catch(function () {
+                .catch(function() {
                     if (currentRequest !== requestId) return;
                     setLoading(false);
                 });
         }
 
-        root.addEventListener('change', function (e) {
+        root.addEventListener('change', function(e) {
             var el = e.target.closest('[data-filter]');
             if (!el || !root.contains(el)) return;
             if (el.getAttribute('data-filter-type') === 'range') return;
@@ -4073,18 +4059,18 @@
             loadCatalog(1, true);
         });
 
-        root.addEventListener('input', function (e) {
+        root.addEventListener('input', function(e) {
             var slider = e.target.closest('[data-filter-type="range"]');
             if (!slider || !root.contains(slider)) return;
             updateRangeOutput(slider);
             clearTimeout(rangeTimer);
-            rangeTimer = setTimeout(function () {
+            rangeTimer = setTimeout(function() {
                 readFiltersFromDom();
                 loadCatalog(1, false);
             }, 350);
         });
 
-        root.addEventListener('click', function (e) {
+        root.addEventListener('click', function(e) {
             var resetBtn = e.target.closest('[data-catalog-reset]');
             if (resetBtn && root.contains(resetBtn)) {
                 e.preventDefault();
@@ -4133,31 +4119,31 @@
             toast.hidden = false;
             toast.classList.add('is-visible');
             if (toastTimer) window.clearTimeout(toastTimer);
-            toastTimer = window.setTimeout(function () {
+            toastTimer = window.setTimeout(function() {
                 toast.classList.remove('is-visible');
-                window.setTimeout(function () {
+                window.setTimeout(function() {
                     toast.hidden = true;
                 }, 220);
             }, 4200);
         }
 
-        document.querySelectorAll('[data-bookmark-open]').forEach(function (btn) {
+        document.querySelectorAll('[data-bookmark-open]').forEach(function(btn) {
             btn.addEventListener('click', openModal);
         });
 
         if (modal) {
-            modal.querySelectorAll('[data-bookmark-close]').forEach(function (el) {
+            modal.querySelectorAll('[data-bookmark-close]').forEach(function(el) {
                 el.addEventListener('click', closeModal);
             });
 
-            document.addEventListener('keydown', function (e) {
+            document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape' && modal.classList.contains('is-active')) {
                     closeModal();
                 }
             });
         }
 
-        document.addEventListener('keydown', function (e) {
+        document.addEventListener('keydown', function(e) {
             var modKey = isMac ? e.metaKey : e.ctrlKey;
             if (!modKey || e.altKey || e.shiftKey) return;
             if (e.key !== 'd' && e.key !== 'D' && e.key !== 'в' && e.key !== 'В') return;
@@ -4198,7 +4184,7 @@
             if (!item || !seriesId) return;
             if (tip.classList.contains('is-show') && activeItem === item) return;
             clearTimeout(showTimer);
-            showTimer = setTimeout(function () {
+            showTimer = setTimeout(function() {
                 openPreview(seriesId, item);
             }, 120);
         }
@@ -4206,18 +4192,18 @@
         function scheduleHide() {
             clearTimeout(showTimer);
             clearTimeout(hideTimer);
-            hideTimer = setTimeout(function () {
+            hideTimer = setTimeout(function() {
                 closeTip();
             }, 300);
         }
 
-        tip.addEventListener('mouseenter', function () {
+        tip.addEventListener('mouseenter', function() {
             if (!isMobileLayout()) {
                 clearTimeout(hideTimer);
             }
         });
 
-        tip.addEventListener('mouseleave', function (e) {
+        tip.addEventListener('mouseleave', function(e) {
             if (isMobileLayout()) return;
             var related = e.relatedTarget;
             if (related && related.closest && related.closest('[data-series-info]')) return;
@@ -4231,12 +4217,12 @@
             clearHoverTimers();
             if (activeItem) {
                 activeItem.classList.remove('is-info-active');
-                activeItem.querySelectorAll('[data-series-info]').forEach(function (btn) {
+                activeItem.querySelectorAll('[data-series-info]').forEach(function(btn) {
                     btn.classList.remove('is-active');
                 });
                 activeItem = null;
             }
-            window.setTimeout(function () {
+            window.setTimeout(function() {
                 if (!tip.classList.contains('is-show')) {
                     tip.innerHTML = '';
                 }
@@ -4309,7 +4295,7 @@
             tip.classList.add('is-show');
             tip.setAttribute('aria-hidden', 'false');
             if (activeItem) {
-                window.requestAnimationFrame(function () {
+                window.requestAnimationFrame(function() {
                     positionTip(activeItem);
                 });
             }
@@ -4390,7 +4376,7 @@
                 tip.innerHTML = cache[seriesId];
                 tip.classList.add('is-show');
                 tip.setAttribute('aria-hidden', 'false');
-                window.requestAnimationFrame(function () {
+                window.requestAnimationFrame(function() {
                     positionTip(item);
                 });
                 return;
@@ -4400,7 +4386,7 @@
             showLoading(item);
 
             fetchJson(seriesApiPath(seriesId) + '/preview')
-                .then(function (data) {
+                .then(function(data) {
                     if (token !== loadToken) return;
                     if (!data || !data.ok || !data.html) {
                         showError();
@@ -4410,11 +4396,11 @@
                     tip.innerHTML = data.html;
                     tip.classList.add('is-show');
                     tip.setAttribute('aria-hidden', 'false');
-                    window.requestAnimationFrame(function () {
+                    window.requestAnimationFrame(function() {
                         positionTip(item);
                     });
                 })
-                .catch(function () {
+                .catch(function() {
                     if (token !== loadToken) return;
                     showError();
                 });
@@ -4424,7 +4410,7 @@
         document.addEventListener('mouseout', handleDesktopLeave);
         document.addEventListener('click', handleInfoClick, true);
 
-        document.addEventListener('click', function (e) {
+        document.addEventListener('click', function(e) {
             if (e.target.closest('[data-movie-tip-close]')) {
                 e.preventDefault();
                 closeTip();
@@ -4438,19 +4424,19 @@
             }
         });
 
-        document.addEventListener('keydown', function (e) {
+        document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape' && tip.classList.contains('is-show')) {
                 closeTip();
             }
         });
 
-        window.addEventListener('resize', function () {
+        window.addEventListener('resize', function() {
             if (activeItem && tip.classList.contains('is-show')) {
                 positionTip(activeItem);
             }
         });
 
-        window.addEventListener('scroll', function () {
+        window.addEventListener('scroll', function() {
             if (activeItem && tip.classList.contains('is-show')) {
                 positionTip(activeItem);
             }
@@ -4477,7 +4463,7 @@
 
         function hideHint() {
             hint.classList.remove('is-visible');
-            window.setTimeout(function () {
+            window.setTimeout(function() {
                 if (!hint.classList.contains('is-visible')) {
                     hint.hidden = true;
                 }
@@ -4501,17 +4487,17 @@
             top = Math.max(8, Math.min(top, window.innerHeight - hintH - 8));
             hint.style.left = left + 'px';
             hint.style.top = top + 'px';
-            window.requestAnimationFrame(function () {
+            window.requestAnimationFrame(function() {
                 hint.classList.add('is-visible');
             });
         }
 
-        links.forEach(function (link) {
-            link.addEventListener('mouseenter', function () {
+        links.forEach(function(link) {
+            link.addEventListener('mouseenter', function() {
                 showHint(link);
             });
             link.addEventListener('mouseleave', hideHint);
-            link.addEventListener('focus', function () {
+            link.addEventListener('focus', function() {
                 showHint(link);
             });
             link.addEventListener('blur', hideHint);
@@ -4522,68 +4508,68 @@
         function applyPayload(root, data) {
             if (!root || !data) return;
 
-            root.querySelectorAll('[data-anticipation-percent]').forEach(function (el) {
+            root.querySelectorAll('[data-anticipation-percent]').forEach(function(el) {
                 var isRatingStrong = el.tagName === 'STRONG' && el.closest('.expected-rating');
                 el.textContent = isRatingStrong ? String(data.percent) : String(data.percent) + '%';
             });
 
-            root.querySelectorAll('[data-anticipation-votes]').forEach(function (el) {
+            root.querySelectorAll('[data-anticipation-votes]').forEach(function(el) {
                 el.textContent = data.votes_label || '';
             });
 
-            root.querySelectorAll('[data-anticipation-bar]').forEach(function (el) {
+            root.querySelectorAll('[data-anticipation-bar]').forEach(function(el) {
                 el.style.width = String(data.percent) + '%';
             });
 
-            root.querySelectorAll('[data-anticipation-vote="1"]').forEach(function (btn) {
+            root.querySelectorAll('[data-anticipation-vote="1"]').forEach(function(btn) {
                 btn.classList.toggle('is-active', !!data.watch_active);
                 btn.classList.toggle('success', !!data.wait_active);
             });
 
-            root.querySelectorAll('[data-anticipation-vote="-1"]').forEach(function (btn) {
+            root.querySelectorAll('[data-anticipation-vote="-1"]').forEach(function(btn) {
                 btn.classList.toggle('success', !!data.nowait_active);
             });
         }
 
         function vote(seriesId, value, roots) {
             postJson(seriesApiPath(seriesId) + '/anticipation', { value: value })
-                .then(function (r) { return r.json(); })
-                .then(function (data) {
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
                     if (!data || !data.ok) return;
-                    roots.forEach(function (root) { applyPayload(root, data); });
+                    roots.forEach(function(root) { applyPayload(root, data); });
                 })
-                .catch(function () {
+                .catch(function() {
                     flashNotice('Не удалось сохранить оценку ожидания.', true);
                 });
         }
 
         var seriesMap = {};
 
-        document.querySelectorAll('[data-anticipation-root], [data-anticipation-card]').forEach(function (root) {
+        document.querySelectorAll('[data-anticipation-root], [data-anticipation-card]').forEach(function(root) {
             var seriesId = root.getAttribute('data-series-id');
             if (!seriesId) return;
             if (!seriesMap[seriesId]) seriesMap[seriesId] = [];
             seriesMap[seriesId].push(root);
         });
 
-        Object.keys(seriesMap).forEach(function (seriesId) {
+        Object.keys(seriesMap).forEach(function(seriesId) {
             var roots = seriesMap[seriesId];
 
             fetch(seriesApiPath(seriesId) + '/anticipation', {
-                credentials: 'same-origin',
-                headers: { Accept: 'application/json' },
-            })
-                .then(function (r) { return r.json(); })
-                .then(function (data) {
-                    roots.forEach(function (root) { applyPayload(root, data); });
+                    credentials: 'same-origin',
+                    headers: { Accept: 'application/json' },
                 })
-                .catch(function () {
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    roots.forEach(function(root) { applyPayload(root, data); });
+                })
+                .catch(function() {
                     // Silent: widget can stay at server-rendered defaults.
                 });
 
-            roots.forEach(function (root) {
-                root.querySelectorAll('[data-anticipation-vote]').forEach(function (btn) {
-                    btn.addEventListener('click', function () {
+            roots.forEach(function(root) {
+                root.querySelectorAll('[data-anticipation-vote]').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
                         var value = parseInt(btn.getAttribute('data-anticipation-vote'), 10);
                         vote(seriesId, value, roots);
                     });
@@ -4600,11 +4586,11 @@
         if (!cards) return;
 
         fetch('/api/watch-history', {
-            credentials: 'same-origin',
-            headers: { Accept: 'application/json' },
-        })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json' },
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
                 if (!data || !data.count || !data.html) return;
 
                 cards.innerHTML = data.html;
@@ -4614,7 +4600,7 @@
                     initHomeCarousel();
                 }
             })
-            .catch(function () {});
+            .catch(function() {});
     }
 
     function initSeriesWatchHistory() {
@@ -4630,7 +4616,7 @@
     function initCsrfRefresh() {
         ensureCsrfToken();
 
-        document.addEventListener('visibilitychange', function () {
+        document.addEventListener('visibilitychange', function() {
             if (document.visibilityState === 'visible') {
                 csrfReadyPromise = null;
                 // Re-read cookie; only hit /api/csrf if cookie is missing.
@@ -4638,7 +4624,7 @@
             }
         });
 
-        window.addEventListener('pageshow', function (e) {
+        window.addEventListener('pageshow', function(e) {
             if (e.persisted) {
                 csrfReadyPromise = null;
                 ensureCsrfToken();
@@ -4702,7 +4688,7 @@
             if (!keys.length) return null;
             keys.sort();
             if (today) {
-                var upcoming = keys.filter(function (k) { return k >= today; });
+                var upcoming = keys.filter(function(k) { return k >= today; });
                 if (upcoming.length) return upcoming[0];
             }
             return keys[keys.length - 1];
@@ -4723,22 +4709,22 @@
                 return;
             }
 
-            dayListEl.innerHTML = items.map(function (item) {
-                var poster = item.poster_url
-                    ? '<div class="schedule-cal__poster"><img src="' + escapeHtml(item.poster_url) + '" alt="" loading="lazy"></div>'
-                    : '<div class="schedule-cal__poster schedule-cal__poster--empty"><span class="fa fa-film"></span></div>';
+            dayListEl.innerHTML = items.map(function(item) {
+                var poster = item.poster_url ?
+                    '<div class="schedule-cal__poster"><img src="' + escapeHtml(item.poster_url) + '" alt="" loading="lazy"></div>' :
+                    '<div class="schedule-cal__poster schedule-cal__poster--empty"><span class="fa fa-film"></span></div>';
                 var statusClass = item.is_released ? ' is-released' : '';
                 var statusText = item.is_released ? 'Вышла' : 'Ожидается';
-                var meta = 'S' + item.season_number + 'E' + item.episode_number
-                    + (item.episode_title ? ' · ' + escapeHtml(item.episode_title) : '');
+                var meta = 'S' + item.season_number + 'E' + item.episode_number +
+                    (item.episode_title ? ' · ' + escapeHtml(item.episode_title) : '');
 
-                return '<a class="schedule-cal__item" href="' + escapeHtml(item.series_url) + '">'
-                    + poster
-                    + '<div class="schedule-cal__item-body">'
-                    + '<div class="schedule-cal__item-title">' + escapeHtml(item.series_title) + '</div>'
-                    + '<div class="schedule-cal__item-meta">' + meta + '</div>'
-                    + '<span class="schedule-cal__item-status' + statusClass + '">' + statusText + '</span>'
-                    + '</div></a>';
+                return '<a class="schedule-cal__item" href="' + escapeHtml(item.series_url) + '">' +
+                    poster +
+                    '<div class="schedule-cal__item-body">' +
+                    '<div class="schedule-cal__item-title">' + escapeHtml(item.series_title) + '</div>' +
+                    '<div class="schedule-cal__item-meta">' + meta + '</div>' +
+                    '<span class="schedule-cal__item-status' + statusClass + '">' + statusText + '</span>' +
+                    '</div></a>';
             }).join('');
         }
 
@@ -4785,20 +4771,20 @@
                 if (hasEps) classes.push('has-eps');
                 if (selectedDate === iso) classes.push('is-selected');
 
-                html += '<button type="button" class="dontusebuttonclass ' + classes.join(' ') + '"'
-                    + ' data-cal-date="' + iso + '"'
-                    + (inMonth ? '' : ' disabled tabindex="-1"')
-                    + (state.today === iso ? ' aria-current="date"' : '')
-                    + (selectedDate === iso ? ' aria-pressed="true"' : ' aria-pressed="false"')
-                    + ' aria-label="' + formatRuDate(iso)
-                    + (state.today === iso ? ', сегодня' : '')
-                    + (selectedDate === iso ? ', выбран' : '')
-                    + (hasEps ? (', серий: ' + epsCount) : '')
-                    + '"'
-                    + '>'
-                    + '<span>' + dayNum + '</span>'
-                    + (hasEps ? '<span class="schedule-cal__count" aria-hidden="true">' + epsCount + '</span>' : '')
-                    + '</button>';
+                html += '<button type="button" class="dontusebuttonclass ' + classes.join(' ') + '"' +
+                    ' data-cal-date="' + iso + '"' +
+                    (inMonth ? '' : ' disabled tabindex="-1"') +
+                    (state.today === iso ? ' aria-current="date"' : '') +
+                    (selectedDate === iso ? ' aria-pressed="true"' : ' aria-pressed="false"') +
+                    ' aria-label="' + formatRuDate(iso) +
+                    (state.today === iso ? ', сегодня' : '') +
+                    (selectedDate === iso ? ', выбран' : '') +
+                    (hasEps ? (', серий: ' + epsCount) : '') +
+                    '"' +
+                    '>' +
+                    '<span>' + dayNum + '</span>' +
+                    (hasEps ? '<span class="schedule-cal__count" aria-hidden="true">' + epsCount + '</span>' : '') +
+                    '</button>';
             }
 
             gridEl.innerHTML = html;
@@ -4808,7 +4794,7 @@
             if (!window.matchMedia('(max-width: 991px)').matches) return;
             var panel = root.querySelector('.schedule-cal__day-panel');
             if (!panel) return;
-            window.requestAnimationFrame(function () {
+            window.requestAnimationFrame(function() {
                 panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
             });
         }
@@ -4836,17 +4822,17 @@
             setLoading(true);
             var url = apiUrl + '?year=' + encodeURIComponent(year) + '&month=' + encodeURIComponent(month);
             fetch(url, { headers: { Accept: 'application/json' } })
-                .then(function (res) {
+                .then(function(res) {
                     if (!res.ok) throw new Error('calendar load failed');
                     return res.json();
                 })
-                .then(function (data) {
+                .then(function(data) {
                     applyData(data, preferDate || null);
                 })
-                .catch(function () {
+                .catch(function() {
                     dayListEl.innerHTML = '<div class="schedule-cal__empty">Не удалось загрузить календарь</div>';
                 })
-                .finally(function () {
+                .finally(function() {
                     setLoading(false);
                 });
         }
@@ -4866,7 +4852,7 @@
             loadMonth(y, m);
         }
 
-        gridEl.addEventListener('click', function (e) {
+        gridEl.addEventListener('click', function(e) {
             var btn = e.target.closest('[data-cal-date]');
             if (!btn || btn.disabled) return;
             var date = btn.getAttribute('data-cal-date');
@@ -4878,12 +4864,12 @@
         });
 
         if (prevBtn) {
-            prevBtn.addEventListener('click', function () {
+            prevBtn.addEventListener('click', function() {
                 shiftMonth(-1);
             });
         }
         if (nextBtn) {
-            nextBtn.addEventListener('click', function () {
+            nextBtn.addEventListener('click', function() {
                 shiftMonth(1);
             });
         }
@@ -5032,7 +5018,7 @@
         });
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('DOMContentLoaded', function() {
         initCsrfRefresh();
         initAuthModal();
         initQuickSearch();
@@ -5129,7 +5115,7 @@
             prevBtn = root.querySelector('[data-gallery-prev]');
             nextBtn = root.querySelector('[data-gallery-next]');
 
-            root.addEventListener('click', function (e) {
+            root.addEventListener('click', function(e) {
                 var t = e.target;
                 if (t.closest('[data-gallery-close]')) {
                     close();
@@ -5150,7 +5136,7 @@
                 }
             });
 
-            document.addEventListener('keydown', function (e) {
+            document.addEventListener('keydown', function(e) {
                 if (root.hidden) return;
                 if (e.key === 'Escape') close();
                 if (e.key === 'ArrowLeft') showIndex(state.index - 1);
@@ -5197,7 +5183,7 @@
         function renderThumbs() {
             if (!thumbsEl) return;
             thumbsEl.innerHTML = '';
-            state.items.forEach(function (item, i) {
+            state.items.forEach(function(item, i) {
                 var btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = 'ls-gallery__thumb dontusebuttonclass' + (i === 0 ? ' is-active' : '');
@@ -5213,7 +5199,7 @@
         }
 
         function applyPayload(data) {
-            var items = Array.isArray(data.items) ? data.items.filter(function (it) {
+            var items = Array.isArray(data.items) ? data.items.filter(function(it) {
                 return it && it.url;
             }) : [];
             state.title = data.title || 'Галерея';
@@ -5252,7 +5238,7 @@
             if (loading) return;
             loading = true;
             fetchJson(seriesApiPath(seriesId) + '/gallery')
-                .then(function (data) {
+                .then(function(data) {
                     loading = false;
                     if (!data || !data.ok) {
                         setStatus((data && data.message) || 'Не удалось загрузить галерею');
@@ -5262,7 +5248,7 @@
                     if (String(state.seriesId) !== String(seriesId) || root.hidden) return;
                     applyPayload(data);
                 })
-                .catch(function () {
+                .catch(function() {
                     loading = false;
                     setStatus('Не удалось загрузить галерею');
                 });
@@ -5278,8 +5264,8 @@
             }
         }
 
-        Array.prototype.forEach.call(triggers, function (btn) {
-            btn.addEventListener('click', function (e) {
+        Array.prototype.forEach.call(triggers, function(btn) {
+            btn.addEventListener('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
                 var id = btn.getAttribute('data-series-id');
@@ -5289,10 +5275,10 @@
     }
 
     function initHeaderFavouritesCount() {
-        ensureCsrfToken().then(function () {
+        ensureCsrfToken().then(function() {
             refreshHeaderFavouritesCount();
         });
-        document.addEventListener('lordserial:auth-login', function () {
+        document.addEventListener('lordserial:auth-login', function() {
             refreshHeaderFavouritesCount();
         });
     }
@@ -5321,9 +5307,9 @@
                 if (countNum) countNum.textContent = String(count);
                 if (countWord && word) countWord.textContent = word;
                 if (Array.isArray(data.items)) {
-                    setLocalFavourites(data.items.map(function (item) {
+                    setLocalFavourites(data.items.map(function(item) {
                         return parseInt(item.id, 10);
-                    }).filter(function (id) { return id > 0; }));
+                    }).filter(function(id) { return id > 0; }));
                 }
                 updateHeaderFavouritesCount(count);
                 return;
@@ -5343,7 +5329,7 @@
         if (!isSiteLoggedIn()) {
             var guestKey = getGuestLibKey();
             if (guestKey) params.push('guest_key=' + encodeURIComponent(guestKey));
-            getLocalFavourites().forEach(function (id) {
+            getLocalFavourites().forEach(function(id) {
                 params.push('ids[]=' + encodeURIComponent(String(id)));
             });
             params.push('sync=1');
@@ -5351,10 +5337,10 @@
 
         var url = '/api/favourites' + (params.length ? ('?' + params.join('&')) : '');
         fetchJson(url)
-            .then(function (data) {
+            .then(function(data) {
                 renderFavourites(data || {});
             })
-            .catch(function () {
+            .catch(function() {
                 if (!isSiteLoggedIn() && getLocalFavourites().length === 0) return;
                 flashNotice('Не удалось загрузить избранное.', true);
             });

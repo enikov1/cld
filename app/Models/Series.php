@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Services\EpisodeProgressService;
 use App\Services\TaxonomyService;
 use App\Support\AgeLimitFormatter;
+use App\Support\PluralRu;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -121,6 +122,7 @@ class Series extends Model
         return $query->orderByDesc('is_pinned')
             ->orderByDesc('pinned_at')
             ->orderBy('sort_order')
+            ->orderByDesc('created_at')
             ->orderByDesc('id');
     }
 
@@ -202,6 +204,31 @@ class Series extends Model
         $month = (int)$this->premiere_date->format('n');
 
         return sprintf('%d %s', $day, $months[$month] ?? '');
+    }
+
+    /**
+     * Сколько осталось до премьеры для сериалов из раздела «Скоро».
+     * Только при точной дате (не «только год»).
+     */
+    public function premiereCountdownLabel(): ?string
+    {
+        if (!$this->is_coming_soon || !$this->premiere_date || $this->premiereIsYearOnly()) {
+            return null;
+        }
+
+        $today = now()->startOfDay();
+        $premiereDay = $this->premiere_date->copy()->startOfDay();
+        $daysUntil = (int) round($today->diffInDays($premiereDay, false));
+
+        if ($daysUntil < 0) {
+            return null;
+        }
+
+        return match (true) {
+            $daysUntil === 0 => 'сегодня',
+            $daysUntil === 1 => 'завтра',
+            default => 'через ' . $daysUntil . ' ' . PluralRu::days($daysUntil),
+        };
     }
 
     public function ageLimitLabel(): ?string
