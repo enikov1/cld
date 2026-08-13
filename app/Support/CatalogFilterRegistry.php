@@ -514,6 +514,10 @@ class CatalogFilterRegistry
                 'countries',
                 fn (Builder $q) => $q->where('slug', $value)->where('is_active', true)
             ),
+            'actor' => $query->whereHas(
+                'people',
+                fn (Builder $q) => $q->where('slug', $value)->where('is_active', true)
+            ),
             'studio' => $query->where(function (Builder $q) use ($value) {
                 $q->whereHas(
                     'studios',

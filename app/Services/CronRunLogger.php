@@ -216,11 +216,7 @@ class CronRunLogger
             return null;
         }
 
-        if (
-            $run->status === CronRun::STATUS_RUNNING
-            && $run->started_at
-            && $run->started_at->lt(now()->subSeconds($staleAfterSeconds))
-        ) {
+        if ($run->status === CronRun::STATUS_RUNNING && self::shouldFailStaleRunningJob($jobKey, $run, $staleAfterSeconds)) {
             return self::finish(
                 $run,
                 CronRun::STATUS_FAILED,
@@ -238,6 +234,54 @@ class CronRunLogger
         $run = self::latestJob($jobKey, $staleAfterSeconds);
 
         return $run !== null && $run->status === CronRun::STATUS_RUNNING;
+    }
+
+    private static function shouldFailStaleRunningJob(string $jobKey, CronRun $run, int $staleAfterSeconds): bool
+    {
+        if ($run->started_at && $run->started_at->lt(now()->subSeconds($staleAfterSeconds))) {
+            return true;
+        }
+
+        // Backup/restore write a PID into the lock file. If that process is gone, unblock the UI.
+        $lockFile = match ($jobKey) {
+            self::JOB_BACKUP => storage_path('app/backups/.run.lock'),
+            self::JOB_BACKUP_RESTORE => storage_path('app/backups/.restore.lock'),
+            default => null,
+        };
+
+        if ($lockFile === null || !is_file($lockFile)) {
+            // Job marked running but never acquired the lock (spawn failed / crashed immediately).
+            return $run->started_at !== null && $run->started_at->lt(now()->subSeconds(90));
+        }
+
+        $pid = (int)trim((string)strtok((string)@file_get_contents($lockFile), "\n"));
+        if ($pid <= 0) {
+            return $run->started_at !== null && $run->started_at->lt(now()->subSeconds(90));
+        }
+
+        if (self::isProcessAlive($pid)) {
+            return false;
+        }
+
+        // Allow a short grace period while the child starts and writes the lock.
+        return $run->started_at !== null && $run->started_at->lt(now()->subSeconds(90));
+    }
+
+    private static function isProcessAlive(int $pid): bool
+    {
+        if ($pid <= 0) {
+            return false;
+        }
+
+        if (PHP_OS_FAMILY === 'Windows') {
+            $output = [];
+            @exec('tasklist /FI "PID eq ' . $pid . '" /NH 2>NUL', $output);
+            $joined = strtolower(implode("\n", $output));
+
+            return str_contains($joined, (string)$pid);
+        }
+
+        return function_exists('posix_kill') && @posix_kill($pid, 0);
     }
 
     private static function prune(): void
