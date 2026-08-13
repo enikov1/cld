@@ -332,6 +332,7 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
     Route::delete('/nav/mega-links/{id}', [AdminNavController::class, 'destroyMegaLink']);
 
     Route::get('/reactions', [AdminReactionController::class, 'index']);
+    Route::get('/reactions/stats', [AdminReactionController::class, 'stats']);
     Route::post('/reactions/settings', [AdminReactionController::class, 'saveSettings']);
     Route::post('/reactions/upsert', [AdminReactionController::class, 'upsert']);
     Route::post('/reactions/reorder', [AdminReactionController::class, 'reorder']);
@@ -955,6 +956,7 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
             'update_poster' => ['nullable', 'boolean'],
             'update_genres_countries' => ['nullable', 'boolean'],
             'fill_empty_only' => ['nullable', 'boolean'],
+            'bump_date_on_update' => ['nullable', 'boolean'],
         ]);
 
         $current = AllohaAutoSyncSettings::get();

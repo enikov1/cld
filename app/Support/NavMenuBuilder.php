@@ -211,6 +211,7 @@ class NavMenuBuilder
             NavItem::LINK_STUDIOS => '/studios/',
             NavItem::LINK_CATALOG => '/catalog/',
             NavItem::LINK_COMING_SOON => '/skoro/',
+            NavItem::LINK_CALENDAR => '/kalendar/',
             NavItem::LINK_CATEGORY => '/',
             NavItem::LINK_TAXONOMY => ($taxonomyType && $taxonomySlug)
                 ? TaxonomyRegistry::publicUrl($taxonomyType, $taxonomySlug)

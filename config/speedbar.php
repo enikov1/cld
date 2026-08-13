@@ -69,6 +69,10 @@ return [
             'label' => 'Скоро',
             'route' => 'coming_soon.index',
         ],
+        'calendar' => [
+            'label' => 'Календарь',
+            'route' => 'calendar.index',
+        ],
         'catalog' => [
             'label' => 'Каталог',
             'route' => 'catalog.index',

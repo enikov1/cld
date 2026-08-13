@@ -21,6 +21,7 @@ type AutoSyncSettings = {
   update_poster: boolean
   update_genres_countries: boolean
   fill_empty_only: boolean
+  bump_date_on_update: boolean
 }
 
 type PlayerSyncProgress = {
@@ -434,6 +435,15 @@ export default function AllohaSyncPage() {
                         <Checkbox>Только пустые поля (не затирать ручные правки)</Checkbox>
                       </Form.Item>
                     </Space>
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Поднимать по дате"
+                    name="bump_date_on_update"
+                    valuePropName="checked"
+                    extra="Ставит текущую дату добавления, чтобы сериал поднялся в каталоге. Срабатывает при новой серии, а не каждый час, пока тайтл в /latest."
+                  >
+                    <Switch />
                   </Form.Item>
 
                   <Space wrap>

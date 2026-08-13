@@ -26,7 +26,7 @@ import { api } from '../api/client'
 import { useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
 import type { TaxonomyOption, TaxonomyType } from '../types'
 
-type NavLinkType = 'home' | 'taxonomy' | 'collections' | 'studios' | 'catalog' | 'coming_soon' | 'custom'
+type NavLinkType = 'home' | 'taxonomy' | 'collections' | 'studios' | 'catalog' | 'coming_soon' | 'calendar' | 'custom'
 type NavSectionType = 'genres' | 'countries' | 'collections' | 'studios' | 'years' | 'custom'
 
 type NavMegaLink = {
@@ -94,6 +94,7 @@ const LINK_TYPES: { value: NavLinkType; label: string }[] = [
   { value: 'studios', label: 'Студии' },
   { value: 'catalog', label: 'Каталог' },
   { value: 'coming_soon', label: 'Скоро' },
+  { value: 'calendar', label: 'Календарь' },
   { value: 'custom', label: 'Своя ссылка' },
 ]
 

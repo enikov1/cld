@@ -33,7 +33,7 @@ export const pageMeta: Record<AdminPageKey, { title: string; subtitle?: string }
   dashboard: { title: 'Обзор', subtitle: 'Статистика и быстрые действия' },
   'nav-menu': { title: 'Меню', subtitle: 'Конструктор навигации и mega-menu' },
   'home-sections': { title: 'Секции главной', subtitle: 'Конструктор блоков с фильтрами под студиями' },
-  reactions: { title: 'Реакции', subtitle: 'Виджет оценок под плеером на странице сериала' },
+  reactions: { title: 'Реакции', subtitle: 'Виджет оценок под плеером и статистика голосов' },
   taxonomy: { title: 'Справочники', subtitle: 'Жанры, страны, актёры, блоки на главной' },
   series: { title: 'Сериалы', subtitle: 'Карточки контента и плеер на сайте' },
   media: { title: 'Медиатека', subtitle: 'Постеры и брендинг — загрузка и повторное использование' },

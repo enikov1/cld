@@ -123,4 +123,26 @@ class AdminAuthSmokeTest extends TestCase
             ->getJson('/api/admin/stats')
             ->assertOk();
     }
+
+    public function test_reaction_stats_requires_token(): void
+    {
+        $this->getJson('/api/admin/reactions/stats')->assertUnauthorized();
+    }
+
+    public function test_reaction_stats_returns_cached_report(): void
+    {
+        $this->withHeader('X-ADMIN-TOKEN', 'smoke-admin-token')
+            ->getJson('/api/admin/reactions/stats?period=7d')
+            ->assertOk()
+            ->assertJsonStructure([
+                'ready',
+                'period',
+                'cache_ttl',
+                'summary' => ['votes_period', 'series_period', 'voters_period'],
+                'by_type',
+                'timeseries',
+                'top_series',
+                'types',
+            ]);
+    }
 }

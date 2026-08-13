@@ -44,7 +44,7 @@ import BrandImageEditorModal from '../components/BrandImageEditorModal'
 import SiteConfigFields from '../components/SiteConfigFields'
 import { useBusyFavicon, useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
 import type { SettingItem, ThemeItem } from '../types'
-import type { SiteConfigSchema } from '../types/siteConfig'
+import type { SiteConfigField, SiteConfigSchema } from '../types/siteConfig'
 import { resolveCropperImageUrl } from '../utils/mediaUrl'
 
 type SettingsSection =
@@ -86,12 +86,131 @@ const SECTION_LABELS: Record<SettingsSection, string> = {
   integrations: 'Интеграции',
 }
 
+const CATALOG_TABS = [
+  { key: 'catalog', label: 'Каталог' },
+  { key: 'calendar', label: 'Календарь' },
+  { key: 'coming_soon', label: 'Скоро' },
+  { key: 'search', label: 'Поиск' },
+  { key: 'collections', label: 'Подборки' },
+  { key: 'studios', label: 'Студии' },
+  { key: 'home', label: 'Главная' },
+  { key: 'nav', label: 'Меню' },
+] as const
+
+type CatalogTabKey = (typeof CATALOG_TABS)[number]['key']
+
+function catalogTabForField(key: string): CatalogTabKey {
+  if (key.startsWith('calendar_')) return 'calendar'
+  if (key.startsWith('coming_soon_')) return 'coming_soon'
+  if (key.startsWith('search_')) return 'search'
+  if (key.startsWith('collections_')) return 'collections'
+  if (key.startsWith('studios_') || key.startsWith('home_studios_')) return 'studios'
+  if (key.startsWith('home_')) return 'home'
+  if (key.startsWith('nav_')) return 'nav'
+  return 'catalog'
+}
+
+function groupCatalogFields(fields: SiteConfigField[]) {
+  const groups: Partial<Record<CatalogTabKey, SiteConfigField[]>> = {}
+  for (const field of fields) {
+    const tab = catalogTabForField(field.key)
+    groups[tab] ??= []
+    groups[tab].push(field)
+  }
+
+  return CATALOG_TABS
+    .filter((tab) => (groups[tab.key] ?? []).length > 0)
+    .map((tab) => ({ ...tab, fields: groups[tab.key] ?? [] }))
+}
+
 function sectionFromHash(): SettingsSection {
   const hash = window.location.hash.replace(/^#/, '')
-  if (hash in SECTION_LABELS) {
-    return hash as SettingsSection
+  const section = hash.split('/')[0]
+  if (section in SECTION_LABELS) {
+    return section as SettingsSection
   }
   return 'branding'
+}
+
+function catalogTabFromHash(): CatalogTabKey {
+  const hash = window.location.hash.replace(/^#/, '')
+  const tab = hash.split('/')[1]
+  return CATALOG_TABS.some((item) => item.key === tab) ? (tab as CatalogTabKey) : 'catalog'
+}
+
+const SEO_TABS = [
+  { key: 'robots', label: 'robots.txt' },
+  { key: 'verification', label: 'Верификация' },
+  { key: 'counters', label: 'Счётчики' },
+  { key: 'pages', label: 'Страницы' },
+  { key: 'series', label: 'Сериал' },
+  { key: 'ai', label: 'Промпты ИИ' },
+  { key: 'sitemap', label: 'sitemap.xml' },
+] as const
+
+type SeoTabKey = (typeof SEO_TABS)[number]['key']
+
+function seoTabForField(key: string): SeoTabKey {
+  if (key === 'robots_txt') return 'robots'
+  if (key === 'sitemap') return 'sitemap'
+  if (key.includes('verification')) return 'verification'
+  if (key.includes('counters')) return 'counters'
+  if (key.includes('ai_prompt')) return 'ai'
+  if (key.includes('share_widget') || key.startsWith('series_ui_')) return 'series'
+  return 'pages'
+}
+
+function seoTabFromHash(): SeoTabKey {
+  const hash = window.location.hash.replace(/^#/, '')
+  const tab = hash.split('/')[1]
+  return SEO_TABS.some((item) => item.key === tab) ? (tab as SeoTabKey) : 'robots'
+}
+
+const COMMENTS_TABS = [
+  { key: 'general', label: 'Основные' },
+  { key: 'limits', label: 'Лимиты' },
+  { key: 'messages', label: 'Сообщения' },
+  { key: 'ui', label: 'Интерфейс' },
+] as const
+
+type CommentsTabKey = (typeof COMMENTS_TABS)[number]['key']
+
+function sectionHash(
+  section: SettingsSection,
+  catalogTab: CatalogTabKey,
+  seoTab: SeoTabKey,
+  commentsTab: CommentsTabKey,
+): string {
+  if (section === 'catalog') return `catalog/${catalogTab}`
+  if (section === 'seo') return `seo/${seoTab}`
+  if (section === 'comments') return `comments/${commentsTab}`
+  return section
+}
+
+function commentsTabForField(key: string): CommentsTabKey {
+  if (key.startsWith('comments_msg_')) return 'messages'
+  if (key.startsWith('comments_ui_') || key.startsWith('comments_label_')) return 'ui'
+  if (key.includes('_length') || key.includes('_depth') || key === 'profile_comments_limit') return 'limits'
+  return 'general'
+}
+
+function groupCommentsFields(fields: SiteConfigField[]) {
+  const groups: Partial<Record<CommentsTabKey, SiteConfigField[]>> = {}
+  for (const field of fields) {
+    const tab = commentsTabForField(field.key)
+    groups[tab] ??= []
+    groups[tab].push(field)
+  }
+
+  return COMMENTS_TABS
+    .filter((tab) => (groups[tab.key] ?? []).length > 0)
+    .map((tab) => ({ ...tab, fields: groups[tab.key] ?? [] }))
+}
+
+function commentsTabFromHash(): CommentsTabKey {
+  const hash = window.location.hash.replace(/^#/, '')
+  const tab = hash.split('/')[1]
+  return COMMENTS_TABS.some((item) => item.key === tab) ? (tab as CommentsTabKey) : 'general'
 }
 
 export default function SettingsPage() {
@@ -137,6 +256,9 @@ export default function SettingsPage() {
   } | null>(null)
   const savingRef = useRef(false)
   const [section, setSection] = useState<SettingsSection>(sectionFromHash)
+  const [catalogTab, setCatalogTab] = useState<CatalogTabKey>(catalogTabFromHash)
+  const [seoTab, setSeoTab] = useState<SeoTabKey>(seoTabFromHash)
+  const [commentsTab, setCommentsTab] = useState<CommentsTabKey>(commentsTabFromHash)
   const [tabPosition, setTabPosition] = useState<'left' | 'top'>('left')
   const [form] = Form.useForm()
   const highlightField = searchParams.get('highlight')?.trim() || ''
@@ -366,10 +488,49 @@ export default function SettingsPage() {
   }, [])
 
   useEffect(() => {
-    const onHashChange = () => setSection(sectionFromHash())
+    const onHashChange = () => {
+      setSection(sectionFromHash())
+      setCatalogTab(catalogTabFromHash())
+      setSeoTab(seoTabFromHash())
+      setCommentsTab(commentsTabFromHash())
+    }
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
+
+  useEffect(() => {
+    if (!highlightField) {
+      return
+    }
+
+    const catalogKeys = new Set((configSchema.catalog?.fields ?? []).map((field) => field.key))
+    if (catalogKeys.has(highlightField)) {
+      const nextTab = catalogTabForField(highlightField)
+      if (nextTab !== catalogTab) {
+        setCatalogTab(nextTab)
+      }
+    }
+
+    const seoKeys = new Set(
+      Object.values(configSeoFields).flatMap((group) => group.fields.map((field) => field.key)),
+    )
+    seoKeys.add('robots_txt')
+    seoKeys.add('sitemap')
+    if (seoKeys.has(highlightField)) {
+      const nextTab = seoTabForField(highlightField)
+      if (nextTab !== seoTab) {
+        setSeoTab(nextTab)
+      }
+    }
+
+    const commentsKeys = new Set((configSchema.comments?.fields ?? []).map((field) => field.key))
+    if (commentsKeys.has(highlightField)) {
+      const nextTab = commentsTabForField(highlightField)
+      if (nextTab !== commentsTab) {
+        setCommentsTab(nextTab)
+      }
+    }
+  }, [highlightField, catalogTab, seoTab, commentsTab, configSchema.catalog?.fields, configSchema.comments?.fields, configSeoFields])
 
   useEffect(() => {
     if (!highlightField || loading) {
@@ -406,12 +567,30 @@ export default function SettingsPage() {
         window.clearTimeout(clearHighlight)
       }
     }
-  }, [highlightField, loading, section, searchParams, setSearchParams])
+  }, [highlightField, loading, section, catalogTab, seoTab, commentsTab, searchParams, setSearchParams])
 
   function changeSection(key: string) {
     const next = key as SettingsSection
     setSection(next)
-    window.location.hash = next
+    window.location.hash = sectionHash(next, catalogTab, seoTab, commentsTab)
+  }
+
+  function changeCatalogTab(key: string) {
+    const next = key as CatalogTabKey
+    setCatalogTab(next)
+    window.location.hash = `catalog/${next}`
+  }
+
+  function changeSeoTab(key: string) {
+    const next = key as SeoTabKey
+    setSeoTab(next)
+    window.location.hash = `seo/${next}`
+  }
+
+  function changeCommentsTab(key: string) {
+    const next = key as CommentsTabKey
+    setCommentsTab(next)
+    window.location.hash = `comments/${next}`
   }
 
   async function save(values: Record<string, unknown>) {
@@ -721,160 +900,225 @@ export default function SettingsPage() {
         </span>
       ),
       children: (
-        <Card title="robots.txt" loading={loading} bordered={false}>
+        <Card title="SEO" loading={loading} bordered={false}>
           <Typography.Paragraph type="secondary">
-            Содержимое файла <Typography.Text code>/robots.txt</Typography.Text>. Оставьте поле пустым, чтобы
-            использовать шаблон по умолчанию.
+            Настройки разделены по задачам. Сохранение применяется ко всем вкладкам сразу.
           </Typography.Paragraph>
-          <Space wrap style={{ marginBottom: 12 }}>
-            <Button
-              onClick={() => {
-                form.setFieldValue('robots_txt', robotsDefault)
-                message.info('Подставлен шаблон по умолчанию')
-              }}
-            >
-              Шаблон по умолчанию
-            </Button>
-            <Button
-              onClick={() => {
-                form.setFieldValue('robots_txt', '')
-                message.info('Будет использован автоматический шаблон')
-              }}
-            >
-              Очистить
-            </Button>
-            <Button type="link" href={robotsUrl} target="_blank" rel="noreferrer">
-              Открыть /robots.txt
-            </Button>
-          </Space>
-          <Form.Item
-            label="Содержимое robots.txt"
-            name="robots_txt"
-            extra="Подстановки: {admin_path}, {sitemap_url}, {site_url}"
-          >
-            <Input.TextArea
-              rows={12}
-              placeholder={robotsDefault || 'User-agent: *\nAllow: /'}
-              className="settings-robots-editor"
-              spellCheck={false}
-            />
-          </Form.Item>
-          {!settingsMap.robots_txt?.trim() ? (
-            <Alert
-              type="info"
-              showIcon
-              message="Сейчас используется шаблон по умолчанию"
-              description={<pre className="settings-robots-preview">{robotsEffective}</pre>}
-            />
-          ) : (
-            <Alert
-              type="success"
-              showIcon
-              message="Используется сохранённый robots.txt"
-              description={<pre className="settings-robots-preview">{robotsEffective}</pre>}
-            />
-          )}
-          {configSeoFields.seo_verification ? (
-            <Card title={configSeoFields.seo_verification.title} size="small" style={{ marginTop: 16 }}>
-              <Typography.Paragraph type="secondary">
-                Укажите только значение атрибута <Typography.Text code>content</Typography.Text> из meta-тега
-                верификации — теги добавятся на сайт автоматически.
-              </Typography.Paragraph>
-              <SiteConfigFields fields={configSeoFields.seo_verification.fields} />
-            </Card>
-          ) : null}
-          {configSeoFields.seo_counters ? (
-            <Card title={configSeoFields.seo_counters.title} size="small" style={{ marginTop: 16 }}>
-              <Typography.Paragraph type="secondary">
-                Вставьте полный код счётчиков (script, noscript, img). Код выводится перед закрывающим
-                тегом <Typography.Text code>{'</body>'}</Typography.Text> на всех страницах.
-              </Typography.Paragraph>
-              <SiteConfigFields fields={configSeoFields.seo_counters.fields} />
-            </Card>
-          ) : null}
-          {configSeoFields.seo_widgets ? (
-            <Card title={configSeoFields.seo_widgets.title} size="small" style={{ marginTop: 16 }}>
-              <Typography.Paragraph type="secondary">
-                Вставьте HTML/JavaScript-код виджета «Поделиться». Он появится слева под плеером на странице
-                сериала, справа останется кнопка добавления сайта в закладки.
-              </Typography.Paragraph>
-              <SiteConfigFields fields={configSeoFields.seo_widgets.fields} />
-            </Card>
-          ) : null}
-          {configSeoFields.seo_content ? (
-            <Card title={configSeoFields.seo_content.title} size="small" style={{ marginTop: 16 }}>
-              <SiteConfigFields fields={configSeoFields.seo_content.fields} />
-            </Card>
-          ) : null}
-          {configSeoFields.seo_ai ? (
-            <Card title={configSeoFields.seo_ai.title} size="small" style={{ marginTop: 16 }}>
-              <Typography.Paragraph type="secondary">
-                Шаблоны промптов для копирования в ChatGPT/Claude из админки. Плейсхолдеры подставляются
-                автоматически при генерации промпта на странице справочника.
-              </Typography.Paragraph>
-              <SiteConfigFields fields={configSeoFields.seo_ai.fields} />
-            </Card>
-          ) : null}
-          <Card title="sitemap.xml" size="small" style={{ marginTop: 16 }} loading={loading}>
-            <Typography.Paragraph type="secondary">
-              Карта сайта для поисковых систем. Автоматически обновляется по расписанию и при изменении
-              контента; здесь можно принудительно пересобрать файл.
-            </Typography.Paragraph>
-            <Space wrap style={{ marginBottom: 12 }}>
-              <Button
-                type="primary"
-                loading={sitemapGenerating}
-                disabled={sitemapGenerating}
-                onClick={async () => {
-                  setSitemapGenerating(true)
-                  try {
-                    const res = await api<{
-                      ok: boolean
-                      url_count?: number
-                      last_modified_at?: string | null
-                      message?: string
-                    }>('/api/admin/sitemap/generate', {
-                      method: 'POST',
-                      body: JSON.stringify({}),
-                    })
-                    setSitemapUrlCount(res.url_count ?? null)
-                    setSitemapLastModifiedAt(res.last_modified_at ?? null)
-                    setSitemapDirty(false)
-                    message.success(res.message ?? 'Sitemap обновлён')
-                  } catch (e) {
-                    message.error(String((e as Error).message))
-                  } finally {
-                    setSitemapGenerating(false)
-                  }
-                }}
-              >
-                Обновить sitemap.xml
-              </Button>
-              <Button type="link" href={sitemapUrl} target="_blank" rel="noreferrer">
-                Открыть /sitemap.xml
-              </Button>
-            </Space>
-            {sitemapUrlCount !== null ? (
-              <Typography.Paragraph type="secondary" style={{ marginBottom: sitemapDirty ? 8 : 0 }}>
-                URL в файле: {sitemapUrlCount}
-                {sitemapLastModifiedAt ? (
-                  <> · Обновлён: {new Date(sitemapLastModifiedAt).toLocaleString('ru-RU')}</>
-                ) : null}
-              </Typography.Paragraph>
-            ) : (
-              <Typography.Paragraph type="secondary" style={{ marginBottom: sitemapDirty ? 8 : 0 }}>
-                Файл sitemap.xml ещё не создан.
-              </Typography.Paragraph>
-            )}
-            {sitemapDirty ? (
-              <Alert
-                type="warning"
-                showIcon
-                message="Sitemap помечен как устаревший"
-                description="После изменений контента файл будет пересобран автоматически, либо нажмите «Обновить sitemap.xml»."
-              />
-            ) : null}
-          </Card>
+          <Tabs
+            activeKey={seoTab}
+            onChange={changeSeoTab}
+            size="small"
+            className="settings-inner-tabs"
+            items={[
+              {
+                key: 'robots',
+                label: 'robots.txt',
+                children: (
+                  <div data-settings-field="robots_txt" id="settings-field-robots_txt">
+                    <Typography.Paragraph type="secondary">
+                      Содержимое файла <Typography.Text code>/robots.txt</Typography.Text>. Оставьте поле
+                      пустым, чтобы использовать шаблон по умолчанию.
+                    </Typography.Paragraph>
+                    <Space wrap style={{ marginBottom: 12 }}>
+                      <Button
+                        onClick={() => {
+                          form.setFieldValue('robots_txt', robotsDefault)
+                          message.info('Подставлен шаблон по умолчанию')
+                        }}
+                      >
+                        Шаблон по умолчанию
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          form.setFieldValue('robots_txt', '')
+                          message.info('Будет использован автоматический шаблон')
+                        }}
+                      >
+                        Очистить
+                      </Button>
+                      <Button type="link" href={robotsUrl} target="_blank" rel="noreferrer">
+                        Открыть /robots.txt
+                      </Button>
+                    </Space>
+                    <Form.Item
+                      label="Содержимое robots.txt"
+                      name="robots_txt"
+                      extra="Подстановки: {admin_path}, {sitemap_url}, {site_url}"
+                    >
+                      <Input.TextArea
+                        rows={12}
+                        placeholder={robotsDefault || 'User-agent: *\nAllow: /'}
+                        className="settings-robots-editor"
+                        spellCheck={false}
+                      />
+                    </Form.Item>
+                    {!settingsMap.robots_txt?.trim() ? (
+                      <Alert
+                        type="info"
+                        showIcon
+                        message="Сейчас используется шаблон по умолчанию"
+                        description={<pre className="settings-robots-preview">{robotsEffective}</pre>}
+                      />
+                    ) : (
+                      <Alert
+                        type="success"
+                        showIcon
+                        message="Используется сохранённый robots.txt"
+                        description={<pre className="settings-robots-preview">{robotsEffective}</pre>}
+                      />
+                    )}
+                  </div>
+                ),
+              },
+              ...(configSeoFields.seo_verification
+                ? [{
+                    key: 'verification',
+                    label: 'Верификация',
+                    children: (
+                      <>
+                        <Typography.Paragraph type="secondary">
+                          Укажите только значение атрибута <Typography.Text code>content</Typography.Text> из
+                          meta-тега верификации — теги добавятся на сайт автоматически.
+                        </Typography.Paragraph>
+                        <SiteConfigFields fields={configSeoFields.seo_verification.fields} />
+                      </>
+                    ),
+                  }]
+                : []),
+              ...(configSeoFields.seo_counters
+                ? [{
+                    key: 'counters',
+                    label: 'Счётчики',
+                    children: (
+                      <>
+                        <Typography.Paragraph type="secondary">
+                          Вставьте полный код счётчиков (script, noscript, img). Код выводится перед
+                          закрывающим тегом <Typography.Text code>{'</body>'}</Typography.Text> на всех
+                          страницах.
+                        </Typography.Paragraph>
+                        <SiteConfigFields fields={configSeoFields.seo_counters.fields} />
+                      </>
+                    ),
+                  }]
+                : []),
+              {
+                key: 'pages',
+                label: 'Страницы',
+                children: (
+                  <>
+                    <Typography.Paragraph type="secondary">
+                      Meta title и description главной и суффиксы для страницы сериала.
+                    </Typography.Paragraph>
+                    <SiteConfigFields
+                      fields={(configSeoFields.seo_content?.fields ?? []).filter((field) =>
+                        field.key.startsWith('home_meta_') || field.key.startsWith('series_meta_'),
+                      )}
+                    />
+                  </>
+                ),
+              },
+              {
+                key: 'series',
+                label: 'Сериал',
+                children: (
+                  <>
+                    <Typography.Paragraph type="secondary">
+                      Тексты вокруг плеера и виджет «Поделиться» на странице сериала.
+                    </Typography.Paragraph>
+                    <SiteConfigFields
+                      fields={(configSeoFields.seo_content?.fields ?? []).filter((field) =>
+                        field.key.startsWith('series_ui_'),
+                      )}
+                    />
+                    {configSeoFields.seo_widgets ? (
+                      <SiteConfigFields fields={configSeoFields.seo_widgets.fields} />
+                    ) : null}
+                  </>
+                ),
+              },
+              ...(configSeoFields.seo_ai
+                ? [{
+                    key: 'ai',
+                    label: 'Промпты ИИ',
+                    children: (
+                      <>
+                        <Typography.Paragraph type="secondary">
+                          Шаблоны промптов для копирования в ChatGPT/Claude из админки. Плейсхолдеры
+                          подставляются автоматически при генерации промпта на странице справочника.
+                        </Typography.Paragraph>
+                        <SiteConfigFields fields={configSeoFields.seo_ai.fields} />
+                      </>
+                    ),
+                  }]
+                : []),
+              {
+                key: 'sitemap',
+                label: 'sitemap.xml',
+                children: (
+                  <div data-settings-field="sitemap" id="settings-field-sitemap">
+                    <Typography.Paragraph type="secondary">
+                      Карта сайта для поисковых систем. Автоматически обновляется по расписанию и при
+                      изменении контента; здесь можно принудительно пересобрать файл.
+                    </Typography.Paragraph>
+                    <Space wrap style={{ marginBottom: 12 }}>
+                      <Button
+                        type="primary"
+                        loading={sitemapGenerating}
+                        disabled={sitemapGenerating}
+                        onClick={async () => {
+                          setSitemapGenerating(true)
+                          try {
+                            const res = await api<{
+                              ok: boolean
+                              url_count?: number
+                              last_modified_at?: string | null
+                              message?: string
+                            }>('/api/admin/sitemap/generate', {
+                              method: 'POST',
+                              body: JSON.stringify({}),
+                            })
+                            setSitemapUrlCount(res.url_count ?? null)
+                            setSitemapLastModifiedAt(res.last_modified_at ?? null)
+                            setSitemapDirty(false)
+                            message.success(res.message ?? 'Sitemap обновлён')
+                          } catch (e) {
+                            message.error(String((e as Error).message))
+                          } finally {
+                            setSitemapGenerating(false)
+                          }
+                        }}
+                      >
+                        Обновить sitemap.xml
+                      </Button>
+                      <Button type="link" href={sitemapUrl} target="_blank" rel="noreferrer">
+                        Открыть /sitemap.xml
+                      </Button>
+                    </Space>
+                    {sitemapUrlCount !== null ? (
+                      <Typography.Paragraph type="secondary" style={{ marginBottom: sitemapDirty ? 8 : 0 }}>
+                        URL в файле: {sitemapUrlCount}
+                        {sitemapLastModifiedAt ? (
+                          <> · Обновлён: {new Date(sitemapLastModifiedAt).toLocaleString('ru-RU')}</>
+                        ) : null}
+                      </Typography.Paragraph>
+                    ) : (
+                      <Typography.Paragraph type="secondary" style={{ marginBottom: sitemapDirty ? 8 : 0 }}>
+                        Файл sitemap.xml ещё не создан.
+                      </Typography.Paragraph>
+                    )}
+                    {sitemapDirty ? (
+                      <Alert
+                        type="warning"
+                        showIcon
+                        message="Sitemap помечен как устаревший"
+                        description="После изменений контента файл будет пересобран автоматически, либо нажмите «Обновить sitemap.xml»."
+                      />
+                    ) : null}
+                  </div>
+                ),
+              },
+            ]}
+          />
         </Card>
       ),
     },
@@ -906,9 +1150,19 @@ export default function SettingsPage() {
       children: (
         <Card title={configSchema.comments?.title ?? 'Комментарии'} loading={loading} bordered={false}>
           <Typography.Paragraph type="secondary">
-            Комментарии, голоса, лимиты и тексты интерфейса.
+            Настройки разделены по группам. Сохранение применяется ко всем вкладкам сразу.
           </Typography.Paragraph>
-          <SiteConfigFields fields={configSchema.comments?.fields ?? []} />
+          <Tabs
+            activeKey={commentsTab}
+            onChange={changeCommentsTab}
+            size="small"
+            className="settings-inner-tabs"
+            items={groupCommentsFields(configSchema.comments?.fields ?? []).map((tab) => ({
+              key: tab.key,
+              label: tab.label,
+              children: <SiteConfigFields fields={tab.fields} />,
+            }))}
+          />
         </Card>
       ),
     },
@@ -970,7 +1224,20 @@ export default function SettingsPage() {
       ),
       children: (
         <Card title={configSchema.catalog?.title ?? 'Каталог и навигация'} loading={loading} bordered={false}>
-          <SiteConfigFields fields={configSchema.catalog?.fields ?? []} />
+          <Typography.Paragraph type="secondary">
+            Настройки разделены по страницам сайта. Сохранение применяется ко всем вкладкам сразу.
+          </Typography.Paragraph>
+          <Tabs
+            activeKey={catalogTab}
+            onChange={changeCatalogTab}
+            size="small"
+            className="settings-inner-tabs"
+            items={groupCatalogFields(configSchema.catalog?.fields ?? []).map((tab) => ({
+              key: tab.key,
+              label: tab.label,
+              children: <SiteConfigFields fields={tab.fields} />,
+            }))}
+          />
         </Card>
       ),
     },

@@ -482,6 +482,7 @@ TPL),
                         ['profile/show.tpl', 'Личный кабинет'],
                         ['favourites/index.tpl', 'Избранное'],
                         ['coming_soon/index.tpl', 'Скоро'],
+                        ['calendar/index.tpl', 'Календарь выхода серий'],
                         ['errors/*.tpl', '403/404/419/500/503'],
                         ['maintenance.tpl', 'Режим обслуживания'],
                     ]

@@ -6,6 +6,7 @@ use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\HomeSectionController;
 use App\Http\Controllers\HomeScheduleController;
+use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\ComingSoonController;
 use App\Http\Controllers\CollectionsController;
 use App\Http\Controllers\StudiosController;
@@ -78,6 +79,8 @@ Route::get('/studios/{slug}/', [StudiosController::class, 'show'])->name('studio
 Route::get('/studios/{slug}/page/{page}/', [StudiosController::class, 'show'])
     ->where('page', '[0-9]+')
     ->name('studios.show.page');
+
+Route::get('/kalendar/', [CalendarController::class, 'index'])->name('calendar.index');
 
 Route::get('/skoro/', [ComingSoonController::class, 'index'])->name('coming_soon.index');
 Route::get('/skoro/page/{page}/', [ComingSoonController::class, 'index'])

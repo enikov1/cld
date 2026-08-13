@@ -38,6 +38,7 @@ class AllohaImportServiceTest extends TestCase
         ]);
 
         $client = Mockery::mock(AllohaClient::class);
+        $client->shouldReceive('isConfigured')->andReturn(true);
         $client->shouldReceive('getMovieWithFallback')
             ->once()
             ->with('900001', 'tt0056592', '')
@@ -65,6 +66,7 @@ class AllohaImportServiceTest extends TestCase
     public function test_import_creates_series_when_not_in_database_yet(): void
     {
         $client = Mockery::mock(AllohaClient::class);
+        $client->shouldReceive('isConfigured')->andReturn(true);
         $client->shouldReceive('getMovieWithFallback')
             ->once()
             ->with('5165951', 'tt0056592', '66732')
@@ -91,5 +93,98 @@ class AllohaImportServiceTest extends TestCase
         $this->assertTrue($result['ok']);
         $this->assertSame('5165951', $result['series']?->kp_id);
         $this->assertSame('New series from Alloha', $result['series']?->title);
+    }
+
+    public function test_bump_date_updates_created_at_when_episode_increases(): void
+    {
+        $oldDate = now()->subDays(10);
+        $series = Series::query()->create([
+            'kp_id' => '800001',
+            'slug' => 'bump-date-episode',
+            'title' => 'Before bump',
+            'is_active' => true,
+            'season_number' => 1,
+            'last_episode_number' => 5,
+        ]);
+        $series->created_at = $oldDate;
+        $series->save();
+
+        $this->mockAllohaMovie('800001', [
+            'name' => 'Before bump',
+            'ids' => ['kp' => 800001],
+            'token' => 'bump-token',
+            'category' => ['slug' => 'serial'],
+            'seasons_count' => 1,
+            'last_episode' => 6,
+        ]);
+
+        $result = app(AllohaImportService::class)->importByKpId('800001', [
+            'bump_date' => true,
+            'sync_metadata' => false,
+            'sync_ratings' => false,
+            'download_poster' => false,
+            'sync_genres_countries' => false,
+            'sync_tmdb' => false,
+        ]);
+
+        $this->assertTrue($result['ok']);
+        $fresh = $result['series'];
+        $this->assertNotNull($fresh);
+        $this->assertTrue($fresh->created_at->greaterThan($oldDate->copy()->addDay()));
+        $this->assertSame(6, $fresh->last_episode_number);
+        $this->assertNotNull($fresh->last_episode_changed_at);
+    }
+
+    public function test_bump_date_skips_when_episode_unchanged(): void
+    {
+        $oldDate = now()->subDays(10);
+        $series = Series::query()->create([
+            'kp_id' => '800002',
+            'slug' => 'bump-date-skip',
+            'title' => 'Same episode',
+            'is_active' => true,
+            'season_number' => 1,
+            'last_episode_number' => 6,
+        ]);
+        $series->created_at = $oldDate;
+        $series->save();
+
+        $this->mockAllohaMovie('800002', [
+            'name' => 'Same episode',
+            'ids' => ['kp' => 800002],
+            'token' => 'bump-token',
+            'category' => ['slug' => 'serial'],
+            'seasons_count' => 1,
+            'last_episode' => 6,
+        ]);
+
+        $result = app(AllohaImportService::class)->importByKpId('800002', [
+            'bump_date' => true,
+            'sync_metadata' => false,
+            'sync_ratings' => false,
+            'download_poster' => false,
+            'sync_genres_countries' => false,
+            'sync_tmdb' => false,
+        ]);
+
+        $this->assertTrue($result['ok']);
+        $fresh = $result['series'];
+        $this->assertNotNull($fresh);
+        $this->assertSame($oldDate->timestamp, $fresh->created_at->timestamp);
+    }
+
+    /**
+     * @param array<string,mixed> $data
+     */
+    private function mockAllohaMovie(string $kpId, array $data): void
+    {
+        $client = Mockery::mock(AllohaClient::class);
+        $client->shouldReceive('isConfigured')->andReturn(true);
+        $client->shouldReceive('getMovieWithFallback')
+            ->once()
+            ->with($kpId, '', '')
+            ->andReturn(['data' => $data]);
+        $this->app->instance(AllohaClient::class, $client);
+        $this->app->forgetInstance(AllohaImportService::class);
     }
 }

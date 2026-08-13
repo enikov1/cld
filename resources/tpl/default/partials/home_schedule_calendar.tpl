@@ -1,7 +1,12 @@
 [has_schedule_calendar]
-<section class="schedule-cal sect" data-schedule-calendar data-api-url="/api/home/episode-calendar">
+<section class="schedule-cal sect[is_calendar_page] schedule-cal--page[/is_calendar_page]" data-schedule-calendar data-api-url="/api/home/episode-calendar"[is_calendar_page] data-details="1" data-sync-url="/kalendar/"[/is_calendar_page]>
     <div class="sect-header fx-row fx-middle fx-start">
-        <div class="sect-title">Календарь выхода серий</div>
+        [is_calendar_page]
+            <div class="sect-title">Календарь месяца</div>
+        [/is_calendar_page]
+        [not-is_calendar_page]
+            <div class="sect-title"><a href="/kalendar/">Календарь выхода серий</a></div>
+        [/not-is_calendar_page]
     </div>
     <div class="schedule-cal__layout">
         <div class="schedule-cal__month">

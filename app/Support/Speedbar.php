@@ -224,6 +224,13 @@ class Speedbar
         return $bar->pageSuffix($page);
     }
 
+    public static function forCalendar(): self
+    {
+        return self::create()
+            ->add('home')
+            ->add('calendar', isCurrent: true);
+    }
+
     public static function forCatalog(int $page = 1): self
     {
         $bar = self::create()

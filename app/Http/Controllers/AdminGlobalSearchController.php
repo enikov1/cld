@@ -26,7 +26,7 @@ class AdminGlobalSearchController extends Controller
         ['key' => 'taxonomy', 'path' => '/taxonomy', 'title' => 'Справочники', 'subtitle' => 'Жанры, страны, актёры, годы', 'keywords' => 'жанры страны актёры годы taxonomy'],
         ['key' => 'nav-menu', 'path' => '/nav-menu', 'title' => 'Меню', 'subtitle' => 'Навигация и mega-menu', 'keywords' => 'навигация'],
         ['key' => 'home-sections', 'path' => '/home-sections', 'title' => 'Секции главной', 'subtitle' => 'Блоки на главной странице', 'keywords' => 'home секции'],
-        ['key' => 'reactions', 'path' => '/reactions', 'title' => 'Реакции', 'subtitle' => 'Оценки под плеером', 'keywords' => 'эмодзи'],
+        ['key' => 'reactions', 'path' => '/reactions', 'title' => 'Реакции', 'subtitle' => 'Оценки под плеером и статистика', 'keywords' => 'эмодзи статистика голоса'],
         ['key' => 'templates', 'path' => '/templates', 'title' => 'Шаблоны', 'subtitle' => 'Редактор .tpl', 'keywords' => 'tpl тема код'],
         ['key' => 'tpl-docs', 'path' => '/tpl-docs', 'title' => 'TPL-DOC', 'subtitle' => 'Справка по шаблонам для верстальщика', 'keywords' => 'документация tpl теги layout верстка'],
         ['key' => 'comments', 'path' => '/comments', 'title' => 'Комментарии', 'subtitle' => 'Модерация отзывов', 'keywords' => 'модерация'],

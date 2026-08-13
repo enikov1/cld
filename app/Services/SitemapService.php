@@ -71,6 +71,7 @@ class SitemapService
 
         $urls[] = ['loc' => $base . '/', 'priority' => '1.0', 'lastmod' => $now];
         $urls[] = ['loc' => $base . '/catalog/', 'priority' => '0.9', 'lastmod' => $now];
+        $urls[] = ['loc' => $base . '/kalendar/', 'priority' => '0.8', 'lastmod' => $now];
         $urls[] = ['loc' => $base . '/collections/', 'priority' => '0.8', 'lastmod' => $now];
         $urls[] = ['loc' => $base . '/studios/', 'priority' => '0.8', 'lastmod' => $now];
 

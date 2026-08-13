@@ -756,6 +756,21 @@ html[data-admin-theme='dark'] .admin-empty-hint {
   gap: 8px;
 }
 
+.settings-inner-tabs,
+.settings-catalog-tabs {
+  margin-top: 4px;
+}
+
+.settings-inner-tabs > .ant-tabs-nav,
+.settings-catalog-tabs > .ant-tabs-nav {
+  min-width: 0;
+}
+
+.settings-inner-tabs .ant-tabs-content-holder,
+.settings-catalog-tabs .ant-tabs-content-holder {
+  padding: 16px 0 0;
+}
+
 .settings-page__footer {
   margin-top: 20px;
   padding-top: 16px;
@@ -1497,6 +1512,21 @@ html[data-admin-theme='dark'] .views-chart__label {
 html[data-admin-theme='dark'] .views-stats__poster,
 html[data-admin-theme='dark'] .views-stats__poster--empty {
   background: rgba(255, 255, 255, 0.08);
+}
+
+.reaction-stats__emoji {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.reaction-stats__mix {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.reaction-stats__mix-tag {
+  margin-inline-end: 0;
 }
 
 .series-list-poster {

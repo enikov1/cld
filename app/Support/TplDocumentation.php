@@ -296,6 +296,32 @@ class TplDocumentation
                 ],
                 ['catalog', 'global'],
             ),
+            'calendar' => self::context(
+                'calendar/index.tpl',
+                'Страница календаря выхода серий.',
+                array_merge(self::globalVariables(), [
+                    self::docVar('page.heading', 'H1 из настроек (calendar_heading)'),
+                    self::docVar('page.lead', 'Подзаголовок из настроек (calendar_lead)'),
+                    self::docVar('is_calendar_page', 'true на отдельной странице календаря'),
+                    self::docVar('has_schedule_calendar', 'Показывать виджет календаря'),
+                    self::docVar('schedule_calendar', 'Данные месяца: year, month, month_label, today, days, timeline'),
+                    self::docVar('schedule_calendar_json', 'JSON данных календаря для JS'),
+                    self::docVar('schedule_calendar_block', 'HTML виджета календаря'),
+                    self::docVar('schedule_timeline', 'Дни месяца с сериями для списка'),
+                    self::docVar('schedule_timeline_block', 'HTML списка серий по дням'),
+                    self::docVar('schedule_episode_count', 'Число серий в выбранном месяце'),
+                    self::docVar('calendar_seo_html', 'SEO-блок внизу страницы'),
+                    self::docVar('seo.title', 'Meta title из настроек'),
+                    self::docVar('seo.description', 'Meta description из настроек'),
+                    self::docVar('seo.canonical', 'Canonical /kalendar/'),
+                    self::docVar('seo.robots', 'Robots meta'),
+                ]),
+                ['is_calendar_page', 'has_schedule_calendar', 'schedule_calendar', 'schedule_timeline', 'schedule_episode_count', 'calendar_seo_html', 'page.lead'],
+                [
+                    self::loop('schedule_timeline', 'Дни: item.date, item.date_label, item.weekday, item.episodes'),
+                ],
+                ['calendar', 'global'],
+            ),
             'series' => self::context(
                 'series/show.tpl',
                 'Страница сериала с плеером.',
@@ -647,7 +673,8 @@ class TplDocumentation
         return match ($name) {
             'has_notifications' => 'Уведомления включены в настройках',
             'has_watch_history' => 'История просмотров включена',
-            'has_schedule_calendar' => 'Календарь выхода серий на главной',
+            'has_schedule_calendar' => 'Календарь выхода серий на главной или отдельной странице',
+            'is_calendar_page' => 'Отдельная страница календаря /kalendar/',
             'has_active' => 'Есть активные фильтры каталога',
             'has_player', 'has_players' => 'Есть хотя бы один плеер',
             'has_reactions' => 'Виджет реакций включён',
@@ -745,7 +772,9 @@ class TplDocumentation
             'home.tpl' => ['home', 'global'],
             'catalog.tpl' => ['catalog', 'global'],
             'partials/home_new_episodes.tpl' => ['home', 'global'],
-            'partials/home_schedule_calendar.tpl' => ['home', 'global'],
+            'partials/home_schedule_calendar.tpl' => ['home', 'calendar', 'global'],
+            'partials/schedule_calendar_timeline.tpl' => ['calendar', 'global'],
+            'calendar/index.tpl' => ['calendar', 'global'],
             'search.tpl' => ['search', 'global'],
             'series/show.tpl' => ['series', 'global'],
             'collections/index.tpl' => ['collections', 'global'],
@@ -781,6 +810,10 @@ class TplDocumentation
 
         if (str_starts_with($path, 'studios/')) {
             return ['studios', 'global'];
+        }
+
+        if (str_starts_with($path, 'calendar/')) {
+            return ['calendar', 'global'];
         }
 
         return ['global'];

@@ -306,6 +306,7 @@ class AdminNavController extends Controller
             NavItem::LINK_STUDIOS,
             NavItem::LINK_CATALOG,
             NavItem::LINK_COMING_SOON,
+            NavItem::LINK_CALENDAR,
             NavItem::LINK_CUSTOM,
         ];
     }

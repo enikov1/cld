@@ -27,6 +27,7 @@ class AllohaImportService
      *     sync_poster?: bool,
      *     sync_genres_countries?: bool,
      *     fill_empty_only?: bool,
+     *     bump_date?: bool,
      *     ratings_only?: bool,
      *     is_active?: bool|null,
      *     is_hidden?: bool|null,
@@ -113,6 +114,9 @@ class AllohaImportService
                 : $syncMetadata;
         }
 
+        $mappedForProgress = $mapped;
+        $bumpDate = !$isNew && (bool)($options['bump_date'] ?? false);
+
         $mapped = $this->filterMappedFields(
             $mapped,
             $syncRatings,
@@ -176,7 +180,7 @@ class AllohaImportService
         }
 
         $hasFieldUpdates = count($mapped) > 0 || $syncPoster;
-        if (!$hasFieldUpdates && !$syncPlayers && !$syncGenresCountries) {
+        if (!$hasFieldUpdates && !$syncPlayers && !$syncGenresCountries && !$bumpDate) {
             return ['ok' => false, 'error' => 'Нет полей для обновления'];
         }
 
@@ -217,6 +221,10 @@ class AllohaImportService
         // When sync_players is false, leave existing player sources untouched.
 
         app(CdnVideoHubPlayerSync::class)->syncIfEnabled($series);
+
+        if ($bumpDate && $existing && $this->shouldBumpCatalogDate($existing, $mappedForProgress)) {
+            $this->bumpCatalogDate($series, $mappedForProgress);
+        }
 
         $syncTmdb = (bool)($options['sync_tmdb'] ?? true);
         if ($syncTmdb && trim((string)$series->tmdb_id) !== '') {
@@ -276,6 +284,51 @@ class AllohaImportService
         }
 
         return $filtered;
+    }
+
+    /**
+     * @param array<string,mixed> $mapped
+     */
+    private function shouldBumpCatalogDate(Series $existing, array $mapped): bool
+    {
+        $incomingSeason = isset($mapped['season_number']) ? (int)$mapped['season_number'] : 0;
+        $incomingEpisode = isset($mapped['last_episode_number']) ? (int)$mapped['last_episode_number'] : 0;
+
+        if ($incomingSeason > 0 || $incomingEpisode > 0) {
+            $oldSeason = (int)($existing->season_number ?? 0);
+            $oldEpisode = (int)($existing->last_episode_number ?? 0);
+
+            if ($incomingSeason > $oldSeason) {
+                return true;
+            }
+
+            return $incomingSeason === $oldSeason && $incomingEpisode > $oldEpisode;
+        }
+
+        $createdAt = $existing->created_at;
+
+        return $createdAt === null || $createdAt->lt(now()->startOfDay());
+    }
+
+    /**
+     * @param array<string,mixed> $mapped
+     */
+    private function bumpCatalogDate(Series $series, array $mapped): void
+    {
+        $now = now();
+        $series->created_at = $now;
+        $series->last_episode_changed_at = $now;
+
+        $season = isset($mapped['season_number']) ? (int)$mapped['season_number'] : 0;
+        $episode = isset($mapped['last_episode_number']) ? (int)$mapped['last_episode_number'] : 0;
+        if ($season > 0) {
+            $series->season_number = $season;
+        }
+        if ($episode > 0) {
+            $series->last_episode_number = $episode;
+        }
+
+        $series->save();
     }
 
     private function resolveExistingSeries(string $kpId, string $imdbId, string $tmdbId): ?Series

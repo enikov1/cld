@@ -26,7 +26,8 @@ class AllohaAutoSyncSettings
      *     update_metadata: bool,
      *     update_poster: bool,
      *     update_genres_countries: bool,
-     *     fill_empty_only: bool
+     *     fill_empty_only: bool,
+     *     bump_date_on_update: bool
      * }
      */
     public static function get(): array
@@ -67,6 +68,7 @@ class AllohaAutoSyncSettings
             'update_poster' => (bool)($input['update_poster'] ?? $defaults['update_poster']),
             'update_genres_countries' => (bool)($input['update_genres_countries'] ?? $defaults['update_genres_countries']),
             'fill_empty_only' => (bool)($input['fill_empty_only'] ?? $defaults['fill_empty_only']),
+            'bump_date_on_update' => (bool)($input['bump_date_on_update'] ?? $defaults['bump_date_on_update']),
         ];
     }
 
@@ -131,6 +133,7 @@ class AllohaAutoSyncSettings
             'update_poster' => false,
             'update_genres_countries' => false,
             'fill_empty_only' => true,
+            'bump_date_on_update' => false,
         ];
     }
 
@@ -165,6 +168,7 @@ class AllohaAutoSyncSettings
                 'sync_poster' => $settings['download_poster_new'],
                 'sync_genres_countries' => true,
                 'fill_empty_only' => false,
+                'bump_date' => false,
             ];
         }
 
@@ -175,6 +179,7 @@ class AllohaAutoSyncSettings
             'sync_poster' => $settings['update_poster'],
             'sync_genres_countries' => $settings['update_genres_countries'],
             'fill_empty_only' => $settings['fill_empty_only'],
+            'bump_date' => $settings['bump_date_on_update'],
         ];
     }
 }

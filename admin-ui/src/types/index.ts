@@ -293,6 +293,67 @@ export type ViewsStatsResponse = {
   top_series: ViewsStatsTopSeries[]
 }
 
+export type ReactionStatsType = {
+  id: number
+  emoji: string
+  label: string
+  is_active: boolean
+  votes: number
+  series_count: number
+  share: number
+  highlighted: boolean
+}
+
+export type ReactionStatsMixItem = {
+  id: number
+  emoji: string
+  label: string
+  votes: number
+}
+
+export type ReactionStatsTopSeries = {
+  id: number
+  title: string
+  slug: string
+  year: number | null
+  poster_url: string | null
+  is_active: boolean
+  votes: number
+  share: number
+  top_emoji: string | null
+  reactions: ReactionStatsMixItem[]
+}
+
+export type ReactionStatsSummary = {
+  votes_today: number
+  votes_yesterday: number
+  votes_period: number
+  votes_prev_period: number
+  votes_change_pct: number | null
+  votes_total: number
+  series_period: number
+  users_period: number
+  guests_period: number
+  voters_period: number
+  avg_per_day: number
+  days: number
+}
+
+export type ReactionStatsResponse = {
+  ready: boolean
+  period: string
+  group: 'day' | 'week' | 'month'
+  date_from: string | null
+  date_to: string | null
+  reaction_type_id: number | null
+  cache_ttl: number
+  types: Array<{ id: number; emoji: string; label: string; is_active: boolean }>
+  summary: ReactionStatsSummary
+  by_type: ReactionStatsType[]
+  timeseries: Array<{ bucket: string; label: string; votes: number }>
+  top_series: ReactionStatsTopSeries[]
+}
+
 export type PlayerReportItem = {
   id: number
   series_id: number

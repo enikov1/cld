@@ -14,6 +14,7 @@ class NavItem extends Model
     public const LINK_STUDIOS = 'studios';
     public const LINK_CATALOG = 'catalog';
     public const LINK_COMING_SOON = 'coming_soon';
+    public const LINK_CALENDAR = 'calendar';
     public const LINK_CUSTOM = 'custom';
 
     protected $fillable = [

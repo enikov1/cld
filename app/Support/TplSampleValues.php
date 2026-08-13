@@ -27,6 +27,9 @@ class TplSampleValues
         if ($path === 'home.tpl') {
             $values = array_merge($values, self::homeValues());
             $source = 'Главная страница (текущие настройки)';
+        } elseif ($path === 'calendar/index.tpl' || $path === 'partials/schedule_calendar_timeline.tpl') {
+            $values = array_merge($values, self::calendarValues());
+            $source = 'Страница календаря выхода серий';
         } elseif ($path === 'catalog.tpl') {
             $values = array_merge($values, self::catalogValues());
             $source = 'Каталог / таксономия (пример)';
@@ -134,6 +137,29 @@ class TplSampleValues
             'new_episodes_list' => [],
             'new_episodes_block' => '',
             'schedule_calendar_block' => '',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function calendarValues(): array
+    {
+        return [
+            'is_calendar_page' => '1',
+            'has_schedule_calendar' => '1',
+            'page.heading' => SiteSetting::get('calendar_heading', 'График выхода сериалов'),
+            'page.lead' => SiteSetting::get('calendar_lead', 'Следите за датами выхода новых серий.'),
+            'schedule_calendar.month_label' => 'Август 2026',
+            'schedule_calendar_block' => '',
+            'schedule_timeline' => [],
+            'schedule_timeline_block' => '',
+            'schedule_episode_count' => '12',
+            'calendar_seo_html' => '',
+            'seo.title' => SiteSetting::get('calendar_meta_title', 'Календарь выхода сериалов — график новых серий'),
+            'seo.description' => SiteSetting::get('calendar_meta_description', 'График выхода новых серий сериалов.'),
+            'seo.canonical' => url('/kalendar/'),
+            'seo.robots' => '',
         ];
     }
 

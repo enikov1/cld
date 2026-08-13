@@ -21,6 +21,7 @@ return [
         'person',
         'year',
         'skoro',
+        'kalendar',
         'theme-assets',
         '_admin-assets',
         '_admin_ui',

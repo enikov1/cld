@@ -4638,10 +4638,15 @@
         root.setAttribute('data-cal-bound', '1');
 
         var apiUrl = root.getAttribute('data-api-url') || '/api/home/episode-calendar';
+        var withDetails = root.getAttribute('data-details') === '1';
+        var syncUrl = root.getAttribute('data-sync-url') || '';
         var gridEl = root.querySelector('[data-cal-grid]');
         var labelEl = root.querySelector('[data-cal-month-label]');
         var dayTitleEl = root.querySelector('[data-cal-day-title]');
         var dayListEl = root.querySelector('[data-cal-day-list]');
+        var timelineEl = document.querySelector('[data-cal-timeline]');
+        var timelineTitleEl = document.querySelector('.schedule-timeline__toolbar-title');
+        var timelineCountEl = document.querySelector('.schedule-timeline__toolbar-count');
         var prevBtn = root.querySelector('[data-cal-prev]');
         var nextBtn = root.querySelector('[data-cal-next]');
         var initialNode = root.querySelector('[data-cal-initial]');
@@ -4694,8 +4699,128 @@
             return keys[keys.length - 1];
         }
 
+        function syncBrowserUrl(data) {
+            if (!syncUrl || !data || !window.history || !window.history.replaceState) return;
+            var now = new Date();
+            var isCurrent = Number(data.year) === now.getFullYear() && Number(data.month) === (now.getMonth() + 1);
+            var nextUrl = syncUrl;
+            if (!isCurrent) {
+                nextUrl += '?year=' + encodeURIComponent(data.year) + '&month=' + encodeURIComponent(data.month);
+            }
+            if (window.location.pathname + window.location.search !== nextUrl) {
+                window.history.replaceState({}, '', nextUrl);
+            }
+        }
+
+        function highlightTimeline(dateIso) {
+            if (!timelineEl) return;
+            var groups = timelineEl.querySelectorAll('[data-cal-day]');
+            groups.forEach(function(group) {
+                group.classList.toggle('is-selected', group.getAttribute('data-cal-day') === dateIso);
+            });
+        }
+
+        function scrollTimelineTo(dateIso) {
+            if (!timelineEl || !dateIso) return;
+            var group = timelineEl.querySelector('[data-cal-day="' + dateIso + '"]');
+            if (!group) return;
+            window.requestAnimationFrame(function() {
+                group.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
+        }
+
+        function renderEpisodeCard(item) {
+            var poster = item.poster_url
+                ? '<div class="schedule-timeline__poster"><img src="' + escapeHtml(item.poster_url) + '" alt="" loading="lazy"></div>'
+                : '<div class="schedule-timeline__poster schedule-timeline__poster--empty"><span class="fa fa-film"></span></div>';
+            var original = item.title_original
+                ? '<div class="schedule-timeline__original">' + escapeHtml(item.title_original) + '</div>'
+                : '';
+            var metaParts = [];
+            if (item.year) metaParts.push(item.year);
+            if (item.age_label) metaParts.push(escapeHtml(item.age_label));
+            if (item.genres_label) metaParts.push(escapeHtml(item.genres_label));
+            if (item.countries_label) metaParts.push(escapeHtml(item.countries_label));
+            var meta = metaParts.length
+                ? '<div class="schedule-timeline__meta">' + metaParts.join(' · ') + '</div>'
+                : '';
+            var episode = '<div class="schedule-timeline__episode">' +
+                item.season_number + ' сезон / ' + item.episode_number + ' эпизод' +
+                (item.episode_title ? ' · ' + escapeHtml(item.episode_title) : '') +
+                '</div>';
+            var statusClass = item.is_released ? ' is-released' : '';
+            var statusText = item.is_released ? 'Вышла' : 'Ожидается';
+            var channel = item.channel_name
+                ? '<span class="schedule-timeline__channel">' + escapeHtml(item.channel_name) + '</span>'
+                : '';
+            var ratings = '';
+            if (item.kp_rating) {
+                ratings += '<span class="schedule-timeline__rate schedule-timeline__rate--kp" title="Кинопоиск">' + escapeHtml(item.kp_rating) + '</span>';
+            }
+            if (item.imdb_rating) {
+                ratings += '<span class="schedule-timeline__rate schedule-timeline__rate--imdb" title="IMDb">' + escapeHtml(item.imdb_rating) + '</span>';
+            }
+
+            return '<a class="schedule-timeline__item" href="' + escapeHtml(item.series_url) + '">' +
+                poster +
+                '<div class="schedule-timeline__body">' +
+                '<div class="schedule-timeline__title">' + escapeHtml(item.series_title) + '</div>' +
+                original + meta + episode +
+                '<div class="schedule-timeline__foot">' +
+                '<span class="schedule-cal__item-status' + statusClass + '">' + statusText + '</span>' +
+                channel +
+                '</div></div>' +
+                (ratings ? '<div class="schedule-timeline__ratings">' + ratings + '</div>' : '') +
+                '</a>';
+        }
+
+        function renderTimeline(dateIso) {
+            if (!timelineEl || !state) return;
+            var days = state.timeline && state.timeline.length
+                ? state.timeline
+                : Object.keys(state.days || {}).sort().map(function(date) {
+                    return {
+                        date: date,
+                        date_label: formatRuDate(date),
+                        weekday: '',
+                        is_today: state.today === date,
+                        count: (state.days[date] || []).length,
+                        episodes: state.days[date] || []
+                    };
+                });
+
+            if (timelineTitleEl && state.month_label) {
+                timelineTitleEl.innerHTML = '<span class="fa fa-list"></span> Серии за ' + escapeHtml(state.month_label);
+            }
+            if (timelineCountEl) {
+                timelineCountEl.textContent = state.episode_count || 0;
+                timelineCountEl.hidden = !state.episode_count;
+            }
+
+            if (!days.length) {
+                timelineEl.innerHTML = '<div class="schedule-timeline__empty">В этом месяце серий нет</div>';
+                return;
+            }
+
+            timelineEl.innerHTML = days.map(function(day) {
+                var classes = ['schedule-timeline__day'];
+                if (day.is_today) classes.push('is-today');
+                if (dateIso && day.date === dateIso) classes.push('is-selected');
+                return '<section class="' + classes.join(' ') + '" data-cal-day="' + escapeHtml(day.date) + '" id="cal-day-' + escapeHtml(day.date) + '">' +
+                    '<h2 class="schedule-timeline__heading">' +
+                    '<span class="schedule-timeline__date">' + escapeHtml(day.date_label) + '</span>' +
+                    (day.weekday ? '<span class="schedule-timeline__weekday">' + escapeHtml(day.weekday) + '</span>' : '') +
+                    '<span class="schedule-timeline__count">' + day.count + '</span>' +
+                    '</h2>' +
+                    '<div class="schedule-timeline__list">' +
+                    (day.episodes || []).map(renderEpisodeCard).join('') +
+                    '</div></section>';
+            }).join('');
+        }
+
         function renderDayPanel(dateIso) {
             selectedDate = dateIso;
+            highlightTimeline(dateIso);
             if (!dateIso) {
                 dayTitleEl.textContent = 'Выберите день';
                 dayListEl.innerHTML = '<div class="schedule-cal__empty">Нажмите на день, чтобы увидеть серии</div>';
@@ -4808,6 +4933,8 @@
             }
             renderGrid();
             renderDayPanel(selectedDate);
+            renderTimeline(selectedDate);
+            syncBrowserUrl(data);
         }
 
         function setLoading(isLoading) {
@@ -4820,7 +4947,8 @@
         function loadMonth(year, month, preferDate) {
             if (loading) return;
             setLoading(true);
-            var url = apiUrl + '?year=' + encodeURIComponent(year) + '&month=' + encodeURIComponent(month);
+            var url = apiUrl + '?year=' + encodeURIComponent(year) + '&month=' + encodeURIComponent(month) +
+                (withDetails ? '&details=1' : '');
             fetch(url, { headers: { Accept: 'application/json' } })
                 .then(function(res) {
                     if (!res.ok) throw new Error('calendar load failed');
@@ -4860,6 +4988,8 @@
             selectedDate = date;
             renderGrid();
             renderDayPanel(date);
+            highlightTimeline(date);
+            scrollTimelineTo(date);
             scrollToDayPanelIfMobile();
         });
 

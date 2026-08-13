@@ -64,7 +64,7 @@ class AllohaLatestSyncService
 
             $flags = AllohaAutoSyncSettings::toImportFlags($settings, $isNew);
             if (!$flags['sync_ratings'] && !$flags['sync_players'] && !$flags['sync_metadata']
-                && !$flags['sync_poster'] && !$flags['sync_genres_countries']) {
+                && !$flags['sync_poster'] && !$flags['sync_genres_countries'] && !$flags['bump_date']) {
                 $result['skipped']++;
                 $result['log'][] = "Пропуск KP {$kpId}: не выбраны поля для обновления";
                 continue;

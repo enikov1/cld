@@ -18,6 +18,7 @@ class HomeScheduleController extends Controller
             HomeEpisodeScheduleService::calendarMonth(
                 (int) $validated['year'],
                 (int) $validated['month'],
+                $request->boolean('details'),
             )
         );
     }
