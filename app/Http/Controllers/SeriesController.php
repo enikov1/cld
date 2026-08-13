@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Comment;
 use App\Models\NotificationSetting;
 use App\Models\Review;
 use App\Models\Series;
@@ -14,9 +15,7 @@ use App\Services\SeriesCardMapper;
 use App\Services\SeriesRelatedService;
 use App\Services\SeriesViewService;
 use App\Services\UserLibraryService;
-use App\Support\CommentTree;
 use App\Support\CommentView;
-use App\Support\ReviewList;
 use App\Support\ReviewView;
 use App\Support\PlayerUrlHelper;
 use App\Support\ContentTypes;
@@ -62,6 +61,10 @@ class SeriesController extends TplController
 
         SeriesViewService::record($series, request());
         UserLibraryService::recordWatchHistory($series->id, Auth::user(), request());
+
+        if ($cached = $this->tryCachedTplPage('series/show.tpl', $series->id)) {
+            return $cached;
+        }
 
         $players = PlayerUrlHelper::activePlayersForSeries($series);
         $activeSource = $players[0]['url'] ?? ($players[0]['html'] ?? '');
@@ -226,20 +229,16 @@ class SeriesController extends TplController
         }
 
         $commentsEnabled = SiteConfig::bool('comments_enabled');
-        // Always SSR with default sort — guest series HTML is shared; query sort is client-side via API.
+        // Lists load via API (site.js); keep cheap counts for badges / empty flags.
         $commentsSort = 'date';
-        $commentItems = $commentsEnabled
-            ? CommentTree::forSeries($series->id, request(), $commentsSort)
-            : [];
-        $commentsCount = CommentView::countComments($commentItems);
+        $commentsCount = $commentsEnabled
+            ? (int) Comment::query()->where('series_id', $series->id)->where('status', 'approved')->count()
+            : 0;
 
         $reviewsEnabled = SiteConfig::bool('reviews_enabled');
         $reviewsSort = 'date';
-        $reviewItems = $reviewsEnabled
-            ? ReviewList::forSeries($series->id, $reviewsSort)
-            : [];
         $reviewsCount = $reviewsEnabled
-            ? Review::query()->where('series_id', $series->id)->where('status', 'approved')->count()
+            ? (int) Review::query()->where('series_id', $series->id)->where('status', 'approved')->count()
             : 0;
 
         $ownReview = null;
@@ -283,10 +282,8 @@ class SeriesController extends TplController
             'comments_sort_rating_active' => $commentsSort === 'rating',
             'comments_count' => $commentsCount,
             'comments_count_label' => CommentView::countLabel($commentsCount),
-            'comments_empty' => $commentsCount === 0,
-            'comments_list_html' => $commentsEnabled
-                ? $this->renderCommentsList($commentItems)
-                : '',
+            'comments_empty' => false,
+            'comments_list_html' => '',
             'has_reviews' => $reviewsEnabled,
             'has_engagement_tabs' => $commentsEnabled && $reviewsEnabled,
             'has_own_review' => (bool) $hasOwnReview,
@@ -299,10 +296,8 @@ class SeriesController extends TplController
             'reviews_sort_rating_active' => $reviewsSort === 'rating',
             'reviews_count' => $reviewsCount,
             'reviews_count_label' => ReviewView::countLabel($reviewsCount),
-            'reviews_empty' => $reviewsCount === 0,
-            'reviews_list_html' => $reviewsEnabled
-                ? $this->renderReviewsList($reviewItems)
-                : '',
+            'reviews_empty' => false,
+            'reviews_list_html' => '',
             'has_series_vote' => SiteConfig::bool('series_vote_enabled'),
             'has_notifications' => SiteConfig::bool('notifications_enabled'),
             'notification_subscribed' => $notificationSubscribed ? '1' : '',
@@ -342,10 +337,6 @@ class SeriesController extends TplController
             'url' => $seriesUrl,
             'datePublished' => $series->year ? (string) $series->year : null,
         ];
-
-        if ($reviewsEnabled && $reviewItems !== []) {
-            $tvSeriesJsonLd['review'] = ReviewView::jsonLdNodes($reviewItems);
-        }
 
         $aggregateRating = $reviewsEnabled
             ? ReviewView::aggregateRatingJsonLd($series->id)
@@ -405,53 +396,6 @@ class SeriesController extends TplController
         }
 
         return $this->renderTplPage('series/show.tpl', $vars, $meta);
-    }
-
-    /**
-     * @param list<array<string, mixed>> $items
-     */
-    private function renderCommentsList(array $items, int $depth = 0): string
-    {
-        if ($items === []) {
-            return '';
-        }
-
-        $html = '';
-        foreach ($items as $item) {
-            $childrenHtml = '';
-            $children = $item['children'] ?? [];
-            if (is_array($children) && $children !== []) {
-                $childrenHtml = '<div class="comment-replies">'
-                    . $this->renderCommentsList($children, $depth + 1)
-                    . '</div>';
-            }
-
-            $html .= $this->renderPartial('partials/comment_item.tpl', [
-                'item' => CommentView::mapForTpl($item, $depth, $childrenHtml),
-                'has_comments_vote' => SiteConfig::bool('comments_vote_enabled'),
-            ]);
-        }
-
-        return $html;
-    }
-
-    /**
-     * @param list<array<string, mixed>> $items
-     */
-    private function renderReviewsList(array $items): string
-    {
-        if ($items === []) {
-            return '';
-        }
-
-        $html = '';
-        foreach ($items as $item) {
-            $html .= $this->renderPartial('partials/review_item.tpl', [
-                'item' => ReviewView::mapForTpl($item),
-            ]);
-        }
-
-        return $html;
     }
 
     /**

@@ -235,9 +235,8 @@
                     [/comments_guest_enabled]
                     [/not-auth.logged_in]
                 </div>
-                <div class="comments-list" data-comments-list data-comments-ssr="1">
-                    [comments_empty]<p class="comment-empty">{comments_ui_empty}</p>[/comments_empty]
-                    [not-comments_empty]{comments_list_html|raw}[/not-comments_empty]
+                <div class="comments-list" data-comments-list>
+                    <p class="comment-loading">{comments_ui_loading}</p>
                 </div>
             </div>
         </div>
@@ -296,9 +295,8 @@
                         <button type="button" class="dontusebuttonclass comments-sort__link" data-reviews-sort-value="rating">{reviews_ui_sort_rating}</button> [/not-reviews_sort_rating_active]
                     </div>
                 </div>
-                <div class="reviews-list comments-list" data-reviews-list data-reviews-ssr="1">
-                    [reviews_empty]<p class="comment-empty">{reviews_ui_empty}</p>[/reviews_empty]
-                    [not-reviews_empty]{reviews_list_html|raw}[/not-reviews_empty]
+                <div class="reviews-list comments-list" data-reviews-list>
+                    <p class="comment-loading">{reviews_ui_loading}</p>
                 </div>
             </div>
         </div>
@@ -334,9 +332,8 @@
             [/not-auth.logged_in]
         </div>
 
-        <div class="comments-list" data-comments-list data-comments-ssr="1">
-            [comments_empty]<p class="comment-empty">{comments_ui_empty}</p>[/comments_empty]
-            [not-comments_empty]{comments_list_html|raw}[/not-comments_empty]
+        <div class="comments-list" data-comments-list>
+            <p class="comment-loading">{comments_ui_loading}</p>
         </div>
     </div>
     [/not-has_reviews]
@@ -397,9 +394,8 @@
                 <button type="button" class="dontusebuttonclass comments-sort__link" data-reviews-sort-value="rating">{reviews_ui_sort_rating}</button> [/not-reviews_sort_rating_active]
             </div>
         </div>
-        <div class="reviews-list comments-list" data-reviews-list data-reviews-ssr="1">
-            [reviews_empty]<p class="comment-empty">{reviews_ui_empty}</p>[/reviews_empty]
-            [not-reviews_empty]{reviews_list_html|raw}[/not-reviews_empty]
+        <div class="reviews-list comments-list" data-reviews-list>
+            <p class="comment-loading">{reviews_ui_loading}</p>
         </div>
     </div>
     [/has_reviews]

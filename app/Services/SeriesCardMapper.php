@@ -33,14 +33,15 @@ class SeriesCardMapper
         $popularLabel = SiteConfig::str('card_badge_popular_label') ?: 'Популярно';
         $comingSoonLabel = SiteConfig::str('card_badge_coming_soon_label') ?: 'Скоро';
 
-        $progressMap = EpisodeProgressService::resolvedProgressForSeries($seriesList);
+        // Card grids use denormalized series fields (kept in sync by EpisodeProgressService::syncSeries).
+        // Avoid scanning all released episodes per section on home/catalog/related.
 
         $out = [];
         foreach ($seriesList as $s) {
             $id = (int)$s->id;
-            $progress = $progressMap[$id] ?? EpisodeProgressService::resolvedProgress($s);
-            $season = $progress['season_number'];
-            $episode = $progress['last_episode_number'];
+            $season = $s->season_number ? (int)$s->season_number : null;
+            $episode = $s->last_episode_number ? (int)$s->last_episode_number : null;
+            $progressLabel = EpisodeProgressService::formatProgressLabel($season, $episode);
             $isComingSoon = (bool)$s->is_coming_soon;
             $premiereCountdown = $isComingSoon ? ($s->premiereCountdownLabel() ?? '') : '';
 
@@ -65,7 +66,7 @@ class SeriesCardMapper
                 'broadcast_status' => $s->broadcast_status,
                 'season_number' => $season,
                 'last_episode_number' => $episode,
-                'episode_progress_label' => $progress['label'],
+                'episode_progress_label' => $progressLabel,
                 'season_badge' => $season ? 'S' . $season : '',
                 'episode_badge' => $episode ? 'E' . $episode : '',
                 'top_reaction_emoji' => $topEmojis[$id] ?? '',

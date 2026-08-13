@@ -27,5 +27,6 @@ class SiteSetting extends Model
             ['value' => $value]
         );
         Cache::forget('site_setting:' . $key);
+        \App\Support\SiteConfig::flushRequestCache();
     }
 }

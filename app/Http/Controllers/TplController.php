@@ -15,6 +15,11 @@ use Illuminate\Support\Facades\Cache;
 
 abstract class TplController extends Controller
 {
+    private static ?string $commonVarsRequestId = null;
+
+    /** @var array<string, mixed>|null */
+    private static ?array $commonVarsMemo = null;
+
     protected function renderer(): TplRenderer
     {
         return new TplRenderer(ThemeManager::activeBaseDir());
@@ -62,10 +67,51 @@ abstract class TplController extends Controller
     }
 
     /**
+     * Serve cached HTML before controller data assembly when possible.
+     */
+    protected function tryCachedTplPage(string $bodyTpl, ?int $seriesId = null): ?\Illuminate\Http\Response
+    {
+        if ($this->shouldBypassTplHtmlCacheFromRequest()) {
+            return null;
+        }
+
+        $authKey = (string) (Auth::id() ?? 'guest');
+        if ($seriesId) {
+            $cacheKey = TplCache::seriesKey($seriesId, $authKey);
+        } else {
+            $homeVersion = in_array($bodyTpl, ['home.tpl', 'catalog.tpl'], true) ? TplCache::homeVersion() : 0;
+            $cacheKey = TplCache::pageKey(
+                request()->fullUrl(),
+                ThemeManager::activeName(),
+                $bodyTpl,
+                $authKey,
+                $homeVersion,
+                TplCache::globalVersion(),
+                TplCache::bodyTplMtime($bodyTpl),
+            );
+        }
+
+        $html = TplCache::getCachedHtml($cacheKey);
+        if ($html === null) {
+            return null;
+        }
+
+        $html = $this->injectCurrentCsrfToken($html);
+        $html = $this->injectFreshAssetVersions($html);
+
+        return response($html)->header('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    /**
      * @return array<string,mixed>
      */
     protected function commonVars(): array
     {
+        $requestId = (string) spl_object_id(request());
+        if (self::$commonVarsRequestId === $requestId && self::$commonVarsMemo !== null) {
+            return self::$commonVarsMemo;
+        }
+
         $user = Auth::user();
         $formErrors = $this->flattenValidationErrors(session('errors'));
         $authPanel = (string)session('auth_panel', '');
@@ -81,7 +127,7 @@ abstract class TplController extends Controller
             $authPanel = 'login';
         }
 
-        return array_merge([
+        $vars = array_merge([
             'csrf_token' => csrf_token(),
             'search_query' => (string)request()->query('q', ''),
             'site_config_json' => json_encode($this->siteConfigForJs(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
@@ -110,6 +156,11 @@ abstract class TplController extends Controller
             'has_notifications' => SiteConfig::bool('notifications_enabled'),
             'favourites_enabled' => SiteConfig::bool('favourites_enabled'),
         ], NavMenuBuilder::forTpl(), SiteConfig::forTpl());
+
+        self::$commonVarsRequestId = $requestId;
+        self::$commonVarsMemo = $vars;
+
+        return $vars;
     }
 
     /**
@@ -196,11 +247,7 @@ abstract class TplController extends Controller
             unset($vars['_cache_series_id']);
         }
 
-        $tplPath = ThemeManager::activeBaseDir() . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, ltrim($bodyTpl, '/'));
-        if (!str_ends_with(strtolower($tplPath), '.tpl')) {
-            $tplPath .= '.tpl';
-        }
-        $tplMtime = is_file($tplPath) ? (int)filemtime($tplPath) : 0;
+        $tplMtime = TplCache::bodyTplMtime($bodyTpl);
 
         $render = function () use ($renderer, $bodyTpl, $vars, $meta) {
             $page = $renderer->renderPage($bodyTpl, $vars);
@@ -235,15 +282,15 @@ abstract class TplController extends Controller
             $homeVersion = in_array($bodyTpl, ['home.tpl', 'catalog.tpl'], true) ? TplCache::homeVersion() : 0;
             // Key must NOT include serialize($vars): csrf/session flash made every
             // guest hit unique and bloated the database cache with dead HTML rows.
-            $cacheKey = 'tpl:' . md5(implode('|', [
+            $cacheKey = TplCache::pageKey(
                 request()->fullUrl(),
                 $themeKey,
                 $bodyTpl,
                 $authKey,
-                'hv:' . $homeVersion,
-                'gv:' . TplCache::globalVersion(),
-                'tm:' . $tplMtime,
-            ]));
+                $homeVersion,
+                TplCache::globalVersion(),
+                $tplMtime,
+            );
             $html = Cache::remember($cacheKey, $cacheTtl, $render);
         }
 
@@ -252,6 +299,29 @@ abstract class TplController extends Controller
         $html = $this->injectFreshAssetVersions($html);
 
         return response($html)->header('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    /**
+     * Session-bound UI that must not be served from (or written into) shared HTML cache.
+     */
+    protected function shouldBypassTplHtmlCacheFromRequest(): bool
+    {
+        if ((string) session('auth_panel', '') !== '') {
+            return true;
+        }
+        if (session('auth_notice') || session('comment_notice')) {
+            return true;
+        }
+        if (session('errors')) {
+            return true;
+        }
+
+        $queryAuth = (string) request()->query('auth', '');
+        if (in_array($queryAuth, ['login', 'register', 'forgot', 'reset'], true)) {
+            return true;
+        }
+
+        return false;
     }
 
     /**

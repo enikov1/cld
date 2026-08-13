@@ -19,6 +19,58 @@ class TplCache
         return 'tpl:series:keys:' . $seriesId;
     }
 
+    public static function pageKey(
+        string $fullUrl,
+        string $themeKey,
+        string $bodyTpl,
+        string $authKey,
+        int $homeVersion,
+        int $globalVersion,
+        int $tplMtime,
+    ): string {
+        return 'tpl:' . md5(implode('|', [
+            $fullUrl,
+            $themeKey,
+            $bodyTpl,
+            $authKey,
+            'hv:' . $homeVersion,
+            'gv:' . $globalVersion,
+            'tm:' . $tplMtime,
+        ]));
+    }
+
+    public static function homePayloadKey(string $themeKey): string
+    {
+        return 'home:payload:hv:' . self::homeVersion()
+            . ':gv:' . self::globalVersion()
+            . ':theme:' . $themeKey;
+    }
+
+    public static function relatedKey(int $seriesId, int $limit): string
+    {
+        return 'related:' . $seriesId . ':limit:' . $limit . ':gv:' . self::globalVersion();
+    }
+
+    public static function bodyTplMtime(string $bodyTpl): int
+    {
+        $tplPath = ThemeManager::activeBaseDir() . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, ltrim($bodyTpl, '/'));
+        if (!str_ends_with(strtolower($tplPath), '.tpl')) {
+            $tplPath .= '.tpl';
+        }
+
+        return is_file($tplPath) ? (int) filemtime($tplPath) : 0;
+    }
+
+    public static function getCachedHtml(string $cacheKey): ?string
+    {
+        $html = Cache::get($cacheKey);
+        if (!is_string($html) || $html === '') {
+            return null;
+        }
+
+        return $html;
+    }
+
     /**
      * @template T
      * @param Closure(): T $callback

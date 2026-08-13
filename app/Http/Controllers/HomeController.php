@@ -14,7 +14,10 @@ use App\Support\PaginationHelper;
 use App\Support\PluralRu;
 use App\Support\SiteConfig;
 use App\Support\Speedbar;
+use App\Support\ThemeManager;
+use App\Support\TplCache;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class HomeController extends TplController
 {
@@ -31,126 +34,160 @@ class HomeController extends TplController
 
     private function renderFirstPage()
     {
-        $popular = Series::query()
-            ->published();
-        HomeSectionService::applyHomePopularSort($popular);
-        $popular = $popular
-            ->limit(SiteConfig::int('home_popular_limit'))
-            ->get();
+        if ($cached = $this->tryCachedTplPage('home.tpl')) {
+            return $cached;
+        }
 
-        $promoCollections = Collection::query()
-            ->catalogOrder()
-            ->where('is_active', true)
-            ->where('is_hidden', false)
-            ->where('show_on_home', true)
-            ->limit(2)
-            ->get()
-            ->map(fn (Collection $c) => [
-                'slug' => $c->slug,
-                'title' => $c->title,
-                'cover_url' => $c->cover_url ?? '',
-                'banner_url' => $c->home_banner_url ?: ($c->cover_url ?? ''),
-                'url' => route('collections.show', ['slug' => $c->slug]),
-            ])
-            ->all();
+        $cacheTtl = (int) config('tpl.cache_ttl', 300);
+        $payloadKey = TplCache::homePayloadKey(ThemeManager::activeName());
 
-        $sortMode = SiteConfig::str('home_studios_sort');
-        $promoStudiosQuery = Studio::query()
-            ->where('is_active', true)
-            ->where('is_hidden', false)
-            ->withCount(['items as items_count' => function ($query) {
-                $query->whereHas('series', function ($q) {
-                    $q->where('is_active', true)
-                        ->where('is_hidden', false);
-                });
-            }])
-            ;
+        $payload = Cache::remember($payloadKey, $cacheTtl, function () {
+            $popular = Series::query()->published();
+            HomeSectionService::applyHomePopularSort($popular);
+            $popular = $popular
+                ->limit(SiteConfig::int('home_popular_limit'))
+                ->get();
 
-        $promoStudiosQuery = match ($sortMode) {
-            'items_desc' => $promoStudiosQuery
-                ->orderByDesc('items_count')
-                ->orderByDesc('is_pinned')
-                ->orderBy('sort_order')
-                ->orderByDesc('id'),
-            'items_asc' => $promoStudiosQuery
-                ->orderBy('items_count')
-                ->orderByDesc('is_pinned')
-                ->orderBy('sort_order')
-                ->orderByDesc('id'),
-            'title_asc' => $promoStudiosQuery
-                ->orderBy('title')
-                ->orderByDesc('is_pinned')
-                ->orderBy('sort_order')
-                ->orderByDesc('id'),
-            'title_desc' => $promoStudiosQuery
-                ->orderByDesc('title')
-                ->orderByDesc('is_pinned')
-                ->orderBy('sort_order')
-                ->orderByDesc('id'),
-            default => $promoStudiosQuery->catalogOrder(),
-        };
+            $promoCollections = Collection::query()
+                ->catalogOrder()
+                ->where('is_active', true)
+                ->where('is_hidden', false)
+                ->where('show_on_home', true)
+                ->limit(2)
+                ->get()
+                ->map(fn (Collection $c) => [
+                    'slug' => $c->slug,
+                    'title' => $c->title,
+                    'cover_url' => $c->cover_url ?? '',
+                    'banner_url' => $c->home_banner_url ?: ($c->cover_url ?? ''),
+                    'url' => route('collections.show', ['slug' => $c->slug]),
+                ])
+                ->all();
 
-        $promoStudios = $promoStudiosQuery
-            ->limit(SiteConfig::int('home_studios_limit'))
-            ->get()
-            ->map(function (Studio $studio) {
-                $itemsCount = (int)($studio->items_count ?? 0);
+            $sortMode = SiteConfig::str('home_studios_sort');
+            $promoStudiosQuery = Studio::query()
+                ->where('is_active', true)
+                ->where('is_hidden', false)
+                ->withCount(['items as items_count' => function ($query) {
+                    $query->whereHas('series', function ($q) {
+                        $q->where('is_active', true)
+                            ->where('is_hidden', false);
+                    });
+                }]);
 
-                return [
-                    'slug' => $studio->slug,
-                    'title' => $studio->title,
-                    'description' => $studio->description ?? '',
-                    'logo_url' => $studio->logo_url ?? '',
-                    'url' => route('studios.show', ['slug' => $studio->slug]),
-                    'items_count' => $itemsCount,
-                    'items_count_word' => PluralRu::series($itemsCount),
-                ];
-            })
-            ->all();
+            $promoStudiosQuery = match ($sortMode) {
+                'items_desc' => $promoStudiosQuery
+                    ->orderByDesc('items_count')
+                    ->orderByDesc('is_pinned')
+                    ->orderBy('sort_order')
+                    ->orderByDesc('id'),
+                'items_asc' => $promoStudiosQuery
+                    ->orderBy('items_count')
+                    ->orderByDesc('is_pinned')
+                    ->orderBy('sort_order')
+                    ->orderByDesc('id'),
+                'title_asc' => $promoStudiosQuery
+                    ->orderBy('title')
+                    ->orderByDesc('is_pinned')
+                    ->orderBy('sort_order')
+                    ->orderByDesc('id'),
+                'title_desc' => $promoStudiosQuery
+                    ->orderByDesc('title')
+                    ->orderByDesc('is_pinned')
+                    ->orderBy('sort_order')
+                    ->orderByDesc('id'),
+                default => $promoStudiosQuery->catalogOrder(),
+            };
+
+            $promoStudios = $promoStudiosQuery
+                ->limit(SiteConfig::int('home_studios_limit'))
+                ->get()
+                ->map(function (Studio $studio) {
+                    $itemsCount = (int) ($studio->items_count ?? 0);
+
+                    return [
+                        'slug' => $studio->slug,
+                        'title' => $studio->title,
+                        'description' => $studio->description ?? '',
+                        'logo_url' => $studio->logo_url ?? '',
+                        'url' => route('studios.show', ['slug' => $studio->slug]),
+                        'items_count' => $itemsCount,
+                        'items_count_word' => PluralRu::series($itemsCount),
+                    ];
+                })
+                ->all();
+
+            // Cache mapped arrays only; HTML partials are rendered after cache hit.
+            $identityCards = static fn (array $mapped) => $mapped;
+
+            $customSections = HomeBlockService::mapBlocksForHome(
+                HomeBlockService::activeBlocks(),
+                $identityCards,
+            );
+            $sections = HomeSectionService::mapSectionsForHome(
+                HomeSectionService::activeSections(),
+                $identityCards,
+            );
+            $popularMapped = PaginationHelper::mapSeries($popular);
+
+            $newEpisodes = HomeEpisodeScheduleService::recentReleasedSeries(
+                SiteConfig::int('home_new_episodes_days'),
+                SiteConfig::int('home_new_episodes_limit'),
+            );
+            $newEpisodesMapped = PaginationHelper::mapSeries($newEpisodes);
+
+            $now = now();
+            $scheduleCalendar = HomeEpisodeScheduleService::calendarMonth(
+                (int) $now->year,
+                (int) $now->month,
+            );
+
+            $contentTypeSections = HomeContentTypeSectionService::build($identityCards);
+
+            return [
+                'popular_list' => $popularMapped,
+                'promo_collections' => $promoCollections,
+                'promo_studios' => $promoStudios,
+                'custom_home_sections' => $customSections,
+                'home_sections' => $sections,
+                'new_episodes_list' => $newEpisodesMapped,
+                'schedule_calendar' => $scheduleCalendar,
+                'content_type_sections' => $contentTypeSections,
+                'home_seo_html' => \App\Models\SiteSetting::get('home_seo_html', $this->defaultSeoHtml()),
+            ];
+        });
 
         $renderCards = fn (array $mapped) => $this->renderPartial('partials/series_cards.tpl', ['series_list' => $mapped]);
 
-        $customSections = HomeBlockService::mapBlocksForHome(
-            HomeBlockService::activeBlocks(),
-            $renderCards,
-        );
+        $customSections = $this->hydrateSectionCards($payload['custom_home_sections'] ?? [], $renderCards);
+        $sections = $this->hydrateSectionCards($payload['home_sections'] ?? [], $renderCards);
 
-        $sections = HomeSectionService::mapSectionsForHome(
-            HomeSectionService::activeSections(),
-            $renderCards,
-        );
-
-        $popularMapped = PaginationHelper::mapSeries($popular);
-
-        $newEpisodes = HomeEpisodeScheduleService::recentReleasedSeries(
-            SiteConfig::int('home_new_episodes_days'),
-            SiteConfig::int('home_new_episodes_limit'),
-        );
-        $newEpisodesMapped = PaginationHelper::mapSeries($newEpisodes);
+        $popularMapped = $payload['popular_list'] ?? [];
+        $newEpisodesMapped = $payload['new_episodes_list'] ?? [];
         $newEpisodesCardsHtml = $newEpisodesMapped
-            ? $this->renderPartial('partials/series_cards.tpl', ['series_list' => $newEpisodesMapped])
+            ? $renderCards($newEpisodesMapped)
             : '';
 
-        $now = now();
-        $scheduleCalendar = HomeEpisodeScheduleService::calendarMonth(
-            (int) $now->year,
-            (int) $now->month,
-        );
+        $scheduleCalendar = $payload['schedule_calendar'] ?? [
+            'year' => (int) now()->year,
+            'month' => (int) now()->month,
+            'days' => [],
+        ];
         $scheduleCalendarJson = json_encode(
             $scheduleCalendar,
             JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS
         );
 
-        $contentTypeSections = HomeContentTypeSectionService::build(
+        $contentTypeSections = $this->hydrateContentTypeSections(
+            $payload['content_type_sections'] ?? HomeContentTypeSectionService::build(static fn () => ''),
             $renderCards,
-            fn (array $section) => $this->renderPartial('partials/home_content_type_section.tpl', $section),
         );
 
         $vars = array_merge([
             'has_watch_history' => SiteConfig::bool('watch_history_enabled'),
             'is_home_first' => true,
             'popular_list' => $popularMapped,
-            'popular_cards_html' => $this->renderPartial('partials/series_cards.tpl', ['series_list' => $popularMapped]),
+            'popular_cards_html' => $popularMapped ? $renderCards($popularMapped) : '',
             'new_episodes_list' => $newEpisodesMapped,
             'new_episodes_cards_html' => $newEpisodesCardsHtml,
             'new_episodes_block' => $newEpisodesMapped
@@ -167,8 +204,8 @@ class HomeController extends TplController
                 'schedule_calendar' => $scheduleCalendar,
                 'schedule_calendar_json' => $scheduleCalendarJson,
             ]),
-            'promo_collections' => $promoCollections,
-            'promo_studios' => $promoStudios,
+            'promo_collections' => $payload['promo_collections'] ?? [],
+            'promo_studios' => $payload['promo_studios'] ?? [],
             'custom_home_sections' => $customSections,
             'home_sections' => $sections,
             'category_sections' => $sections,
@@ -180,7 +217,7 @@ class HomeController extends TplController
             'content_type_section_5' => $contentTypeSections['by_index'][5] ?? [],
             'content_type_section_6' => $contentTypeSections['by_index'][6] ?? [],
             'content_type_section_7' => $contentTypeSections['by_index'][7] ?? [],
-            'home_seo_html' => \App\Models\SiteSetting::get('home_seo_html', $this->defaultSeoHtml()),
+            'home_seo_html' => $payload['home_seo_html'] ?? $this->defaultSeoHtml(),
             'pagination_block' => '',
         ], $contentTypeSections['flags']);
 
@@ -195,8 +232,82 @@ class HomeController extends TplController
         return $this->renderTplPage('home.tpl', $vars, $meta);
     }
 
+    /**
+     * mapBlocks/mapSections store mapped card arrays in cards_html when renderCards is identity.
+     *
+     * @param list<array<string, mixed>> $sections
+     * @param callable(array): string $renderCards
+     * @return list<array<string, mixed>>
+     */
+    private function hydrateSectionCards(array $sections, callable $renderCards): array
+    {
+        foreach ($sections as &$section) {
+            $mapped = $section['cards_html'] ?? [];
+            if (!is_array($mapped)) {
+                $mapped = [];
+            }
+            $section['cards_html'] = $mapped !== [] ? $renderCards($mapped) : '';
+            $section['cards_count'] = count($mapped);
+        }
+        unset($section);
+
+        return $sections;
+    }
+
+    /**
+     * @param array{
+     *     sections: list<array<string, mixed>>,
+     *     flags: array<string, string>,
+     *     by_index: array<int, array<string, mixed>>
+     * } $payload
+     * @param callable(array): string $renderCards
+     * @return array{
+     *     sections: list<array<string, mixed>>,
+     *     flags: array<string, string>,
+     *     by_index: array<int, array<string, mixed>>
+     * }
+     */
+    private function hydrateContentTypeSections(array $payload, callable $renderCards): array
+    {
+        $hydrate = function (array $section) use ($renderCards): array {
+            $mapped = $section['cards_list'] ?? [];
+            if (!is_array($mapped)) {
+                $mapped = [];
+            }
+
+            $section['cards_list'] = $mapped;
+            $section['cards_html'] = $mapped !== [] ? $renderCards($mapped) : '';
+            $section['cards_count'] = count($mapped);
+            $section['block_html'] = $section['cards_html'] !== ''
+                ? $this->renderPartial('partials/home_content_type_section.tpl', $section)
+                : '';
+
+            return $section;
+        };
+
+        $sections = [];
+        foreach ($payload['sections'] ?? [] as $section) {
+            $sections[] = $hydrate($section);
+        }
+
+        $byIndex = [];
+        foreach ($payload['by_index'] ?? [] as $index => $section) {
+            $byIndex[(int) $index] = $hydrate($section);
+        }
+
+        return [
+            'sections' => $sections,
+            'flags' => $payload['flags'] ?? [],
+            'by_index' => $byIndex,
+        ];
+    }
+
     private function renderCatalogPage(int $page)
     {
+        if ($cached = $this->tryCachedTplPage('catalog.tpl')) {
+            return $cached;
+        }
+
         $paginator = CatalogFilterService::paginateCatalog([], $page, request());
 
         $pagination = CatalogFilterService::buildPaginationMeta($paginator, '/', [], false);

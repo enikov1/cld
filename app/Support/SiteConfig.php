@@ -818,6 +818,38 @@ PROMPT,
         return array_keys(self::definitions());
     }
 
+    private static ?string $requestId = null;
+
+    /** @var array<string, string> */
+    private static array $valueCache = [];
+
+    /** @var array<string, string>|null */
+    private static ?array $forTplMemo = null;
+
+    /** @var array<string, string|int|bool>|null */
+    private static ?array $forJsMemo = null;
+
+    public static function flushRequestCache(): void
+    {
+        self::$requestId = null;
+        self::$valueCache = [];
+        self::$forTplMemo = null;
+        self::$forJsMemo = null;
+    }
+
+    private static function ensureRequestCache(): void
+    {
+        $id = (string) spl_object_id(request());
+        if (self::$requestId === $id) {
+            return;
+        }
+
+        self::$requestId = $id;
+        self::$valueCache = [];
+        self::$forTplMemo = null;
+        self::$forJsMemo = null;
+    }
+
     public static function bool(string $key): bool
     {
         return self::get($key) === '1';
@@ -835,10 +867,17 @@ PROMPT,
 
     public static function get(string $key): string
     {
+        self::ensureRequestCache();
+        if (array_key_exists($key, self::$valueCache)) {
+            return self::$valueCache[$key];
+        }
+
         $definitions = self::definitions();
         $default = $definitions[$key]['default'] ?? '';
+        $value = (string) SiteSetting::get($key, $default);
+        self::$valueCache[$key] = $value;
 
-        return (string)SiteSetting::get($key, $default);
+        return $value;
     }
 
     public static function passwordRule(): Password
@@ -866,6 +905,11 @@ PROMPT,
      */
     public static function forJs(): array
     {
+        self::ensureRequestCache();
+        if (self::$forJsMemo !== null) {
+            return self::$forJsMemo;
+        }
+
         $payload = [];
         foreach (self::definitions() as $key => $definition) {
             if ($definition['type'] === 'html') {
@@ -879,7 +923,7 @@ PROMPT,
             };
         }
 
-        return $payload;
+        return self::$forJsMemo = $payload;
     }
 
     /**
@@ -887,6 +931,11 @@ PROMPT,
      */
     public static function forTpl(): array
     {
+        self::ensureRequestCache();
+        if (self::$forTplMemo !== null) {
+            return self::$forTplMemo;
+        }
+
         $vars = [];
         foreach (self::definitions() as $key => $definition) {
             if ($definition['type'] === 'bool') {
@@ -894,13 +943,13 @@ PROMPT,
                 continue;
             }
 
-            $vars[$key] = (string)match ($definition['type']) {
+            $vars[$key] = (string) match ($definition['type']) {
                 'int' => self::int($key),
                 default => self::str($key),
             };
         }
 
-        return $vars;
+        return self::$forTplMemo = $vars;
     }
 
     /**

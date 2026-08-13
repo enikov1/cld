@@ -479,10 +479,8 @@ HD качестве бесплатно[/meta-title] [meta-description][series.sh
                     </div>
                 </div>
 
-                <div class="comments-list" data-comments-list data-comments-ssr="1">
-                    [comments_empty]
-                    <p class="comment-empty">{comments_ui_empty}</p>
-                    [/comments_empty] [not-comments_empty] {comments_list_html|raw} [/not-comments_empty]
+                <div class="comments-list" data-comments-list>
+                    <p class="comment-loading">{comments_ui_loading}</p>
                 </div>
             </section>
         </div>
@@ -546,10 +544,8 @@ HD качестве бесплатно[/meta-title] [meta-description][series.sh
                     </div>
                 </div>
 
-                <div class="reviews-list" data-reviews-list data-reviews-ssr="1">
-                    [reviews_empty]
-                    <p class="comment-empty">{reviews_ui_empty}</p>
-                    [/reviews_empty] [not-reviews_empty] {reviews_list_html|raw} [/not-reviews_empty]
+                <div class="reviews-list" data-reviews-list>
+                    <p class="comment-loading">{reviews_ui_loading}</p>
                 </div>
             </section>
         </div>
@@ -607,10 +603,8 @@ HD качестве бесплатно[/meta-title] [meta-description][series.sh
             </div>
         </div>
 
-        <div class="comments-list" data-comments-list data-comments-ssr="1">
-            [comments_empty]
-            <p class="comment-empty">{comments_ui_empty}</p>
-            [/comments_empty] [not-comments_empty] {comments_list_html|raw} [/not-comments_empty]
+        <div class="comments-list" data-comments-list>
+            <p class="comment-loading">{comments_ui_loading}</p>
         </div>
     </section>
     [/not-has_reviews]
@@ -672,10 +666,8 @@ HD качестве бесплатно[/meta-title] [meta-description][series.sh
                 <button type="button" class="dontusebuttonclass comments-sort__link" data-reviews-sort-value="rating">{reviews_ui_sort_rating}</button> [/not-reviews_sort_rating_active]
             </div>
         </div>
-        <div class="reviews-list" data-reviews-list data-reviews-ssr="1">
-            [reviews_empty]
-            <p class="comment-empty">{reviews_ui_empty}</p>
-            [/reviews_empty] [not-reviews_empty] {reviews_list_html|raw} [/not-reviews_empty]
+        <div class="reviews-list" data-reviews-list>
+            <p class="comment-loading">{reviews_ui_loading}</p>
         </div>
     </section>
     [/has_reviews]

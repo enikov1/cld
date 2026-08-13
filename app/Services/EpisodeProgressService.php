@@ -6,9 +6,15 @@ use App\Models\Episode;
 use App\Models\Season;
 use App\Models\Series;
 use App\Support\PluralRu;
+use Illuminate\Support\Facades\DB;
 
 class EpisodeProgressService
 {
+    private static ?string $progressMemoRequestId = null;
+
+    /** @var array<string, array<int, array{season_number: int, last_episode_number: int}>> */
+    private static array $progressMemo = [];
+
     /**
      * Обновить season_number / last_episode_number на сериале по последней вышедшей серии.
      */
@@ -118,24 +124,38 @@ class EpisodeProgressService
             return [];
         }
 
-        $episodes = Episode::query()
-            ->where('status', Episode::STATUS_RELEASED)
-            ->whereHas('season', fn ($q) => $q->whereIn('series_id', $seriesIds))
-            ->with('season:id,series_id,season_number')
-            ->get();
+        sort($seriesIds);
+        $memoKey = implode(',', $seriesIds);
+        $requestId = (string) spl_object_id(request());
+        if (self::$progressMemoRequestId !== $requestId) {
+            self::$progressMemoRequestId = $requestId;
+            self::$progressMemo = [];
+        }
+        if (isset(self::$progressMemo[$memoKey])) {
+            return self::$progressMemo[$memoKey];
+        }
+
+        $rows = DB::table('episodes')
+            ->join('seasons', 'seasons.id', '=', 'episodes.season_id')
+            ->whereIn('seasons.series_id', $seriesIds)
+            ->where('episodes.status', Episode::STATUS_RELEASED)
+            ->get([
+                'seasons.series_id as series_id',
+                'seasons.season_number as season_number',
+                'episodes.episode_number as episode_number',
+            ]);
 
         $best = [];
-        foreach ($episodes as $ep) {
-            if (!$ep->season) {
-                continue;
-            }
-            $sid = (int) $ep->season->series_id;
-            $score = ((int) $ep->season->season_number * 10000) + (int) $ep->episode_number;
+        foreach ($rows as $row) {
+            $sid = (int) $row->series_id;
+            $season = (int) $row->season_number;
+            $episode = (int) $row->episode_number;
+            $score = ($season * 10000) + $episode;
             if (!isset($best[$sid]) || $score > $best[$sid]['score']) {
                 $best[$sid] = [
                     'score' => $score,
-                    'season_number' => (int) $ep->season->season_number,
-                    'last_episode_number' => (int) $ep->episode_number,
+                    'season_number' => $season,
+                    'last_episode_number' => $episode,
                 ];
             }
         }
@@ -148,7 +168,7 @@ class EpisodeProgressService
             ];
         }
 
-        return $out;
+        return self::$progressMemo[$memoKey] = $out;
     }
 
     /**

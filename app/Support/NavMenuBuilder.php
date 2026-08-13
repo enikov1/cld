@@ -14,11 +14,27 @@ use App\Models\Studio;
 
 class NavMenuBuilder
 {
+    private static ?string $requestId = null;
+
+    /** @var array<string, mixed>|null */
+    private static ?array $forTplMemo = null;
+
+    public static function flushRequestCache(): void
+    {
+        self::$requestId = null;
+        self::$forTplMemo = null;
+    }
+
     /**
      * @return array<string, mixed>
      */
     public static function forTpl(): array
     {
+        $id = (string) spl_object_id(request());
+        if (self::$requestId === $id && self::$forTplMemo !== null) {
+            return self::$forTplMemo;
+        }
+
         $items = NavItem::query()
             ->with([
                 'megaButtons' => fn ($q) => $q->where('is_active', true),
@@ -46,11 +62,14 @@ class NavMenuBuilder
             }
         }
 
-        return [
+        self::$requestId = $id;
+        self::$forTplMemo = [
             'nav_desktop_items' => $desktop,
             'nav_mobile_items' => $mobile,
             'categories_list' => $desktop,
         ];
+
+        return self::$forTplMemo;
     }
 
     /**
