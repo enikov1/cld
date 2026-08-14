@@ -2,6 +2,7 @@ export type SiteConfigField = {
   key: string
   type: 'bool' | 'int' | 'string' | 'html' | 'enum'
   label: string
+  default?: string | null
   description?: string | null
   min?: number | null
   max?: number | null

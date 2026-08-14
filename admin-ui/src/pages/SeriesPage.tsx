@@ -351,6 +351,7 @@ export default function SeriesPage() {
   const [perPage, setPerPage] = useState(50)
   const [total, setTotal] = useState(0)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [listSort, setListSort] = useState<string>('default')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerTab, setDrawerTab] = useState('main')
   const [mainSubTab, setMainSubTab] = useState('basic')
@@ -556,7 +557,7 @@ export default function SeriesPage() {
   const hasKpIdValue = Boolean(String(watchedKpId ?? '').trim())
   const hasImdbIdValue = Boolean(String(watchedImdbId ?? '').trim())
   const hasTmdbIdValue = Boolean(String(watchedTmdbId ?? '').trim())
-  const currentSort = (Form.useWatch('sort', filterForm) as string | undefined) ?? 'default'
+  const currentSort = listSort
 
   const loadStudios = useCallback(async () => {
     const data = await api<{ items: StudioItem[] }>('/api/admin/studios')
@@ -630,7 +631,7 @@ export default function SeriesPage() {
     const seq = ++loadSeriesSeqRef.current
     setLoading(true)
     try {
-      const values = filters ?? filterForm.getFieldsValue()
+      const values = filters ?? (filterForm.getFieldsValue(true) as SeriesListFilters)
       const params = new URLSearchParams()
       params.set('page', String(nextPage))
       params.set('per_page', String(nextPerPage))
@@ -669,25 +670,27 @@ export default function SeriesPage() {
   }, [])
 
   useEffect(() => {
-    filterForm.setFieldsValue({
-      sort: 'default',
-      with_trashed: false,
-    })
+    const initialFilters: SeriesListFilters = { sort: 'default', with_trashed: false }
+    filterForm.setFieldsValue(initialFilters)
     // List first — do not wait for taxonomy/people (can be huge).
-    void loadSeries(1, 50, filterForm.getFieldsValue())
+    void loadSeries(1, 50, initialFilters)
     void Promise.all([loadTaxonomy(), loadStudios(), loadCollections()]).catch((e) =>
       message.error(String((e as Error).message)),
     )
   }, [])
 
   function applyFilters() {
-    loadSeries(1, perPage)
+    const values = filterForm.getFieldsValue(true) as SeriesListFilters
+    setListSort(values.sort ?? 'default')
+    loadSeries(1, perPage, values)
   }
 
   function resetFilters() {
+    const cleared: SeriesListFilters = { sort: 'default', with_trashed: false }
     filterForm.resetFields()
-    filterForm.setFieldsValue({ sort: 'default', with_trashed: false })
-    loadSeries(1, perPage, { sort: 'default', with_trashed: false })
+    filterForm.setFieldsValue(cleared)
+    setListSort('default')
+    loadSeries(1, perPage, cleared)
   }
 
   const applyGalleryUrls = useCallback((urls: string[] | null | undefined) => {
@@ -1750,7 +1753,7 @@ export default function SeriesPage() {
         }
       >
         {filtersOpen ? (
-          <Form form={filterForm} layout="vertical" onFinish={applyFilters}>
+          <Form form={filterForm} layout="vertical" preserve onFinish={applyFilters}>
             <Row gutter={16}>
               <Col xs={24} md={12} lg={8}>
                 <Form.Item label="Поиск" name="q" extra="Название, KP/IMDb/TMDB ID, slug">
@@ -1920,15 +1923,16 @@ export default function SeriesPage() {
             nextSort = cfg.asc
           } else if (cfg && single?.order === 'descend') {
             nextSort = cfg.desc
-          } else if (cfg && !single?.order) {
+          } else if (cfg && columnKey && !single?.order) {
             nextSort = 'default'
           }
 
           if (nextSort !== currentSort) {
+            setListSort(nextSort)
             filterForm.setFieldsValue({ sort: nextSort })
           }
 
-          const values = { ...filterForm.getFieldsValue(), sort: nextSort } as SeriesListFilters
+          const values = { ...filterForm.getFieldsValue(true), sort: nextSort } as SeriesListFilters
           void loadSeries(nextPage, nextPerPage, values)
         }}
       />

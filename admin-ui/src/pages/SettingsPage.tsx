@@ -180,10 +180,12 @@ function sectionHash(
   catalogTab: CatalogTabKey,
   seoTab: SeoTabKey,
   commentsTab: CommentsTabKey,
+  reviewsTab: ReviewsTabKey,
 ): string {
   if (section === 'catalog') return `catalog/${catalogTab}`
   if (section === 'seo') return `seo/${seoTab}`
   if (section === 'comments') return `comments/${commentsTab}`
+  if (section === 'reviews') return `reviews/${reviewsTab}`
   return section
 }
 
@@ -205,6 +207,41 @@ function groupCommentsFields(fields: SiteConfigField[]) {
   return COMMENTS_TABS
     .filter((tab) => (groups[tab.key] ?? []).length > 0)
     .map((tab) => ({ ...tab, fields: groups[tab.key] ?? [] }))
+}
+
+const REVIEWS_TABS = [
+  { key: 'general', label: 'Основные' },
+  { key: 'limits', label: 'Лимиты' },
+  { key: 'messages', label: 'Сообщения' },
+  { key: 'ui', label: 'Интерфейс' },
+] as const
+
+type ReviewsTabKey = (typeof REVIEWS_TABS)[number]['key']
+
+function reviewsTabForField(key: string): ReviewsTabKey {
+  if (key.startsWith('reviews_msg_')) return 'messages'
+  if (key.startsWith('reviews_ui_') || key.startsWith('reviews_label_')) return 'ui'
+  if (key.includes('_length') || key === 'profile_reviews_limit' || key === 'reviews_list_limit') return 'limits'
+  return 'general'
+}
+
+function groupReviewsFields(fields: SiteConfigField[]) {
+  const groups: Partial<Record<ReviewsTabKey, SiteConfigField[]>> = {}
+  for (const field of fields) {
+    const tab = reviewsTabForField(field.key)
+    groups[tab] ??= []
+    groups[tab].push(field)
+  }
+
+  return REVIEWS_TABS
+    .filter((tab) => (groups[tab.key] ?? []).length > 0)
+    .map((tab) => ({ ...tab, fields: groups[tab.key] ?? [] }))
+}
+
+function reviewsTabFromHash(): ReviewsTabKey {
+  const hash = window.location.hash.replace(/^#/, '')
+  const tab = hash.split('/')[1]
+  return REVIEWS_TABS.some((item) => item.key === tab) ? (tab as ReviewsTabKey) : 'general'
 }
 
 function commentsTabFromHash(): CommentsTabKey {
@@ -259,6 +296,7 @@ export default function SettingsPage() {
   const [catalogTab, setCatalogTab] = useState<CatalogTabKey>(catalogTabFromHash)
   const [seoTab, setSeoTab] = useState<SeoTabKey>(seoTabFromHash)
   const [commentsTab, setCommentsTab] = useState<CommentsTabKey>(commentsTabFromHash)
+  const [reviewsTab, setReviewsTab] = useState<ReviewsTabKey>(reviewsTabFromHash)
   const [tabPosition, setTabPosition] = useState<'left' | 'top'>('left')
   const [form] = Form.useForm()
   const highlightField = searchParams.get('highlight')?.trim() || ''
@@ -463,12 +501,19 @@ export default function SettingsPage() {
     const applyFields = (schema: SiteConfigSchema) => {
       Object.values(schema).forEach((group) => {
         group.fields.forEach((field) => {
+          const stored = settingsMap[field.key]
           if (field.type === 'bool') {
-            values[field.key] = settingsMap[field.key] === '1'
+            values[field.key] = stored !== undefined && stored !== ''
+              ? stored === '1'
+              : field.default === '1'
           } else if (field.type === 'int') {
-            values[field.key] = Number(settingsMap[field.key] ?? field.min ?? 0)
+            values[field.key] = stored !== undefined && stored !== ''
+              ? Number(stored)
+              : Number(field.default ?? field.min ?? 0)
           } else {
-            values[field.key] = settingsMap[field.key] ?? ''
+            values[field.key] = stored !== undefined && stored !== ''
+              ? stored
+              : (field.default ?? '')
           }
         })
       })
@@ -493,6 +538,7 @@ export default function SettingsPage() {
       setCatalogTab(catalogTabFromHash())
       setSeoTab(seoTabFromHash())
       setCommentsTab(commentsTabFromHash())
+      setReviewsTab(reviewsTabFromHash())
     }
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
@@ -530,7 +576,15 @@ export default function SettingsPage() {
         setCommentsTab(nextTab)
       }
     }
-  }, [highlightField, catalogTab, seoTab, commentsTab, configSchema.catalog?.fields, configSchema.comments?.fields, configSeoFields])
+
+    const reviewsKeys = new Set((configSchema.reviews?.fields ?? []).map((field) => field.key))
+    if (reviewsKeys.has(highlightField)) {
+      const nextTab = reviewsTabForField(highlightField)
+      if (nextTab !== reviewsTab) {
+        setReviewsTab(nextTab)
+      }
+    }
+  }, [highlightField, catalogTab, seoTab, commentsTab, reviewsTab, configSchema.catalog?.fields, configSchema.comments?.fields, configSchema.reviews?.fields, configSeoFields])
 
   useEffect(() => {
     if (!highlightField || loading) {
@@ -567,12 +621,12 @@ export default function SettingsPage() {
         window.clearTimeout(clearHighlight)
       }
     }
-  }, [highlightField, loading, section, catalogTab, seoTab, commentsTab, searchParams, setSearchParams])
+  }, [highlightField, loading, section, catalogTab, seoTab, commentsTab, reviewsTab, searchParams, setSearchParams])
 
   function changeSection(key: string) {
     const next = key as SettingsSection
     setSection(next)
-    window.location.hash = sectionHash(next, catalogTab, seoTab, commentsTab)
+    window.location.hash = sectionHash(next, catalogTab, seoTab, commentsTab, reviewsTab)
   }
 
   function changeCatalogTab(key: string) {
@@ -591,6 +645,12 @@ export default function SettingsPage() {
     const next = key as CommentsTabKey
     setCommentsTab(next)
     window.location.hash = `comments/${next}`
+  }
+
+  function changeReviewsTab(key: string) {
+    const next = key as ReviewsTabKey
+    setReviewsTab(next)
+    window.location.hash = `reviews/${next}`
   }
 
   async function save(values: Record<string, unknown>) {
@@ -1177,9 +1237,19 @@ export default function SettingsPage() {
       children: (
         <Card title={configSchema.reviews?.title ?? 'Рецензии'} loading={loading} bordered={false}>
           <Typography.Paragraph type="secondary">
-            Рецензии с оценкой 1–10, лимиты и тексты интерфейса.
+            Рецензии с оценкой 1–10, лимиты и тексты интерфейса. Сохранение применяется ко всем вкладкам сразу.
           </Typography.Paragraph>
-          <SiteConfigFields fields={configSchema.reviews?.fields ?? []} />
+          <Tabs
+            activeKey={reviewsTab}
+            onChange={changeReviewsTab}
+            size="small"
+            className="settings-inner-tabs"
+            items={groupReviewsFields(configSchema.reviews?.fields ?? []).map((tab) => ({
+              key: tab.key,
+              label: tab.label,
+              children: <SiteConfigFields fields={tab.fields} />,
+            }))}
+          />
         </Card>
       ),
     },
