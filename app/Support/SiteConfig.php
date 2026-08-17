@@ -446,7 +446,7 @@ class SiteConfig
                 'label' => 'Код счётчиков и метрик',
                 'description' => 'HTML/JavaScript: Яндекс.Метрика, Google Analytics, LiveInternet и др. Выводится перед </body> на всех страницах.',
             ],
-            'series_meta_title_suffix' => ['type' => 'string', 'default' => ' смотреть онлайн в хорошем HD качестве бесплатно', 'group' => 'seo', 'label' => 'Суффикс title сериала'],
+            'series_meta_title_suffix' => ['type' => 'string', 'default' => 'смотреть онлайн в хорошем HD качестве бесплатно', 'group' => 'seo', 'label' => 'Суффикс title сериала'],
             'series_meta_description_fallback' => ['type' => 'string', 'default' => 'Смотреть бесплатно онлайн.', 'group' => 'seo', 'label' => 'Fallback description сериала'],
             'home_meta_title' => ['type' => 'string', 'default' => 'Сериалы онлайн, смотреть в хорошем HD качестве бесплатно', 'group' => 'seo', 'label' => 'Meta title главной'],
             'home_meta_description' => ['type' => 'string', 'default' => 'Lordserials — смотреть новые серии любимых сериалов в хорошем переводе бесплатно.', 'group' => 'seo', 'label' => 'Meta description главной'],
