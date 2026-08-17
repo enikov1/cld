@@ -20,13 +20,15 @@ class SearchController extends TplController
 
         if ($query !== '') {
             $resultsCount = self::countSuggestResults($result['groups']);
-            SearchQueryStatService::tryRecord(
-                $request,
-                $query,
-                'suggest',
-                $resultsCount > 0,
-                $resultsCount
-            );
+            if ($resultsCount > 0) {
+                SearchQueryStatService::tryRecord(
+                    $request,
+                    $query,
+                    'suggest',
+                    true,
+                    $resultsCount
+                );
+            }
         }
 
         return response()->json($result);

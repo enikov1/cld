@@ -315,6 +315,8 @@ class SiteConfig
             ],
             'search_per_page' => ['type' => 'int', 'default' => '24', 'group' => 'catalog', 'label' => 'Результатов поиска на странице', 'min' => 6, 'max' => 60],
             'search_suggest_min_chars' => ['type' => 'int', 'default' => '2', 'group' => 'catalog', 'label' => 'Мин. символов для быстрого поиска', 'min' => 1, 'max' => 6],
+            'search_suggest_debounce_ms' => ['type' => 'int', 'default' => '450', 'group' => 'catalog', 'label' => 'Задержка быстрого поиска (мс)', 'min' => 150, 'max' => 1500],
+            'search_suggest_cache_ttl' => ['type' => 'int', 'default' => '60', 'group' => 'catalog', 'label' => 'Кэш быстрого поиска (сек)', 'min' => 0, 'max' => 300],
             'search_suggest_limit' => ['type' => 'int', 'default' => '5', 'group' => 'catalog', 'label' => 'Результатов в каждой группе быстрого поиска', 'min' => 2, 'max' => 10],
             'search_full_group_limit' => ['type' => 'int', 'default' => '12', 'group' => 'catalog', 'label' => 'Результатов в каждой группе полного поиска', 'min' => 4, 'max' => 60],
             'search_popular_limit' => ['type' => 'int', 'default' => '20', 'group' => 'catalog', 'label' => 'Популярных поисковых запросов на странице', 'min' => 5, 'max' => 50],

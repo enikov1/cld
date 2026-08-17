@@ -921,7 +921,10 @@
 
             var timer = null;
             var requestId = 0;
+            var abortController = null;
+            var lastFetchedQuery = '';
             var minChars = parseInt(cfg('search_suggest_min_chars', 2), 10) || 2;
+            var debounceMs = parseInt(cfg('search_suggest_debounce_ms', 450), 10) || 450;
 
             function closePanel() {
                 panel.hidden = true;
@@ -991,9 +994,20 @@
             function fetchSuggest() {
                 var q = input.value.trim();
                 if (q.length < minChars) {
+                    lastFetchedQuery = '';
                     closePanel();
                     return;
                 }
+
+                if (q === lastFetchedQuery && panel.innerHTML && !panel.querySelector('.ls-search__loading')) {
+                    openPanel();
+                    return;
+                }
+
+                if (abortController) {
+                    abortController.abort();
+                }
+                abortController = new AbortController();
 
                 var current = ++requestId;
                 panel.innerHTML = '<div class="ls-search__loading">Ищем...</div>';
@@ -1005,6 +1019,7 @@
                         'X-Requested-With': 'XMLHttpRequest',
                     },
                     credentials: 'same-origin',
+                    signal: abortController.signal,
                 })
                     .then(readJsonResponse)
                     .then(function (res) {
@@ -1013,16 +1028,18 @@
                             closePanel();
                             return;
                         }
+                        lastFetchedQuery = q;
                         render(res.data);
                     })
-                    .catch(function () {
+                    .catch(function (err) {
+                        if (err && err.name === 'AbortError') return;
                         if (current === requestId) closePanel();
                     });
             }
 
             input.addEventListener('input', function () {
                 clearTimeout(timer);
-                timer = setTimeout(fetchSuggest, 280);
+                timer = setTimeout(fetchSuggest, debounceMs);
             });
 
             input.addEventListener('focus', function () {

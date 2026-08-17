@@ -6,6 +6,7 @@ use App\Support\AdminPath;
 use App\Support\NavMenuBuilder;
 use App\Support\SiteBranding;
 use App\Support\Speedbar;
+use App\Support\SeriesSeo;
 use App\Support\SiteConfig;
 use App\Support\ThemeManager;
 use App\Support\TplCache;
@@ -418,13 +419,21 @@ abstract class TplController extends Controller
         if (empty($merged['title'])) {
             $merged['title'] = (string)($vars['page']['heading'] ?? config('app.name'));
         }
+        $merged['title'] = SeriesSeo::oneLine((string) $merged['title']);
 
         if (empty($merged['canonical'])) {
             $merged['canonical'] = request()->fullUrl();
         }
 
-        foreach (['description', 'robots', 'image', 'prev', 'next', 'og', 'twitter'] as $key) {
+        foreach (['description', 'robots', 'image', 'prev', 'next', 'og', 'twitter', 'og_type'] as $key) {
             $merged[$key] = (string)($merged[$key] ?? '');
+        }
+
+        if ($merged['description'] !== '') {
+            $merged['description'] = SeriesSeo::oneLine($merged['description']);
+        }
+        if ($merged['image'] !== '') {
+            $merged['image'] = SeriesSeo::absoluteUrl($merged['image']);
         }
 
         return $merged;
@@ -440,12 +449,13 @@ abstract class TplController extends Controller
         $description = $meta['description'];
         $canonical = $meta['canonical'];
         $image = $meta['image'] !== '' ? $meta['image'] : null;
+        $ogType = $meta['og_type'] !== '' ? $meta['og_type'] : 'article';
 
         return [
             'title' => $title,
             'description' => $description,
             'canonical' => $canonical,
-            'og' => $meta['og'] !== '' ? $meta['og'] : $this->buildOgMeta($title, $description, $image, $canonical),
+            'og' => $meta['og'] !== '' ? $meta['og'] : $this->buildOgMeta($title, $description, $image, $canonical, $ogType),
             'twitter' => $meta['twitter'] !== '' ? $meta['twitter'] : $this->buildTwitterMeta($title, $description, $image, $canonical),
             'prev' => $meta['prev'],
             'next' => $meta['next'],
@@ -453,16 +463,21 @@ abstract class TplController extends Controller
         ];
     }
 
-    private function buildOgMeta(string $title, string $description, ?string $image, string $url): string
+    private function buildOgMeta(string $title, string $description, ?string $image, string $url, string $ogType = 'article'): string
     {
+        $siteName = trim((string) (\App\Models\SiteSetting::get('site_name', config('app.name', 'LordSerial'))));
         $parts = [
-            '<meta property="og:type" content="article">',
+            '<meta property="og:type" content="' . e($ogType) . '">',
+            '<meta property="og:locale" content="ru_RU">',
             '<meta property="og:title" content="' . e($title) . '">',
             '<meta property="og:description" content="' . e($description) . '">',
             '<meta property="og:url" content="' . e($url) . '">',
         ];
+        if ($siteName !== '') {
+            $parts[] = '<meta property="og:site_name" content="' . e($siteName) . '">';
+        }
         if ($image) {
-            $parts[] = '<meta property="og:image" content="' . e($image) . '">';
+            $parts[] = '<meta property="og:image" content="' . e(SeriesSeo::absoluteUrl($image)) . '">';
         }
         return implode("\n", $parts);
     }
@@ -476,7 +491,7 @@ abstract class TplController extends Controller
             '<meta property="twitter:url" content="' . e($url) . '">',
         ];
         if ($image) {
-            $parts[] = '<meta property="twitter:image" content="' . e($image) . '">';
+            $parts[] = '<meta property="twitter:image" content="' . e(SeriesSeo::absoluteUrl($image)) . '">';
         }
         return implode("\n", $parts);
     }

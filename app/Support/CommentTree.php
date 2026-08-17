@@ -14,7 +14,7 @@ class CommentTree
     /**
      * @return list<array<string, mixed>>
      */
-    public static function forSeries(int $seriesId, Request $request, string $sort = 'date'): array
+    public static function forSeries(int $seriesId, Request $request, string $sort = 'date', bool $includeUserVotes = true): array
     {
         $sort = self::normalizeSort($sort);
 
@@ -29,7 +29,9 @@ class CommentTree
             ->orderBy('created_at')
             ->get();
 
-        $voteMap = self::userVoteMap($comments->pluck('id')->all(), $request);
+        $voteMap = $includeUserVotes
+            ? self::userVoteMap($comments->pluck('id')->all(), $request)
+            : [];
 
         $sortMeta = [];
         $roots = self::build(

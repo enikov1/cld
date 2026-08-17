@@ -1,5 +1,4 @@
-[meta-title]{series.title} ([type-1]Фильм[/type-1][type-2]сериал[/type-2][type-3]Мультфильм[/type-3][type-4]Мультсериал[/type-4][type-5]Аниме[/type-5][type-6]Дорама[/type-6][type-7]ТВ-шоу[/type-7], {series.year}) {season-type-4} смотреть онлайн в хорошем
-HD качестве бесплатно[/meta-title] [meta-description][series.short_description]{series.short_description}[/series.short_description][not-series.short_description][series.description]{series.description}[/series.description][/not-series.short_description][/meta-description]
+[meta-title]{series.title} ([type-1]Фильм[/type-1][type-2]сериал[/type-2][type-3]Мультфильм[/type-3][type-4]Мультсериал[/type-4][type-5]Аниме[/type-5][type-6]Дорама[/type-6][type-7]ТВ-шоу[/type-7], {series.year}) {season-type-4}{series_meta_title_suffix}[/meta-title] [meta-description][series.short_description]{series.short_description}[/series.short_description][not-series.short_description][series.description]{series.description}[/series.description][/not-series.short_description][/meta-description]
 [meta-image]{series.poster_url|raw}[/meta-image] [meta-canonical]{seo.canonical|raw}[/meta-canonical] [meta-robots]{seo.robots|raw}[/meta-robots]
 <div class="fmain" data-series-id="{series.id}">
     [auth.logged_in]<span hidden data-logged-in="1"></span>[/auth.logged_in]
@@ -86,7 +85,7 @@ HD качестве бесплатно[/meta-title] [meta-description][series.sh
                             <div class="serial-detail__name">Режиссёр:</div>
                             <div class="serial-detail__value serial-detail__links">
                                 [loop series.directors]
-                                <span class="serial-detail__link">{item.name}</span>[not-item.is_last]<span class="serial-detail__sep">, </span>[/not-item.is_last] [/loop]
+                                <a href="{item.url|raw}" class="serial-detail__link serial-detail__link--person" [item.photo_url] data-person-photo="{item.photo_url|raw}" [/item.photo_url]>{item.name}</a>[not-item.is_last]<span class="serial-detail__sep">, </span>[/not-item.is_last] [/loop]
                             </div>
                         </div>
                         [/series.directors] [series.genres]
@@ -138,7 +137,7 @@ HD качестве бесплатно[/meta-title] [meta-description][series.sh
                             <div class="serial-detail__name">Актёры:</div>
                             <div class="serial-detail__value serial-detail__links">
                                 [loop series.actors]
-                                <span class="serial-detail__link serial-detail__link--person" [item.photo_url] data-person-photo="{item.photo_url|raw}" [/item.photo_url]>{item.name}</span>[not-item.is_last]<span class="serial-detail__sep">, </span>[/not-item.is_last]
+                                <a href="{item.url|raw}" class="serial-detail__link serial-detail__link--person" [item.photo_url] data-person-photo="{item.photo_url|raw}" [/item.photo_url]>{item.name}</a>[not-item.is_last]<span class="serial-detail__sep">, </span>[/not-item.is_last]
                                 [/loop]
                             </div>
                         </div>
@@ -479,8 +478,12 @@ HD качестве бесплатно[/meta-title] [meta-description][series.sh
                     </div>
                 </div>
 
-                <div class="comments-list" data-comments-list>
-                    <p class="comment-loading">{comments_ui_loading}</p>
+                <div class="comments-list" data-comments-list[comments_ssr] data-comments-ssr="1"[/comments_ssr]>
+                    [comments_list_html]{comments_list_html|raw}[/comments_list_html]
+                    [not-comments_list_html]
+                    [comments_ssr]<p class="comment-empty">{comments_ui_empty}</p>[/comments_ssr]
+                    [not-comments_ssr]<p class="comment-loading">{comments_ui_loading}</p>[/not-comments_ssr]
+                    [/not-comments_list_html]
                 </div>
             </section>
         </div>
@@ -544,8 +547,12 @@ HD качестве бесплатно[/meta-title] [meta-description][series.sh
                     </div>
                 </div>
 
-                <div class="reviews-list" data-reviews-list>
-                    <p class="comment-loading">{reviews_ui_loading}</p>
+                <div class="reviews-list" data-reviews-list[reviews_ssr] data-reviews-ssr="1"[/reviews_ssr]>
+                    [reviews_list_html]{reviews_list_html|raw}[/reviews_list_html]
+                    [not-reviews_list_html]
+                    [reviews_ssr]<p class="comment-empty">{reviews_ui_empty}</p>[/reviews_ssr]
+                    [not-reviews_ssr]<p class="comment-loading">{reviews_ui_loading}</p>[/not-reviews_ssr]
+                    [/not-reviews_list_html]
                 </div>
             </section>
         </div>
@@ -603,8 +610,12 @@ HD качестве бесплатно[/meta-title] [meta-description][series.sh
             </div>
         </div>
 
-        <div class="comments-list" data-comments-list>
-            <p class="comment-loading">{comments_ui_loading}</p>
+        <div class="comments-list" data-comments-list[comments_ssr] data-comments-ssr="1"[/comments_ssr]>
+            [comments_list_html]{comments_list_html|raw}[/comments_list_html]
+            [not-comments_list_html]
+            [comments_ssr]<p class="comment-empty">{comments_ui_empty}</p>[/comments_ssr]
+            [not-comments_ssr]<p class="comment-loading">{comments_ui_loading}</p>[/not-comments_ssr]
+            [/not-comments_list_html]
         </div>
     </section>
     [/not-has_reviews]
@@ -666,8 +677,12 @@ HD качестве бесплатно[/meta-title] [meta-description][series.sh
                 <button type="button" class="dontusebuttonclass comments-sort__link" data-reviews-sort-value="rating">{reviews_ui_sort_rating}</button> [/not-reviews_sort_rating_active]
             </div>
         </div>
-        <div class="reviews-list" data-reviews-list>
-            <p class="comment-loading">{reviews_ui_loading}</p>
+        <div class="reviews-list" data-reviews-list[reviews_ssr] data-reviews-ssr="1"[/reviews_ssr]>
+            [reviews_list_html]{reviews_list_html|raw}[/reviews_list_html]
+            [not-reviews_list_html]
+            [reviews_ssr]<p class="comment-empty">{reviews_ui_empty}</p>[/reviews_ssr]
+            [not-reviews_ssr]<p class="comment-loading">{reviews_ui_loading}</p>[/not-reviews_ssr]
+            [/not-reviews_list_html]
         </div>
     </section>
     [/has_reviews]

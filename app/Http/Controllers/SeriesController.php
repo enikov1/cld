@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Comment;
 use App\Models\NotificationSetting;
 use App\Models\Review;
 use App\Models\Series;
@@ -15,11 +14,14 @@ use App\Services\SeriesCardMapper;
 use App\Services\SeriesRelatedService;
 use App\Services\SeriesViewService;
 use App\Services\UserLibraryService;
+use App\Support\CommentTree;
 use App\Support\CommentView;
+use App\Support\ReviewList;
 use App\Support\ReviewView;
 use App\Support\PlayerUrlHelper;
 use App\Support\ContentTypes;
 use App\Support\SeasonEpisodeLabels;
+use App\Support\SeriesSeo;
 use App\Support\SiteConfig;
 use App\Support\SeriesUrl;
 use App\Support\Speedbar;
@@ -229,17 +231,28 @@ class SeriesController extends TplController
         }
 
         $commentsEnabled = SiteConfig::bool('comments_enabled');
-        // Lists load via API (site.js); keep cheap counts for badges / empty flags.
         $commentsSort = 'date';
-        $commentsCount = $commentsEnabled
-            ? (int) Comment::query()->where('series_id', $series->id)->where('status', 'approved')->count()
-            : 0;
+        $commentItems = $commentsEnabled
+            ? CommentTree::forSeries($series->id, request(), $commentsSort, Auth::check())
+            : [];
+        $commentsCount = CommentView::countComments($commentItems);
+        $commentsListHtml = $commentItems !== []
+            ? $this->renderCommentTreeHtml($commentItems)
+            : '';
 
         $reviewsEnabled = SiteConfig::bool('reviews_enabled');
         $reviewsSort = 'date';
-        $reviewsCount = $reviewsEnabled
-            ? (int) Review::query()->where('series_id', $series->id)->where('status', 'approved')->count()
-            : 0;
+        $reviewsPage = $reviewsEnabled
+            ? ReviewList::page($series->id, $reviewsSort)
+            : ['items' => [], 'total' => 0];
+        $reviewItems = $reviewsPage['items'];
+        $reviewsCount = (int) $reviewsPage['total'];
+        $reviewsListHtml = '';
+        foreach ($reviewItems as $reviewItem) {
+            $reviewsListHtml .= $this->renderPartial('partials/review_item.tpl', [
+                'item' => ReviewView::mapForTpl($reviewItem),
+            ]);
+        }
 
         $ownReview = null;
         if ($reviewsEnabled && Auth::check()) {
@@ -282,8 +295,9 @@ class SeriesController extends TplController
             'comments_sort_rating_active' => $commentsSort === 'rating',
             'comments_count' => $commentsCount,
             'comments_count_label' => CommentView::countLabel($commentsCount),
-            'comments_empty' => false,
-            'comments_list_html' => '',
+            'comments_empty' => $commentsEnabled && $commentsListHtml === '',
+            'comments_ssr' => $commentsEnabled ? '1' : '',
+            'comments_list_html' => $commentsListHtml,
             'has_reviews' => $reviewsEnabled,
             'has_engagement_tabs' => $commentsEnabled && $reviewsEnabled,
             'has_own_review' => (bool) $hasOwnReview,
@@ -296,8 +310,9 @@ class SeriesController extends TplController
             'reviews_sort_rating_active' => $reviewsSort === 'rating',
             'reviews_count' => $reviewsCount,
             'reviews_count_label' => ReviewView::countLabel($reviewsCount),
-            'reviews_empty' => false,
-            'reviews_list_html' => '',
+            'reviews_empty' => $reviewsEnabled && $reviewsListHtml === '',
+            'reviews_ssr' => $reviewsEnabled ? '1' : '',
+            'reviews_list_html' => $reviewsListHtml,
             'has_series_vote' => SiteConfig::bool('series_vote_enabled'),
             'has_notifications' => SiteConfig::bool('notifications_enabled'),
             'notification_subscribed' => $notificationSubscribed ? '1' : '',
@@ -329,64 +344,31 @@ class SeriesController extends TplController
                 : '',
         ]);
 
-        $tvSeriesJsonLd = [
-            '@type' => 'TVSeries',
-            'name' => $series->title,
-            'description' => $series->description,
-            'image' => $series->poster_url,
-            'url' => $seriesUrl,
-            'datePublished' => $series->year ? (string) $series->year : null,
-        ];
-
-        $aggregateRating = $reviewsEnabled
-            ? ReviewView::aggregateRatingJsonLd($series->id)
-            : null;
-        if ($aggregateRating === null && $series->userRatingLabel()) {
-            $aggregateRating = [
-                '@type' => 'AggregateRating',
-                'ratingValue' => $series->userRatingLabel(),
-                'bestRating' => '10',
-                'ratingCount' => $series->votesCount(),
-            ];
-        }
-        if ($aggregateRating === null && $series->kp_rating) {
-            $aggregateRating = [
-                '@type' => 'AggregateRating',
-                'ratingValue' => (string) $series->kp_rating,
-                'bestRating' => '10',
-                'ratingCount' => max(1, (int) $series->kp_votes_count),
-            ];
-        }
-        if ($aggregateRating !== null) {
-            $tvSeriesJsonLd['aggregateRating'] = $aggregateRating;
-        }
-
-        $tvSeriesJsonLd = array_filter(
-            $tvSeriesJsonLd,
-            static fn ($value) => $value !== null && $value !== '' && $value !== []
-        );
-
-        $this->applySpeedbar(Speedbar::forSeries($series), $vars, [$tvSeriesJsonLd]);
+        $jsonLdNodes = SeriesSeo::jsonLdNodes($series, $seriesUrl, $schedule, $reviewItems, $commentsCount);
+        $this->applySpeedbar(Speedbar::forSeries($series), $vars, $jsonLdNodes);
 
         $vars['page'] = [
             'heading' => $series->title,
         ];
 
         $meta = [
-            'image' => (string)($series->poster_url ?? ''),
+            'image' => SeriesSeo::absoluteUrl((string) ($series->poster_url ?? '')),
             'canonical' => url(SeriesUrl::path($series)),
             'robots' => $series->noindex ? 'noindex,follow' : '',
+            'og_type' => SeriesSeo::ogType($series),
         ];
 
-        $metaTitle = trim((string)($series->meta_title ?? ''));
+        $metaTitle = trim((string) ($series->meta_title ?? ''));
         if ($metaTitle !== '') {
-            $meta['title'] = trim($this->renderer()->interpolate($metaTitle, $vars));
+            $meta['title'] = SeriesSeo::oneLine($this->renderer()->interpolate($metaTitle, $vars));
         }
 
-        $metaDescription = trim((string)($series->meta_description ?? ''));
-        if ($metaDescription !== '') {
-            $meta['description'] = trim($this->renderer()->interpolate($metaDescription, $vars));
-        }
+        $meta['description'] = SeriesSeo::metaDescription(
+            $series,
+            (string) ($series->meta_description ?? ''),
+            $this->renderer(),
+            $vars
+        );
 
         $vars['_cache_series_id'] = $series->id;
 
@@ -396,6 +378,26 @@ class SeriesController extends TplController
         }
 
         return $this->renderTplPage('series/show.tpl', $vars, $meta);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $items
+     */
+    private function renderCommentTreeHtml(array $items, int $depth = 0): string
+    {
+        $html = '';
+        $hasVote = SiteConfig::bool('comments_vote_enabled');
+
+        foreach ($items as $item) {
+            $children = is_array($item['children'] ?? null) ? $item['children'] : [];
+            $childrenHtml = $children !== [] ? $this->renderCommentTreeHtml($children, $depth + 1) : '';
+            $html .= $this->renderPartial('partials/comment_item.tpl', [
+                'item' => CommentView::mapForTpl($item, $depth, $childrenHtml),
+                'has_comments_vote' => $hasVote,
+            ]);
+        }
+
+        return $html;
     }
 
     /**

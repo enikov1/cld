@@ -180,9 +180,18 @@ class Speedbar
 
     public static function forSeries(Series $series): self
     {
-        return self::create()
-            ->add('home')
-            ->add('series', ['seriesPath' => SeriesUrl::segment($series)], $series->title, isCurrent: true);
+        $bar = self::create()->add('home');
+
+        $genre = null;
+        if ($series->relationLoaded('genres')) {
+            $genre = $series->genres->first();
+        }
+
+        if ($genre) {
+            $bar->add('taxonomy_genre', ['slug' => $genre->slug], TaxonomyRegistry::displayName($genre));
+        }
+
+        return $bar->add('series', ['seriesPath' => SeriesUrl::segment($series)], $series->title, isCurrent: true);
     }
 
     public static function forSearch(?string $query = null, int $page = 1): self

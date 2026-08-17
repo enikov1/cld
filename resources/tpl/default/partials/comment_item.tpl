@@ -35,5 +35,5 @@
             </footer>
         </div>
     </div>
-    [item.children_html]{item.children_html|raw}[/item.children_html]
+    [item.children_html]<div class="comment-replies">{item.children_html|raw}</div>[/item.children_html]
 </article>

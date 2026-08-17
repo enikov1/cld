@@ -10,6 +10,7 @@ use App\Models\Studio;
 use App\Models\Year;
 use App\Support\SeriesUrl;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Cache;
 
 class QuickSearchService
 {
@@ -29,6 +30,21 @@ class QuickSearchService
             ];
         }
 
+        $cacheTtl = SiteConfig::int('search_suggest_cache_ttl');
+        if ($cacheTtl <= 0) {
+            return self::buildSuggestPayload($query, $limit);
+        }
+
+        $cacheKey = 'search:suggest:' . md5(mb_strtolower($query) . ':' . $limit);
+
+        return Cache::remember($cacheKey, $cacheTtl, static fn () => self::buildSuggestPayload($query, $limit));
+    }
+
+    /**
+     * @return array{query: string, groups: list<array{type: string, label: string, items: list<array<string, string>>}>}
+     */
+    private static function buildSuggestPayload(string $query, int $limit): array
+    {
         return [
             'query' => $query,
             'groups' => self::buildGroups($query, $limit, includeSeries: true, includeDirectors: false),
