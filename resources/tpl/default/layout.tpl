@@ -60,10 +60,19 @@
     <meta name="google-site-verification" content="{seo_google_verification}"> [/seo_google_verification] [seo_yandex_verification]
     <meta name="yandex-verification" content="{seo_yandex_verification}"> [/seo_yandex_verification]
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Oswald:wght@600;700;800&display=swap" rel="stylesheet"> [theme.stylesheets] [loop theme.stylesheets]
+    [theme.font_preloads]
+    [loop theme.font_preloads]
+    <link rel="preload" as="font" type="font/woff2" href="{item|raw}">
+    [/loop]
+    [/theme.font_preloads]
+    [theme.stylesheets] [loop theme.stylesheets]
     <link rel="stylesheet" href="{item|raw}"> [/loop] [/theme.stylesheets]
+    [theme.deferred_stylesheets]
+    [loop theme.deferred_stylesheets]
+    <link rel="stylesheet" href="{item|raw}" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="{item|raw}"></noscript>
+    [/loop]
+    [/theme.deferred_stylesheets]
 
     <meta name="csrf-token" content="{csrf_token|raw}">
 </head>

@@ -9,9 +9,9 @@
     [has_favicon]
     <link rel="shortcut icon" href="{site_favicon_url|raw}" />
     [/has_favicon]
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Oswald:wght@600;700&display=swap" rel="stylesheet">
+    [has_fonts_css]
+    <link rel="stylesheet" href="{fonts_css|raw}">
+    [/has_fonts_css]
     <style>
         * { box-sizing: border-box; }
         html, body { height: 100%; margin: 0; }

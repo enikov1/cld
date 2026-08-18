@@ -162,13 +162,30 @@ class ThemeManager
         $vars = ['name' => $name];
 
         $stylesheets = [];
-        foreach (['font-awesome.min.css', 'style.formated.css', 'new-dark.css', 'site.css', 'auth.css', 'theme-overrides.css'] as $file) {
+        $deferredStylesheets = [];
+        foreach (['fonts.css', 'style.formated.css', 'new-dark.css', 'site.css', 'auth.css', 'theme-overrides.css'] as $file) {
             if (self::assetPath($file, $name)) {
                 $stylesheets[] = self::assetUrl($file, $name);
             }
         }
+        if (self::assetPath('font-awesome.min.css', $name)) {
+            $deferredStylesheets[] = self::assetUrl('font-awesome.min.css', $name);
+        }
         if ($stylesheets) {
             $vars['stylesheets'] = $stylesheets;
+        }
+        if ($deferredStylesheets) {
+            $vars['deferred_stylesheets'] = $deferredStylesheets;
+        }
+
+        $fontPreloads = [];
+        foreach (['fonts/open-sans-400-cyrillic.woff2', 'fonts/open-sans-400-latin.woff2'] as $font) {
+            if (self::assetPath($font, $name)) {
+                $fontPreloads[] = self::assetUrl($font, $name);
+            }
+        }
+        if ($fontPreloads) {
+            $vars['font_preloads'] = $fontPreloads;
         }
 
         if (self::assetPath('logo.svg', $name)) {

@@ -82,6 +82,10 @@ async function processAssetsDir(dir) {
         if (/\.min\.(css|js)$/i.test(name)) {
             continue;
         }
+        // esbuild unquotes `font-family: 'Open Sans'` and breaks the stack.
+        if (name === 'fonts.css') {
+            continue;
+        }
 
         const ext = extname(name).toLowerCase();
         if (!MINIFY_EXT.has(ext)) {

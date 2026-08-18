@@ -30,6 +30,8 @@ class MaintenancePageRenderer
             'maintenance_title' => SiteConfig::str('maintenance_title') ?: 'Сайт на техническом обслуживании',
             'maintenance_message' => SiteConfig::str('maintenance_message') ?: 'Мы проводим технические работы. Скоро вернёмся!',
             'year' => (string)date('Y'),
+            'fonts_css' => ThemeManager::assetPath('fonts.css') ? ThemeManager::assetUrl('fonts.css') : '',
+            'has_fonts_css' => ThemeManager::assetPath('fonts.css') ? '1' : '',
         ];
 
         $html = $renderer->render($tpl, $vars);
