@@ -256,6 +256,7 @@ class Speedbar
             'country' => 'taxonomy_country',
             'person' => 'taxonomy_person',
             'year' => 'taxonomy_year',
+            'voice' => 'taxonomy_voice',
             default => throw new \InvalidArgumentException("Unknown taxonomy type: {$type}"),
         };
 

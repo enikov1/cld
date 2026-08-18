@@ -518,6 +518,10 @@ class CatalogFilterRegistry
                 'people',
                 fn (Builder $q) => $q->where('slug', $value)->where('is_active', true)
             ),
+            'voice' => $query->whereHas(
+                'voices',
+                fn (Builder $q) => $q->where('slug', $value)->where('is_active', true)
+            ),
             'studio' => $query->where(function (Builder $q) use ($value) {
                 $q->whereHas(
                     'studios',

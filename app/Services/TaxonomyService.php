@@ -6,6 +6,7 @@ use App\Models\Country;
 use App\Models\Genre;
 use App\Models\Person;
 use App\Models\Series;
+use App\Models\Voice;
 use App\Models\Year;
 use App\Support\SiteConfig;
 use App\Support\SlugHelper;
@@ -18,7 +19,7 @@ use Illuminate\Support\Str;
 class TaxonomyService
 {
     /**
-     * @param array{genre_ids?: int[]|null, country_ids?: int[]|null, actor_ids?: int[]|null, director_ids?: int[]|null} $relations
+     * @param array{genre_ids?: int[]|null, country_ids?: int[]|null, actor_ids?: int[]|null, director_ids?: int[]|null, voice_ids?: int[]|null} $relations
      */
     public function syncSeriesRelations(Series $series, array $relations): void
     {
@@ -36,6 +37,10 @@ class TaxonomyService
 
         if (array_key_exists('director_ids', $relations)) {
             $this->syncPeopleByIds($series, $this->normalizeIds($relations['director_ids']), 'director');
+        }
+
+        if (array_key_exists('voice_ids', $relations)) {
+            $series->voices()->sync($this->normalizeIds($relations['voice_ids']));
         }
     }
 
@@ -273,8 +278,163 @@ class TaxonomyService
         }
     }
 
+    public function upsertVoice(string $name, ?int $allohaId = null): ?Voice
+    {
+        $name = Utf8::ucfirst(trim($name));
+        if ($name === '' || $this->isDummyVoiceName($name)) {
+            return null;
+        }
+
+        if ($allohaId && $allohaId > 0) {
+            /** @var Voice|null $byAlloha */
+            $byAlloha = Voice::query()->where('alloha_id', $allohaId)->first();
+            if ($byAlloha) {
+                return $byAlloha;
+            }
+        }
+
+        /** @var Voice|null $existing */
+        $existing = Voice::query()
+            ->whereIn('name', array_values(array_unique([$name, mb_strtolower($name)])))
+            ->first();
+        if ($existing) {
+            if ($allohaId && $allohaId > 0 && !$existing->alloha_id) {
+                $existing->alloha_id = $allohaId;
+                $existing->save();
+            }
+
+            return $existing;
+        }
+
+        $slug = SlugHelper::makeUnique(
+            null,
+            $name,
+            fn (string $candidate) => Voice::query()->where('slug', $candidate)->exists()
+        );
+
+        return Voice::query()->create([
+            'slug' => $slug,
+            'name' => $name,
+            'alloha_id' => ($allohaId && $allohaId > 0) ? $allohaId : null,
+            'sort_order' => 0,
+            'is_active' => true,
+            'is_hidden' => false,
+            'noindex' => true,
+        ]);
+    }
+
     /**
-     * @param class-string<Genre|Country|Person> $modelClass
+     * @param list<array<string, mixed>> $translations
+     */
+    public function syncSeriesVoicesFromTranslations(Series $series, array $translations): void
+    {
+        $ids = [];
+        foreach ($translations as $translation) {
+            if (!is_array($translation)) {
+                continue;
+            }
+
+            $allohaId = isset($translation['id']) ? (int) $translation['id'] : 0;
+            $name = trim((string) ($translation['name'] ?? ''));
+            if ($allohaId < 1 || $name === '') {
+                continue;
+            }
+
+            $voice = $this->upsertVoice($name, $allohaId);
+            if ($voice) {
+                $ids[] = (int) $voice->id;
+            }
+        }
+
+        if ($ids === []) {
+            return;
+        }
+
+        $manualIds = $series->voices()
+            ->whereNull('voices.alloha_id')
+            ->pluck('voices.id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $series->voices()->sync(array_values(array_unique(array_merge($manualIds, $ids))));
+    }
+
+    /**
+     * @param list<mixed> $translations
+     * @return array{imported: int, total: int}
+     */
+    public function syncVoiceCatalog(array $translations): array
+    {
+        $imported = 0;
+
+        foreach ($translations as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $allohaId = (int) ($row['id'] ?? $row['translation_id'] ?? 0);
+            $name = trim((string) ($row['name'] ?? $row['title'] ?? $row['translation'] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+
+            $voice = $this->upsertVoice($name, $allohaId > 0 ? $allohaId : null);
+            if ($voice?->wasRecentlyCreated) {
+                $imported++;
+            }
+        }
+
+        return [
+            'imported' => $imported,
+            'total' => Voice::query()->count(),
+        ];
+    }
+
+    public function purgeDummyVoices(): int
+    {
+        $deleted = 0;
+
+        Voice::query()->orderBy('id')->each(function (Voice $voice) use (&$deleted) {
+            if (!$this->isDummyVoiceName((string) $voice->name)) {
+                return;
+            }
+
+            $voice->delete();
+            $deleted++;
+        });
+
+        return $deleted;
+    }
+
+    public function purgeUnusedVoices(): int
+    {
+        $ids = Voice::query()->whereDoesntHave('series')->pluck('id');
+        if ($ids->isEmpty()) {
+            return 0;
+        }
+
+        return (int) Voice::query()->whereIn('id', $ids)->delete();
+    }
+
+    public function deleteAllVoices(): int
+    {
+        DB::table('series_voice')->delete();
+
+        return (int) Voice::query()->delete();
+    }
+
+    private function isDummyVoiceName(string $name): bool
+    {
+        $normalized = mb_strtolower(trim($name));
+        if (in_array($normalized, ['смотреть онлайн', 'онлайн', 'смотреть', 'трейлер', 'trailer'], true)) {
+            return true;
+        }
+
+        return (bool) preg_match('/^(плеер|player)\s*\d+$/u', $normalized);
+    }
+
+    /**
+     * @param class-string<Genre|Country|Person|Voice> $modelClass
      */
     public function findOrCreateByName(string $modelClass, string $name): ?Model
     {

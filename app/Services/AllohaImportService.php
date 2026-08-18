@@ -22,6 +22,7 @@ class AllohaImportService
      *     category_slug?: string|null,
      *     download_poster?: bool,
      *     sync_players?: bool,
+     *     sync_voices?: bool,
      *     sync_metadata?: bool,
      *     sync_ratings?: bool,
      *     sync_poster?: bool,
@@ -94,6 +95,7 @@ class AllohaImportService
 
         $ratingsOnly = (bool)($options['ratings_only'] ?? false);
         $syncPlayers = $this->resolveSyncPlayers($options);
+        $syncVoices = array_key_exists('sync_voices', $options) ? (bool) $options['sync_voices'] : true;
         $syncMetadata = array_key_exists('sync_metadata', $options) ? (bool)$options['sync_metadata'] : true;
         $syncPoster = (bool)($options['sync_poster'] ?? ($options['download_poster'] ?? false));
         $syncGenresCountries = array_key_exists('sync_genres_countries', $options)
@@ -105,6 +107,7 @@ class AllohaImportService
         if ($ratingsOnly) {
             $syncRatings = true;
             $syncPlayers = false;
+            $syncVoices = false;
             $syncMetadata = false;
             $syncPoster = false;
             $syncGenresCountries = false;
@@ -180,7 +183,7 @@ class AllohaImportService
         }
 
         $hasFieldUpdates = count($mapped) > 0 || $syncPoster;
-        if (!$hasFieldUpdates && !$syncPlayers && !$syncGenresCountries && !$bumpDate) {
+        if (!$hasFieldUpdates && !$syncPlayers && !$syncVoices && !$syncGenresCountries && !$bumpDate) {
             return ['ok' => false, 'error' => 'Нет полей для обновления'];
         }
 
@@ -220,6 +223,10 @@ class AllohaImportService
         }
         // When sync_players is false, leave existing player sources untouched.
 
+        if ($syncVoices && !($fillEmptyOnly && $series->voices()->exists())) {
+            $this->taxonomyService->syncSeriesVoicesFromTranslations($series, $translations);
+        }
+
         app(CdnVideoHubPlayerSync::class)->syncIfEnabled($series);
 
         if ($bumpDate && $existing && $this->shouldBumpCatalogDate($existing, $mappedForProgress)) {
@@ -236,7 +243,7 @@ class AllohaImportService
 
         return [
             'ok' => true,
-            'series' => $series->fresh()->load(['genres', 'countries', 'actors', 'directors', 'studio']),
+            'series' => $series->fresh()->load(['genres', 'countries', 'actors', 'directors', 'voices', 'studio']),
         ];
     }
 

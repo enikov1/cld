@@ -7,6 +7,7 @@ export const TAXONOMY_TYPE_LABELS: Record<TaxonomyType, string> = {
   countries: 'Страна',
   people: 'Актёр / персона',
   years: 'Год',
+  voices: 'Озвучка',
 }
 
 export const DEFAULT_TAXONOMY_SEO_AI_PROMPT = `Ты — SEO-редактор каталога зарубежных сериалов.

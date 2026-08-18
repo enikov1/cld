@@ -25,6 +25,7 @@ class Series extends Model
         'title',
         'meta_title',
         'meta_description',
+        'seo_html',
         'title_en',
         'title_original',
         'description',
@@ -275,6 +276,13 @@ class Series extends Model
     public function countries()
     {
         return $this->belongsToMany(Country::class, 'series_country', 'series_id', 'country_id');
+    }
+
+    public function voices()
+    {
+        return $this->belongsToMany(Voice::class, 'series_voice', 'series_id', 'voice_id')
+            ->orderBy('voices.sort_order')
+            ->orderBy('voices.name');
     }
 
     public function actors()

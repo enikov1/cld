@@ -6,10 +6,14 @@ use App\Models\Country;
 use App\Models\Genre;
 use App\Models\Person;
 use App\Models\Series;
+use App\Models\Voice;
 use App\Models\Year;
+use App\Services\AllohaVoiceBulkSync;
+use App\Services\AllohaVoiceSyncProgress;
 use App\Services\ImageOptimizer;
 use App\Services\PosterContext;
 use App\Services\PosterStorage;
+use App\Services\TaxonomyService;
 use App\Support\SlugHelper;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -22,6 +26,7 @@ class AdminTaxonomyController extends Controller
         'countries' => Country::class,
         'people' => Person::class,
         'years' => Year::class,
+        'voices' => Voice::class,
     ];
 
     public function index(string $type)
@@ -58,6 +63,7 @@ class AdminTaxonomyController extends Controller
             'countries' => Country::query()->where('is_active', true)->orderBy('name')->get(['id', 'slug', 'name']),
             'people' => Person::query()->where('is_active', true)->orderBy('name')->get(['id', 'slug', 'name']),
             'years' => Year::query()->where('is_active', true)->orderByDesc('sort_order')->get(['id', 'slug', 'name']),
+            'voices' => Voice::query()->where('is_active', true)->orderBy('name')->get(['id', 'slug', 'name']),
         ]);
     }
 
@@ -169,6 +175,18 @@ class AdminTaxonomyController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    public function destroyAll(string $type)
+    {
+        if ($type !== 'voices') {
+            return response()->json(['ok' => false, 'error' => 'Массовое удаление доступно только для озвучек'], 422);
+        }
+
+        $deleted = app(TaxonomyService::class)->deleteAllVoices();
+        \App\Support\TplCache::bumpGlobalVersion();
+
+        return response()->json(['ok' => true, 'deleted' => $deleted]);
+    }
+
     public function uploadPhoto(Request $request, int $id)
     {
         $maxKb = (int)ceil(app(ImageOptimizer::class)->maxUploadBytes() / 1024);
@@ -188,6 +206,71 @@ class AdminTaxonomyController extends Controller
         \App\Support\TplCache::bumpGlobalVersion();
 
         return response()->json(['ok' => true, 'photo_url' => $url, 'item' => $person->fresh()]);
+    }
+
+    public function syncVoicesFromAlloha(Request $request, AllohaVoiceBulkSync $sync)
+    {
+        $data = $request->validate([
+            'restart' => ['nullable', 'boolean'],
+            'continue' => ['nullable', 'boolean'],
+        ]);
+
+        $restart = (bool) ($data['restart'] ?? false);
+        $continue = (bool) ($data['continue'] ?? false);
+        $progress = $sync->runProgressiveBatch($restart || !$continue);
+
+        if (($progress['status'] ?? '') === 'failed') {
+            return response()->json([
+                'ok' => false,
+                'error' => (string) ($progress['message'] ?? 'Не удалось синхронизировать озвучки'),
+                'progress' => $progress,
+                'percent' => AllohaVoiceSyncProgress::percent($progress),
+                'done' => false,
+            ], 422);
+        }
+
+        $status = (string) ($progress['status'] ?? '');
+
+        return response()->json([
+            'ok' => true,
+            'progress' => $progress,
+            'percent' => AllohaVoiceSyncProgress::percent($progress),
+            'done' => $status === 'done',
+            'stopped' => $status === 'stopped',
+            'message' => (string) ($progress['message'] ?? ''),
+            'synced' => (int) ($progress['synced'] ?? 0),
+            'skipped' => (int) ($progress['skipped'] ?? 0),
+            'failed' => (int) ($progress['failed'] ?? 0),
+            'catalog' => (int) ($progress['catalog'] ?? 0),
+        ]);
+    }
+
+    public function voicesSyncProgress()
+    {
+        $progress = AllohaVoiceSyncProgress::get();
+        $status = (string) ($progress['status'] ?? '');
+
+        return response()->json([
+            'ok' => true,
+            'progress' => $progress,
+            'percent' => AllohaVoiceSyncProgress::percent($progress),
+            'done' => $status === 'done',
+            'stopped' => $status === 'stopped',
+            'message' => (string) ($progress['message'] ?? ''),
+        ]);
+    }
+
+    public function stopVoicesSync(AllohaVoiceBulkSync $sync)
+    {
+        $progress = $sync->stop();
+
+        return response()->json([
+            'ok' => true,
+            'progress' => $progress,
+            'percent' => AllohaVoiceSyncProgress::percent($progress),
+            'stopped' => ($progress['status'] ?? '') === 'stopped',
+            'message' => (string) ($progress['message'] ?? ''),
+        ]);
     }
 
     private function resolvePersonPhotoUrl(?string $photoUrl, string $slug): ?string

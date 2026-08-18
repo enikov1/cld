@@ -75,12 +75,20 @@
                                 <a href="{item.url|raw}" class="serial-detail__link">{item.name}</a>[not-item.is_last]<span class="serial-detail__sep">, </span>[/not-item.is_last] [/loop]
                             </div>
                         </div>
-                        [/series.countries] [series.translation]
+                        [/series.countries] [series.voices]
+                        <div class="serial-detail">
+                            <div class="serial-detail__name">Озвучка:</div>
+                            <div class="serial-detail__value serial-detail__links">
+                                [loop series.voices]
+                                <a href="{item.url|raw}" class="serial-detail__link">{item.name}</a>[not-item.is_last]<span class="serial-detail__sep">, </span>[/not-item.is_last] [/loop]
+                            </div>
+                        </div>
+                        [/series.voices] [not-series.voices] [series.translation]
                         <div class="serial-detail">
                             <div class="serial-detail__name">Перевод:</div>
                             <div class="serial-detail__value">{series.translation}</div>
                         </div>
-                        [/series.translation] [series.directors]
+                        [/series.translation] [/not-series.voices] [series.directors]
                         <div class="serial-detail">
                             <div class="serial-detail__name">Режиссёр:</div>
                             <div class="serial-detail__value serial-detail__links">
@@ -697,4 +705,7 @@
         </div>
     </section>
     [/has_related]
+    [series_seo_html]
+    <div class="desc-text clearfix home-seo">{series_seo_html|raw}</div>
+    [/series_seo_html]
 </div>

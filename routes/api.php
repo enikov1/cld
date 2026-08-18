@@ -306,6 +306,10 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
     Route::get('/global-search', [AdminGlobalSearchController::class, 'search']);
 
     Route::get('/taxonomies/options', [AdminTaxonomyController::class, 'options']);
+    Route::post('/taxonomies/voices/sync-alloha', [AdminTaxonomyController::class, 'syncVoicesFromAlloha']);
+    Route::get('/taxonomies/voices/sync-alloha/progress', [AdminTaxonomyController::class, 'voicesSyncProgress']);
+    Route::post('/taxonomies/voices/sync-alloha/stop', [AdminTaxonomyController::class, 'stopVoicesSync']);
+    Route::delete('/taxonomies/{type}', [AdminTaxonomyController::class, 'destroyAll']);
     Route::get('/taxonomies/{type}', [AdminTaxonomyController::class, 'index']);
     Route::post('/taxonomies/{type}/upsert', [AdminTaxonomyController::class, 'upsert']);
     Route::post('/taxonomies/people/{id}/photo', [AdminTaxonomyController::class, 'uploadPhoto']);
@@ -952,6 +956,7 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
             'update_existing' => ['nullable', 'boolean'],
             'update_ratings' => ['nullable', 'boolean'],
             'update_players' => ['nullable', 'boolean'],
+            'update_voices' => ['nullable', 'boolean'],
             'update_metadata' => ['nullable', 'boolean'],
             'update_poster' => ['nullable', 'boolean'],
             'update_genres_countries' => ['nullable', 'boolean'],

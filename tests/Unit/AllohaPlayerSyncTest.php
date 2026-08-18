@@ -131,6 +131,27 @@ class AllohaPlayerSyncTest extends TestCase
         $this->assertSame('https://example.com/lostfilm-new', $players[1]->iframe_url);
     }
 
+    public function test_player_sync_does_not_create_voice_taxonomy(): void
+    {
+        SiteSetting::set('player_alloha_sync_enabled', '1');
+
+        $series = Series::query()->create([
+            'kp_id' => '999005',
+            'slug' => 'alloha-voices-sync',
+            'title' => 'Test',
+            'is_active' => true,
+            'is_hidden' => false,
+        ]);
+
+        app(AllohaPlayerSync::class)->sync($series, [
+            ['id' => 10, 'name' => 'LostFilm', 'iframe' => 'https://example.com/lostfilm'],
+            ['id' => 20, 'name' => 'Coldfilm', 'iframe' => 'https://example.com/coldfilm'],
+        ]);
+
+        $this->assertSame(2, \App\Models\PlayerSource::query()->where('series_id', $series->id)->count());
+        $this->assertSame(0, $series->voices()->count());
+    }
+
     public function test_sync_appends_new_players_after_existing(): void
     {
         SiteSetting::set('player_alloha_sync_enabled', '1');

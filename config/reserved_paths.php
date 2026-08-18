@@ -20,6 +20,7 @@ return [
         'country',
         'person',
         'year',
+        'voice',
         'skoro',
         'kalendar',
         'theme-assets',

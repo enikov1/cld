@@ -17,6 +17,7 @@ type AutoSyncSettings = {
   update_existing: boolean
   update_ratings: boolean
   update_players: boolean
+  update_voices: boolean
   update_metadata: boolean
   update_poster: boolean
   update_genres_countries: boolean
@@ -420,7 +421,10 @@ export default function AllohaSyncPage() {
                         <Checkbox>Рейтинги (KP, IMDb)</Checkbox>
                       </Form.Item>
                       <Form.Item name="update_players" valuePropName="checked" noStyle>
-                        <Checkbox>Плееры / озвучки</Checkbox>
+                        <Checkbox>Плееры</Checkbox>
+                      </Form.Item>
+                      <Form.Item name="update_voices" valuePropName="checked" noStyle>
+                        <Checkbox>Озвучки</Checkbox>
                       </Form.Item>
                       <Form.Item name="update_metadata" valuePropName="checked" noStyle>
                         <Checkbox>Метаданные (название, описание, год…)</Checkbox>

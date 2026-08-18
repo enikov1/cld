@@ -56,6 +56,8 @@ import TmdbImagePickerModal, { type TmdbImageTarget } from '../components/TmdbIm
 import { useBusyFavicon, useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
 import { useSeriesDeepLink } from '../hooks/useSeriesDeepLink'
 import SeriesScheduleEditor, { type SeriesScheduleEditorHandle } from '../components/SeriesScheduleEditor'
+import TemplateCodeEditor from '../components/TemplateCodeEditor'
+import { useAdminTheme } from '../theme/useAdminTheme'
 import type { CollectionItem, SeriesItem, StudioItem, TaxonomyOption } from '../types'
 import { BROADCAST_STATUSES, CONTENT_TYPES } from '../types'
 import { resolveMediaUrl, resolveCropperImageUrl, siteOrigin } from '../utils/mediaUrl'
@@ -320,6 +322,7 @@ function seriesToFormValues(item: SeriesItem): Record<string, unknown> {
     kp_web_url: item.kp_web_url,
     meta_title: item.meta_title,
     meta_description: item.meta_description,
+    seo_html: item.seo_html ?? '',
     studio_id: item.studio_id,
     studio_ids: item.studio_ids ?? (item.studio_id ? [item.studio_id] : []),
     collection_ids: item.collection_ids ?? [],
@@ -333,18 +336,26 @@ function seriesToFormValues(item: SeriesItem): Record<string, unknown> {
     country_ids: item.country_ids ?? [],
     actor_ids: item.actor_ids ?? [],
     director_ids: item.director_ids ?? [],
+    voice_ids: item.voice_ids ?? [],
   }
 }
 
 export default function SeriesPage() {
+  const { isDark } = useAdminTheme()
   const [searchParams, setSearchParams] = useSearchParams()
   const [items, setItems] = useState<SeriesItem[]>([])
   const [studios, setStudios] = useState<StudioItem[]>([])
   const [collections, setCollections] = useState<CollectionItem[]>([])
-  const [taxonomy, setTaxonomy] = useState<{ genres: TaxonomyOption[]; countries: TaxonomyOption[]; people: TaxonomyOption[] }>({
+  const [taxonomy, setTaxonomy] = useState<{
+    genres: TaxonomyOption[]
+    countries: TaxonomyOption[]
+    people: TaxonomyOption[]
+    voices: TaxonomyOption[]
+  }>({
     genres: [],
     countries: [],
     people: [],
+    voices: [],
   })
   const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(1)
@@ -592,7 +603,12 @@ export default function SeriesPage() {
   )
 
   const loadTaxonomy = useCallback(async () => {
-    const data = await api<{ genres: TaxonomyOption[]; countries: TaxonomyOption[]; people: TaxonomyOption[] }>(
+    const data = await api<{
+      genres: TaxonomyOption[]
+      countries: TaxonomyOption[]
+      people: TaxonomyOption[]
+      voices: TaxonomyOption[]
+    }>(
       '/api/admin/taxonomies/options',
     )
     setTaxonomy(data)
@@ -625,6 +641,13 @@ export default function SeriesPage() {
       editing?.directors,
     ),
     [taxonomy.people, editing?.directors],
+  )
+  const voiceOptions = useMemo(
+    () => mergeTaxonomyOptions(
+      (taxonomy.voices ?? []).map((v) => ({ value: v.id, label: v.name })),
+      editing?.voices,
+    ),
+    [taxonomy.voices, editing?.voices],
   )
 
   const loadSeries = useCallback(async (nextPage = page, nextPerPage = perPage, filters?: SeriesListFilters) => {
@@ -2193,6 +2216,9 @@ export default function SeriesPage() {
                     <Form.Item label="Режиссёры" name="director_ids">
                       <Select mode="multiple" allowClear options={directorOptions} optionFilterProp="label" placeholder="Выберите режиссёров" />
                     </Form.Item>
+                    <Form.Item label="Озвучки" name="voice_ids" extra="Студии перевода (LostFilm, дубляж). Справочник: раздел «Справочники → Озвучки». Вкладки плеера сюда не входят.">
+                      <Select mode="multiple" allowClear options={voiceOptions} optionFilterProp="label" placeholder="Выберите озвучки" />
+                    </Form.Item>
                   </>
                 ),
               },
@@ -2222,6 +2248,9 @@ export default function SeriesPage() {
                     </Form.Item>
                     <Form.Item label="Meta description" name="meta_description" extra="Если пусто — краткое описание или обрезка полного">
                       <Input.TextArea rows={2} />
+                    </Form.Item>
+                    <Form.Item label="SEO-блок (HTML)" name="seo_html" extra="Выводится внизу страницы сериала">
+                      <TemplateCodeEditor filePath="series-seo.html" isDark={isDark} height="220px" />
                     </Form.Item>
                     <Form.Item label="Ссылка KinoPoisk" name="kp_web_url"><Input /></Form.Item>
                   </>

@@ -8,6 +8,7 @@ use App\Models\Genre;
 use App\Models\Person;
 use App\Models\Series;
 use App\Models\Studio;
+use App\Models\Voice;
 use App\Models\Year;
 use App\Support\SeriesUrl;
 use Illuminate\Support\Facades\Cache;
@@ -72,6 +73,7 @@ class SitemapService
         $urls[] = ['loc' => $base . '/', 'priority' => '1.0', 'lastmod' => $now];
         $urls[] = ['loc' => $base . '/catalog/', 'priority' => '0.9', 'lastmod' => $now];
         $urls[] = ['loc' => $base . '/kalendar/', 'priority' => '0.8', 'lastmod' => $now];
+        $urls[] = ['loc' => $base . '/skoro/', 'priority' => '0.8', 'lastmod' => $now];
         $urls[] = ['loc' => $base . '/collections/', 'priority' => '0.8', 'lastmod' => $now];
         $urls[] = ['loc' => $base . '/studios/', 'priority' => '0.8', 'lastmod' => $now];
 
@@ -102,6 +104,14 @@ class SitemapService
         foreach (Year::query()->where('is_active', true)->where('is_hidden', false)->where('noindex', false)->orderByDesc('sort_order')->get() as $item) {
             $urls[] = [
                 'loc' => $base . '/year/' . $item->slug . '/',
+                'priority' => '0.6',
+                'lastmod' => optional($item->updated_at)->toAtomString() ?? $now,
+            ];
+        }
+
+        foreach (Voice::query()->where('is_active', true)->where('is_hidden', false)->where('noindex', false)->orderBy('sort_order')->get() as $item) {
+            $urls[] = [
+                'loc' => $base . '/voice/' . $item->slug . '/',
                 'priority' => '0.6',
                 'lastmod' => optional($item->updated_at)->toAtomString() ?? $now,
             ];

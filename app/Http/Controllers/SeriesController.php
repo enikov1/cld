@@ -48,6 +48,7 @@ class SeriesController extends TplController
                 'countries',
                 'actors',
                 'directors',
+                'voices' => fn ($q) => $q->where('is_active', true)->where('is_hidden', false),
                 'studio',
                 'studios' => fn ($q) => $q->where('is_active', true)->where('is_hidden', false),
                 'collections' => fn ($q) => $q->where('is_active', true)->where('is_hidden', false),
@@ -132,6 +133,7 @@ class SeriesController extends TplController
             'description' => $series->description,
             'short_description' => $series->short_description,
             'slogan' => $series->slogan,
+            'seo_html' => trim((string) ($series->seo_html ?? '')),
             'poster_url' => $series->poster_url,
             'brand_url' => $series->brand_url,
             'gallery_urls' => $galleryUrls,
@@ -157,6 +159,7 @@ class SeriesController extends TplController
             'premiere_day_month_label' => $series->premiereDayMonthLabel(),
             'premiere_countdown_label' => $series->premiereCountdownLabel() ?? '',
             'translation' => $series->translation,
+            'voices_text' => $series->voices->map(fn ($v) => TaxonomyRegistry::displayName($v))->implode(', '),
             'channel_name' => $series->channel_name,
             'channel_url' => $series->channel_url,
             'channel_logo_url' => $series->channel_logo_url,
@@ -191,6 +194,11 @@ class SeriesController extends TplController
                 'slug' => $g->slug,
                 'name' => TaxonomyRegistry::displayName($g),
                 'url' => '/genre/' . $g->slug . '/',
+            ]),
+            'voices' => $this->mapLinkItems($series->voices, fn ($v) => [
+                'slug' => $v->slug,
+                'name' => TaxonomyRegistry::displayName($v),
+                'url' => '/voice/' . $v->slug . '/',
             ]),
             'actors' => $this->mapLinkItems($displayActors, fn ($p) => [
                 'slug' => $p->slug,
@@ -342,6 +350,7 @@ class SeriesController extends TplController
                     ['series_list' => $relatedMapped]
                 )
                 : '',
+            'series_seo_html' => trim((string) ($series->seo_html ?? '')),
         ]);
 
         $jsonLdNodes = SeriesSeo::jsonLdNodes($series, $seriesUrl, $schedule, $reviewItems, $commentsCount);

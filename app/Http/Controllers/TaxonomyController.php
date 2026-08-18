@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Country;
 use App\Models\Genre;
 use App\Models\Person;
+use App\Models\Voice;
 use App\Models\Year;
 use App\Support\CatalogFilterService;
 use App\Support\PaginationHelper;
@@ -20,6 +21,7 @@ class TaxonomyController extends TplController
         'country' => ['model' => Country::class, 'filter' => 'country'],
         'person' => ['model' => Person::class, 'filter' => 'actor'],
         'year' => ['model' => Year::class, 'filter' => 'year'],
+        'voice' => ['model' => Voice::class, 'filter' => 'voice'],
     ];
 
     public function showYear(Request $request, string $slug, int $page = 1)
@@ -47,6 +49,11 @@ class TaxonomyController extends TplController
         return $this->showTaxonomy($request, 'person', $slug, $page);
     }
 
+    public function showVoice(Request $request, string $slug, int $page = 1)
+    {
+        return $this->showTaxonomy($request, 'voice', $slug, $page);
+    }
+
     public function browseGenre(Request $request, string $slug)
     {
         return $this->browseTaxonomy($request, 'genre', $slug);
@@ -60,6 +67,11 @@ class TaxonomyController extends TplController
     public function browsePerson(Request $request, string $slug)
     {
         return $this->browseTaxonomy($request, 'person', $slug);
+    }
+
+    public function browseVoice(Request $request, string $slug)
+    {
+        return $this->browseTaxonomy($request, 'voice', $slug);
     }
 
     private function showTaxonomy(Request $request, string $type, string $slug, int $page = 1)

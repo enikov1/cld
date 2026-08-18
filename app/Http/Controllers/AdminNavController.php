@@ -177,6 +177,7 @@ class AdminNavController extends Controller
             'title' => ['required', 'string', 'max:200'],
             'source_type' => ['required', Rule::in($this->sectionTypes())],
             'item_limit' => ['nullable', 'integer', 'min:1', 'max:60'],
+            'item_sort' => ['nullable', 'in:name,series_count,sort_order'],
             'css_class' => ['nullable', 'string', 'max:50'],
             'sort_order' => ['nullable', 'integer'],
             'is_active' => ['nullable', 'boolean'],
@@ -191,6 +192,11 @@ class AdminNavController extends Controller
             'title' => $data['title'],
             'source_type' => $data['source_type'],
             'item_limit' => $data['item_limit'] ?? 14,
+            'item_sort' => $data['item_sort'] ?? (
+                ($data['source_type'] ?? '') === NavMegaSection::SOURCE_VOICES
+                    ? NavMegaSection::SORT_SERIES_COUNT
+                    : NavMegaSection::SORT_NAME
+            ),
             'css_class' => $data['css_class'] ?? '',
             'sort_order' => $data['sort_order'] ?? 0,
             'is_active' => $data['is_active'] ?? true,
@@ -322,6 +328,7 @@ class AdminNavController extends Controller
             NavMegaSection::SOURCE_COLLECTIONS,
             NavMegaSection::SOURCE_STUDIOS,
             NavMegaSection::SOURCE_YEARS,
+            NavMegaSection::SOURCE_VOICES,
             NavMegaSection::SOURCE_CUSTOM,
         ];
     }
@@ -384,6 +391,7 @@ class AdminNavController extends Controller
             'title' => $section->title,
             'source_type' => $section->source_type,
             'item_limit' => $section->item_limit,
+            'item_sort' => $section->itemSort(),
             'css_class' => $section->css_class,
             'sort_order' => $section->sort_order,
             'is_active' => $section->is_active,

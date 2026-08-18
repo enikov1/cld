@@ -9,6 +9,7 @@ use App\Models\Person;
 use App\Models\Series;
 use App\Models\Studio;
 use App\Models\User;
+use App\Models\Voice;
 use App\Models\Year;
 use App\Support\SiteConfig;
 use Illuminate\Http\Request;
@@ -23,7 +24,7 @@ class AdminGlobalSearchController extends Controller
         ['key' => 'series', 'path' => '/series', 'title' => 'Сериалы', 'subtitle' => 'Карточки контента и плеер', 'keywords' => 'фильмы контент каталог'],
         ['key' => 'collections', 'path' => '/collections', 'title' => 'Подборки', 'subtitle' => 'Тематические списки сериалов', 'keywords' => 'коллекции'],
         ['key' => 'studios', 'path' => '/studios', 'title' => 'Студии', 'subtitle' => 'Студии и их каталоги', 'keywords' => 'каналы'],
-        ['key' => 'taxonomy', 'path' => '/taxonomy', 'title' => 'Справочники', 'subtitle' => 'Жанры, страны, актёры, годы', 'keywords' => 'жанры страны актёры годы taxonomy'],
+        ['key' => 'taxonomy', 'path' => '/taxonomy', 'title' => 'Справочники', 'subtitle' => 'Жанры, страны, актёры, годы, озвучки', 'keywords' => 'жанры страны актёры годы озвучки taxonomy'],
         ['key' => 'nav-menu', 'path' => '/nav-menu', 'title' => 'Меню', 'subtitle' => 'Навигация и mega-menu', 'keywords' => 'навигация'],
         ['key' => 'home-sections', 'path' => '/home-sections', 'title' => 'Секции главной', 'subtitle' => 'Блоки на главной странице', 'keywords' => 'home секции'],
         ['key' => 'reactions', 'path' => '/reactions', 'title' => 'Реакции', 'subtitle' => 'Оценки под плеером и статистика', 'keywords' => 'эмодзи статистика голоса'],
@@ -110,6 +111,7 @@ class AdminGlobalSearchController extends Controller
         'countries' => 'Страна',
         'people' => 'Актёр / персона',
         'years' => 'Год',
+        'voices' => 'Озвучка',
     ];
 
     public function search(Request $request)
@@ -369,6 +371,7 @@ class AdminGlobalSearchController extends Controller
             'countries' => Country::class,
             'people' => Person::class,
             'years' => Year::class,
+            'voices' => Voice::class,
         ];
 
         foreach ($maps as $type => $model) {

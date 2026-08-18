@@ -1,5 +1,5 @@
-import { Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tabs, Tag, Tooltip, Typography, Upload, message } from 'antd'
-import { CopyOutlined, EditOutlined, ImportOutlined } from '@ant-design/icons'
+import { Button, Form, Input, InputNumber, Modal, Popconfirm, Progress, Select, Space, Switch, Table, Tabs, Tag, Tooltip, Typography, Upload, message } from 'antd'
+import { CloudDownloadOutlined, CopyOutlined, DeleteOutlined, EditOutlined, ImportOutlined, StopOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -22,6 +22,7 @@ const TYPES: { key: TaxonomyType; label: string; urlPrefix: string }[] = [
   { key: 'countries', label: 'Страны', urlPrefix: 'country' },
   { key: 'people', label: 'Актёры', urlPrefix: 'person' },
   { key: 'years', label: 'Годы', urlPrefix: 'year' },
+  { key: 'voices', label: 'Озвучки', urlPrefix: 'voice' },
 ]
 
 const HOME_SORT_OPTIONS = [
@@ -31,6 +32,25 @@ const HOME_SORT_OPTIONS = [
 ]
 
 type SettingRow = { key: string; value: string }
+
+type VoiceSyncProgress = {
+  status?: 'idle' | 'running' | 'stopped' | 'done' | 'failed'
+  total?: number
+  processed?: number
+  synced?: number
+  skipped?: number
+  failed?: number
+  catalog?: number
+  current?: string
+  message?: string
+}
+
+function voiceProgressBarStatus(status: VoiceSyncProgress['status'], syncing: boolean): 'active' | 'success' | 'exception' | 'normal' {
+  if (status === 'failed' || status === 'stopped') return 'exception'
+  if (status === 'done') return 'success'
+  if (syncing || status === 'running') return 'active'
+  return 'normal'
+}
 
 async function loadTaxonomySeoPromptTemplate(): Promise<string> {
   const data = await api<{ items: SettingRow[] }>('/api/admin/settings')
@@ -73,6 +93,12 @@ function TaxonomyTab({
   const [importText, setImportText] = useState('')
   const [importPreview, setImportPreview] = useState<ReturnType<typeof parseTaxonomySeoAiResult>>(null)
   const [importError, setImportError] = useState('')
+  const [allohaSyncing, setAllohaSyncing] = useState(false)
+  const [voiceSyncPercent, setVoiceSyncPercent] = useState(0)
+  const [voiceSyncProgress, setVoiceSyncProgress] = useState<VoiceSyncProgress | null>(null)
+  const [deletingAll, setDeletingAll] = useState(false)
+  const voiceSyncLoopRef = useRef(false)
+  const voiceSyncAbortRef = useRef(false)
 
   useDocumentTitle(
     importModalOpen
@@ -87,7 +113,7 @@ function TaxonomyTab({
               : `Новый: ${label}`
             : null,
   )
-  useBusyFavicon(promptLoading || templateLoading || templateSaving)
+  useBusyFavicon(promptLoading || templateLoading || templateSaving || allohaSyncing)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -159,6 +185,137 @@ function TaxonomyTab({
       message.error(String((e as Error).message))
     }
   }
+
+  const loadVoiceProgress = useCallback(async () => {
+    const res = await api<{
+      progress?: VoiceSyncProgress
+      percent?: number
+      done?: boolean
+      stopped?: boolean
+    }>('/api/admin/taxonomies/voices/sync-alloha/progress')
+    if (res.progress) setVoiceSyncProgress(res.progress)
+    setVoiceSyncPercent(res.percent ?? 0)
+    return res
+  }, [])
+
+  const runVoiceSyncLoop = useCallback(async (restart: boolean) => {
+    if (type !== 'voices' || voiceSyncLoopRef.current) return
+
+    voiceSyncLoopRef.current = true
+    voiceSyncAbortRef.current = false
+    setAllohaSyncing(true)
+    let nextRestart = restart
+
+    try {
+      while (!voiceSyncAbortRef.current) {
+        const res = await api<{
+          ok: boolean
+          done?: boolean
+          stopped?: boolean
+          percent?: number
+          message?: string
+          progress?: VoiceSyncProgress
+          synced?: number
+          skipped?: number
+          failed?: number
+          catalog?: number
+        }>('/api/admin/taxonomies/voices/sync-alloha', {
+          method: 'POST',
+          body: JSON.stringify({
+            restart: nextRestart,
+            continue: !nextRestart,
+          }),
+        })
+
+        nextRestart = false
+        if (res.progress) setVoiceSyncProgress(res.progress)
+        setVoiceSyncPercent(res.percent ?? 0)
+
+        if (res.stopped || res.progress?.status === 'stopped') {
+          message.warning(res.message || 'Синхронизация остановлена')
+          break
+        }
+
+        if (res.done) {
+          message.success(
+            res.message
+            || `Готово: озвучек у сериалов ${res.catalog ?? 0}, сериалов с озвучками ${res.synced ?? 0}`,
+          )
+          await load()
+          break
+        }
+      }
+    } catch (e) {
+      message.error(String((e as Error).message))
+    } finally {
+      voiceSyncLoopRef.current = false
+      setAllohaSyncing(false)
+      try {
+        await loadVoiceProgress()
+      } catch {
+        /* progress panel is optional after sync */
+      }
+    }
+  }, [load, loadVoiceProgress, type])
+
+  async function stopVoiceSync() {
+    voiceSyncAbortRef.current = true
+    try {
+      const res = await api<{ message?: string; progress?: VoiceSyncProgress; percent?: number }>(
+        '/api/admin/taxonomies/voices/sync-alloha/stop',
+        { method: 'POST' },
+      )
+      if (res.progress) setVoiceSyncProgress(res.progress)
+      setVoiceSyncPercent(res.percent ?? 0)
+    } catch (e) {
+      message.error(String((e as Error).message))
+    }
+  }
+
+  async function removeAllVoices() {
+    if (type !== 'voices' || allohaSyncing) return
+    setDeletingAll(true)
+    try {
+      const res = await api<{ deleted?: number }>('/api/admin/taxonomies/voices', { method: 'DELETE' })
+      message.success(`Удалено озвучек: ${res.deleted ?? 0}`)
+      await load()
+    } catch (e) {
+      message.error(String((e as Error).message))
+    } finally {
+      setDeletingAll(false)
+    }
+  }
+
+  useEffect(() => {
+    if (type !== 'voices') return
+    let cancelled = false
+    loadVoiceProgress().then((res) => {
+      if (cancelled) return
+      if (res.progress?.status === 'running') {
+        void runVoiceSyncLoop(false)
+      }
+    }).catch(() => {
+      /* progress is optional */
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [type, loadVoiceProgress, runVoiceSyncLoop])
+
+  useEffect(() => {
+    if (type !== 'voices') return
+    if (!allohaSyncing && voiceSyncProgress?.status !== 'running') return
+
+    const timer = window.setInterval(() => {
+      loadVoiceProgress().catch(() => {
+        /* live progress is best-effort */
+      })
+    }, 400)
+
+    return () => {
+      window.clearInterval(timer)
+    }
+  }, [type, allohaSyncing, voiceSyncProgress?.status, loadVoiceProgress])
 
   function buildPromptVars() {
     const name = String(form.getFieldValue('name') || '').trim()
@@ -365,9 +522,77 @@ function TaxonomyTab({
   return (
     <div>
       <div className="admin-toolbar">
-        <span>{label} — URL: /{urlPrefix}/{'{slug}'}/</span>
-        <Button type="primary" onClick={openCreate}>Добавить</Button>
+        <span>
+          {type === 'voices'
+            ? 'Озвучки — студии перевода (LostFilm, дубляж). URL: /voice/{slug}/'
+            : label + ' — URL: /' + urlPrefix + '/{slug}/'}
+        </span>
+        <Space>
+          {type === 'voices' ? (
+            voiceSyncProgress?.status === 'running' || (allohaSyncing && voiceSyncProgress?.status !== 'stopped') ? (
+              <Button icon={<StopOutlined />} onClick={() => void stopVoiceSync()}>
+                Остановить
+              </Button>
+            ) : allohaSyncing ? (
+              <Button disabled>Остановка…</Button>
+            ) : (
+              <Button icon={<CloudDownloadOutlined />} onClick={() => void runVoiceSyncLoop(true)}>
+                Загрузить из Alloha
+              </Button>
+            )
+          ) : null}
+          {type === 'voices' ? (
+            <Popconfirm
+              title="Удалить все озвучки?"
+              description="Будут удалены все студии и их привязки к сериалам."
+              okText="Удалить все"
+              okButtonProps={{ danger: true }}
+              cancelText="Отмена"
+              onConfirm={() => void removeAllVoices()}
+              disabled={allohaSyncing || deletingAll || items.length === 0}
+            >
+              <Button
+                danger
+                icon={<DeleteOutlined />}
+                loading={deletingAll}
+                disabled={allohaSyncing || items.length === 0}
+              >
+                Удалить все
+              </Button>
+            </Popconfirm>
+          ) : null}
+          <Button type="primary" onClick={openCreate}>Добавить</Button>
+        </Space>
       </div>
+      {type === 'voices' ? (
+        <>
+          <Typography.Paragraph type="secondary" style={{ marginTop: -8 }}>
+            В справочник попадают только озвучки, которые реально есть у сериалов. Полный каталог Alloha не загружается.
+          </Typography.Paragraph>
+          {voiceSyncProgress?.message || allohaSyncing ? (
+            <div style={{ marginBottom: 16 }}>
+              <Progress
+                percent={voiceSyncPercent}
+                status={voiceProgressBarStatus(voiceSyncProgress?.status, allohaSyncing)}
+              />
+              {voiceSyncProgress?.status === 'running' && voiceSyncProgress.current ? (
+                <Typography.Text style={{ display: 'block' }}>
+                  Сейчас: {voiceSyncProgress.current}
+                </Typography.Text>
+              ) : null}
+              <Typography.Text type="secondary" style={{ display: 'block' }}>
+                {voiceSyncProgress?.message
+                  || `Обработано ${voiceSyncProgress?.processed ?? 0} из ${voiceSyncProgress?.total ?? 0}`}
+              </Typography.Text>
+              {(voiceSyncProgress?.total ?? 0) > 0 ? (
+                <Typography.Text type="secondary" style={{ display: 'block' }}>
+                  Привязано: {voiceSyncProgress?.synced ?? 0}, пропущено: {voiceSyncProgress?.skipped ?? 0}, ошибок: {voiceSyncProgress?.failed ?? 0}
+                </Typography.Text>
+              ) : null}
+            </div>
+          ) : null}
+        </>
+      ) : null}
       <Table rowKey="id" loading={loading} columns={columns} dataSource={items} pagination={{ pageSize: 20 }} />
 
       <Modal
@@ -383,7 +608,7 @@ function TaxonomyTab({
       >
         <Form form={form} layout="vertical" onFinish={save}>
           <Form.Item label={type === 'years' ? 'Год' : 'Название'} name="name" rules={[{ required: true }]}>
-            <Input placeholder={type === 'years' ? '1962' : undefined} />
+            <Input placeholder={type === 'years' ? '1962' : type === 'voices' ? 'LostFilm' : undefined} />
           </Form.Item>
           <Form.Item
             label="Slug (URL)"

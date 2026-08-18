@@ -205,6 +205,7 @@ class AdminSeriesController extends Controller
             'title' => ['required', 'string'],
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:65535'],
+            'seo_html' => ['nullable', 'string', 'max:65535'],
             'slug' => ['nullable', 'string'],
             'title_en' => ['nullable', 'string'],
             'title_original' => ['nullable', 'string'],
@@ -243,6 +244,8 @@ class AdminSeriesController extends Controller
             'actor_ids.*' => ['integer', 'exists:people,id'],
             'director_ids' => ['nullable', 'array'],
             'director_ids.*' => ['integer', 'exists:people,id'],
+            'voice_ids' => ['nullable', 'array'],
+            'voice_ids.*' => ['integer', 'exists:voices,id'],
             'age_limit' => ['nullable', 'string'],
             'kp_web_url' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
@@ -392,7 +395,7 @@ class AdminSeriesController extends Controller
         ];
 
         $nullableScalars = [
-            'meta_title', 'meta_description', 'title_en', 'title_original',
+            'meta_title', 'meta_description', 'seo_html', 'title_en', 'title_original',
             'description', 'short_description', 'slogan', 'year', 'start_year', 'end_year',
             'duration_minutes', 'kp_rating', 'imdb_rating', 'kp_votes_count', 'imdb_votes_count',
             'imdb_id', 'tmdb_id', 'content_type', 'broadcast_status', 'season_number',
@@ -406,6 +409,10 @@ class AdminSeriesController extends Controller
             } elseif ($isNew) {
                 $attrs[$key] = null;
             }
+        }
+
+        if (array_key_exists('seo_html', $attrs) && $attrs['seo_html'] !== null) {
+            $attrs['seo_html'] = str_replace("\r\n", "\n", (string) $attrs['seo_html']);
         }
 
         if (array_key_exists('imdb_id', $data)) {
@@ -507,7 +514,7 @@ class AdminSeriesController extends Controller
         }
 
         $relations = [];
-        foreach (['genre_ids', 'country_ids', 'actor_ids', 'director_ids'] as $relationKey) {
+        foreach (['genre_ids', 'country_ids', 'actor_ids', 'director_ids', 'voice_ids'] as $relationKey) {
             if (array_key_exists($relationKey, $data)) {
                 $relations[$relationKey] = $data[$relationKey];
             }
@@ -1182,7 +1189,7 @@ class AdminSeriesController extends Controller
      */
     private function serializeSeries(Series $series, array $views3d = [], array $views7d = []): array
     {
-        $series->loadMissing(['genres', 'countries', 'actors', 'directors', 'studio', 'studios', 'collections']);
+        $series->loadMissing(['genres', 'countries', 'actors', 'directors', 'voices', 'studio', 'studios', 'collections']);
 
         $studios = collect();
         if ($series->studio) {
@@ -1203,6 +1210,7 @@ class AdminSeriesController extends Controller
             'country_ids' => $series->countries->pluck('id')->values()->all(),
             'actor_ids' => $series->actors->pluck('id')->values()->all(),
             'director_ids' => $series->directors->pluck('id')->values()->all(),
+            'voice_ids' => $series->voices->pluck('id')->values()->all(),
             'studio_ids' => array_map(fn ($s) => (int)$s['id'], $studiosList),
             'collection_ids' => $series->collections
                 ->filter(fn ($c) => !($c->pivot->is_auto ?? false))
@@ -1222,6 +1230,7 @@ class AdminSeriesController extends Controller
             'countries' => $series->countries->map(fn ($c) => ['id' => $c->id, 'slug' => $c->slug, 'name' => $c->name])->values()->all(),
             'actors' => $series->actors->map(fn ($p) => ['id' => $p->id, 'slug' => $p->slug, 'name' => $p->name])->values()->all(),
             'directors' => $series->directors->map(fn ($p) => ['id' => $p->id, 'slug' => $p->slug, 'name' => $p->name])->values()->all(),
+            'voices' => $series->voices->map(fn ($v) => ['id' => $v->id, 'slug' => $v->slug, 'name' => $v->name])->values()->all(),
             'studios' => $studiosList,
             'studio' => $series->studio
                 ? ['id' => $series->studio->id, 'slug' => $series->studio->slug, 'title' => $series->studio->title]

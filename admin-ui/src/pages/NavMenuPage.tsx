@@ -27,7 +27,8 @@ import { useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
 import type { TaxonomyOption, TaxonomyType } from '../types'
 
 type NavLinkType = 'home' | 'taxonomy' | 'collections' | 'studios' | 'catalog' | 'coming_soon' | 'calendar' | 'custom'
-type NavSectionType = 'genres' | 'countries' | 'collections' | 'studios' | 'years' | 'custom'
+type NavSectionType = 'genres' | 'countries' | 'collections' | 'studios' | 'years' | 'voices' | 'custom'
+type NavSectionSort = 'name' | 'series_count' | 'sort_order'
 
 type NavMegaLink = {
   id: number
@@ -44,6 +45,7 @@ type NavMegaSection = {
   title: string
   source_type: NavSectionType
   item_limit: number
+  item_sort: NavSectionSort
   css_class: string
   sort_order: number
   is_active: boolean
@@ -85,6 +87,7 @@ const TAXONOMY_TYPE_OPTIONS: { value: TaxonomyType; label: string }[] = [
   { value: 'countries', label: 'Страны' },
   { value: 'people', label: 'Актёры' },
   { value: 'years', label: 'Годы' },
+  { value: 'voices', label: 'Озвучки' },
 ]
 
 const LINK_TYPES: { value: NavLinkType; label: string }[] = [
@@ -104,8 +107,17 @@ const SECTION_TYPES: { value: NavSectionType; label: string }[] = [
   { value: 'collections', label: 'Подборки (авто)' },
   { value: 'studios', label: 'Студии (авто)' },
   { value: 'years', label: 'Годы (авто)' },
+  { value: 'voices', label: 'Озвучки (авто)' },
   { value: 'custom', label: 'Свои ссылки' },
 ]
+
+const SECTION_SORT_OPTIONS: { value: NavSectionSort; label: string }[] = [
+  { value: 'name', label: 'По названию' },
+  { value: 'series_count', label: 'По количеству сериалов' },
+  { value: 'sort_order', label: 'По порядку в справочнике' },
+]
+
+const SORTABLE_SECTION_TYPES = new Set<NavSectionType>(['genres', 'countries', 'voices'])
 
 export default function NavMenuPage() {
   const [items, setItems] = useState<NavItem[]>([])
@@ -114,6 +126,7 @@ export default function NavMenuPage() {
     countries: [],
     people: [],
     years: [],
+    voices: [],
   })
   const [loading, setLoading] = useState(false)
   const [itemModalOpen, setItemModalOpen] = useState(false)
@@ -329,6 +342,7 @@ export default function NavMenuPage() {
       is_active: true,
       source_type: 'custom',
       item_limit: 14,
+      item_sort: 'name',
       css_class: 'wide',
       sort_order: (megaItem.mega_sections.length + 1) * 10,
     })
@@ -433,7 +447,7 @@ export default function NavMenuPage() {
   const itemTaxonomyType = Form.useWatch('taxonomy_type', itemForm) as TaxonomyType | undefined
   const buttonLinkType = Form.useWatch('link_type', buttonForm)
   const buttonTaxonomyType = Form.useWatch('taxonomy_type', buttonForm) as TaxonomyType | undefined
-  const sectionSourceType = Form.useWatch('source_type', sectionForm)
+  const sectionSourceType = Form.useWatch('source_type', sectionForm) as NavSectionType | undefined
 
   useEffect(() => {
     if (megaDrawerOpen && megaItem) {
@@ -790,11 +804,27 @@ export default function NavMenuPage() {
             <Input placeholder="Жанры" />
           </Form.Item>
           <Form.Item label="Источник ссылок" name="source_type" rules={[{ required: true }]}>
-            <Select options={SECTION_TYPES} />
+            <Select
+              options={SECTION_TYPES}
+              onChange={(value) => {
+                if (value === 'voices') {
+                  sectionForm.setFieldValue('item_sort', 'series_count')
+                }
+              }}
+            />
           </Form.Item>
           {sectionSourceType !== 'custom' ? (
             <Form.Item label="Количество ссылок" name="item_limit">
               <InputNumber min={1} max={60} style={{ width: '100%' }} />
+            </Form.Item>
+          ) : null}
+          {sectionSourceType && SORTABLE_SECTION_TYPES.has(sectionSourceType) ? (
+            <Form.Item
+              label="Сортировка ссылок"
+              name="item_sort"
+              extra={sectionSourceType === 'voices' ? 'В меню попадают только озвучки, у которых есть сериалы.' : undefined}
+            >
+              <Select options={SECTION_SORT_OPTIONS} />
             </Form.Item>
           ) : null}
           <Form.Item label="CSS-класс секции" name="css_class" tooltip="Например: wide">

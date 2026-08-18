@@ -65,6 +65,11 @@ return [
             'route' => 'taxonomy.year.show',
             'params' => ['slug'],
         ],
+        'taxonomy_voice' => [
+            'label' => null,
+            'route' => 'taxonomy.voice.show',
+            'params' => ['slug'],
+        ],
         'coming_soon' => [
             'label' => 'Скоро',
             'route' => 'coming_soon.index',

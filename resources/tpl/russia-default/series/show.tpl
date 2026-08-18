@@ -71,6 +71,13 @@
                         [/loop]
                     </div>
                     [/series.genres]
+                    [series.voices]
+                    <div class="sd-line"><span>Озвучка:</span>
+                        [loop series.voices]
+                        <a href="{item.url|raw}">{item.name}</a>[not-item.is_last], [/not-item.is_last]
+                        [/loop]
+                    </div>
+                    [/series.voices]
                     [series.episode_progress_label]
                     <div class="sd-line"><span>Количество серий:</span> {series.episode_progress_label}</div>
                     [/series.episode_progress_label]
@@ -436,4 +443,7 @@
         </div>
     </div>
     [/has_notifications]
+    [series_seo_html]
+    <div class="desc-text clearfix home-seo">{series_seo_html|raw}</div>
+    [/series_seo_html]
 </main>

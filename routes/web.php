@@ -209,6 +209,8 @@ Route::get('/api/taxonomy/country/{slug}/browse', [TaxonomyController::class, 'b
     ->where('slug', '[a-z0-9\-]+');
 Route::get('/api/taxonomy/person/{slug}/browse', [TaxonomyController::class, 'browsePerson'])
     ->where('slug', '[a-z0-9\-]+');
+Route::get('/api/taxonomy/voice/{slug}/browse', [TaxonomyController::class, 'browseVoice'])
+    ->where('slug', '[a-z0-9\-]+');
 Route::get('/api/taxonomy/year/{slug}/browse', [TaxonomyController::class, 'browseYear'])
     ->where('slug', '[0-9]+');
 
@@ -235,6 +237,14 @@ Route::get('/person/{slug}/page/{page}/', [TaxonomyController::class, 'showPerso
     ->where('slug', '[a-z0-9\-]+')
     ->where('page', '[0-9]+')
     ->name('taxonomy.person.show.page');
+
+Route::get('/voice/{slug}/', [TaxonomyController::class, 'showVoice'])
+    ->where('slug', '[a-z0-9\-]+')
+    ->name('taxonomy.voice.show');
+Route::get('/voice/{slug}/page/{page}/', [TaxonomyController::class, 'showVoice'])
+    ->where('slug', '[a-z0-9\-]+')
+    ->where('page', '[0-9]+')
+    ->name('taxonomy.voice.show.page');
 
 Route::get('/year/{slug}/', [TaxonomyController::class, 'showYear'])
     ->where('slug', '[0-9]+')

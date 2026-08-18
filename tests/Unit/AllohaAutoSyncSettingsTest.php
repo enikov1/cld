@@ -44,5 +44,33 @@ class AllohaAutoSyncSettingsTest extends TestCase
         );
 
         $this->assertFalse($flags['bump_date']);
+        $this->assertTrue($flags['sync_voices']);
+    }
+
+    public function test_legacy_settings_inherit_voices_from_players(): void
+    {
+        $normalized = AllohaAutoSyncSettings::normalize([
+            'update_players' => false,
+        ]);
+
+        $this->assertFalse($normalized['update_voices']);
+
+        $flags = AllohaAutoSyncSettings::toImportFlags($normalized, false);
+        $this->assertArrayHasKey('sync_voices', $flags);
+        $this->assertFalse($flags['sync_voices']);
+    }
+
+    public function test_update_voices_can_be_enabled_without_players(): void
+    {
+        $flags = AllohaAutoSyncSettings::toImportFlags(
+            AllohaAutoSyncSettings::normalize([
+                'update_players' => false,
+                'update_voices' => true,
+            ]),
+            false,
+        );
+
+        $this->assertFalse($flags['sync_players']);
+        $this->assertTrue($flags['sync_voices']);
     }
 }

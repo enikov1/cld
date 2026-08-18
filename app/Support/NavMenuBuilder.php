@@ -11,6 +11,8 @@ use App\Models\NavMegaButton;
 use App\Models\NavMegaLink;
 use App\Models\NavMegaSection;
 use App\Models\Studio;
+use App\Models\Voice;
+use Illuminate\Database\Eloquent\Builder;
 
 class NavMenuBuilder
 {
@@ -116,26 +118,24 @@ class NavMenuBuilder
     private static function buildSectionLinks(NavMegaSection $section): array
     {
         return match ($section->source_type) {
-            NavMegaSection::SOURCE_GENRES => Genre::query()
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->limit(max(1, $section->item_limit))
-                ->get()
-                ->map(fn (Genre $g) => [
-                    'label' => TaxonomyRegistry::displayName($g),
-                    'url' => '/genre/' . rawurlencode($g->slug) . '/',
-                ])
-                ->all(),
-            NavMegaSection::SOURCE_COUNTRIES => Country::query()
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->limit(max(1, $section->item_limit))
-                ->get()
-                ->map(fn (Country $c) => [
-                    'label' => TaxonomyRegistry::displayName($c),
-                    'url' => '/country/' . rawurlencode($c->slug) . '/',
-                ])
-                ->all(),
+            NavMegaSection::SOURCE_GENRES => self::taxonomyLinks(
+                Genre::query()->where('is_active', true),
+                TaxonomyRegistry::TYPE_GENRES,
+                $section,
+            ),
+            NavMegaSection::SOURCE_COUNTRIES => self::taxonomyLinks(
+                Country::query()->where('is_active', true),
+                TaxonomyRegistry::TYPE_COUNTRIES,
+                $section,
+            ),
+            NavMegaSection::SOURCE_VOICES => self::taxonomyLinks(
+                Voice::query()
+                    ->where('is_active', true)
+                    ->where('is_hidden', false)
+                    ->whereHas('series', fn (Builder $q) => self::visibleSeries($q)),
+                TaxonomyRegistry::TYPE_VOICES,
+                $section,
+            ),
             NavMegaSection::SOURCE_COLLECTIONS => Collection::query()
                 ->where('is_active', true)
                 ->where('is_hidden', false)
@@ -186,6 +186,38 @@ class NavMenuBuilder
                 ->values()
                 ->all(),
         };
+    }
+
+    /**
+     * @param Builder<\Illuminate\Database\Eloquent\Model> $query
+     * @return list<array{label: string, url: string}>
+     */
+    private static function taxonomyLinks(Builder $query, string $type, NavMegaSection $section): array
+    {
+        $sort = $section->itemSort();
+        if ($sort === NavMegaSection::SORT_SERIES_COUNT) {
+            $query->withCount(['series as series_count' => fn (Builder $q) => self::visibleSeries($q)])
+                ->orderByDesc('series_count')
+                ->orderBy('name');
+        } elseif ($sort === NavMegaSection::SORT_ORDER) {
+            $query->orderBy('sort_order')->orderBy('name');
+        } else {
+            $query->orderBy('name');
+        }
+
+        return $query
+            ->limit(max(1, (int) $section->item_limit))
+            ->get()
+            ->map(fn ($item) => [
+                'label' => TaxonomyRegistry::displayName($item),
+                'url' => TaxonomyRegistry::publicUrl($type, (string) $item->slug),
+            ])
+            ->all();
+    }
+
+    private static function visibleSeries(Builder $query): Builder
+    {
+        return $query->where('is_active', true)->where('is_hidden', false);
     }
 
     private static function taxonomySlug(?string $type, ?int $id): ?string

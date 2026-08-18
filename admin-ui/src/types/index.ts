@@ -24,7 +24,7 @@ export type TaxonomyOption = {
   name: string
 }
 
-export type TaxonomyType = 'genres' | 'countries' | 'people' | 'years'
+export type TaxonomyType = 'genres' | 'countries' | 'people' | 'years' | 'voices'
 
 export type SeriesLookupResult = {
   source: 'kinopoisk' | 'tmdb'
@@ -78,10 +78,13 @@ export type SeriesItem = {
   country_ids?: number[]
   actor_ids?: number[]
   director_ids?: number[]
+  voice_ids?: number[]
   genres?: TaxonomyOption[]
   countries?: TaxonomyOption[]
   actors?: TaxonomyOption[]
   directors?: TaxonomyOption[]
+  voices?: TaxonomyOption[]
+  seo_html?: string | null
   age_limit?: string | null
   kp_web_url?: string | null
   alloha_token?: string | null

@@ -9,6 +9,7 @@ use App\Models\Genre;
 use App\Models\Person;
 use App\Models\Series;
 use App\Models\Studio;
+use App\Models\Voice;
 use App\Models\Year;
 use App\Observers\EpisodeObserver;
 use App\Observers\SitemapObserver;
@@ -39,7 +40,7 @@ class AppServiceProvider extends ServiceProvider
         Episode::observe(EpisodeObserver::class);
 
         $sitemapObserver = SitemapObserver::class;
-        foreach ([Collection::class, Country::class, Genre::class, Person::class, Series::class, Studio::class, Year::class] as $model) {
+        foreach ([Collection::class, Country::class, Genre::class, Person::class, Series::class, Studio::class, Voice::class, Year::class] as $model) {
             $model::observe($sitemapObserver);
         }
     }
