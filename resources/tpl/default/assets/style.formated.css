@@ -802,6 +802,10 @@ a.sect-title:hover {
     margin-bottom: 10px;
 }
 
+.series-seo-article__section > :first-child {
+    margin-top: 0;
+}
+
 .series-seo-article__schedule ul,
 .series-seo-article__schedule ol {
     padding-left: 20px;
@@ -809,6 +813,10 @@ a.sect-title:hover {
 
 .series-seo-article__schedule li {
     margin: 6px 0;
+}
+
+.series-seo-article .comments-compose__hint {
+    margin: 16px 0 10px;
 }
 
 .ft-desc {

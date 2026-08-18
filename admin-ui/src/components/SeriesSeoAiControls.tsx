@@ -1,5 +1,5 @@
 import { CopyOutlined, EditOutlined, ImportOutlined } from '@ant-design/icons'
-import { Alert, Button, Input, Modal, Space, Typography, message } from 'antd'
+import { Alert, Button, Checkbox, Input, Modal, Space, Typography, message } from 'antd'
 import type { FormInstance } from 'antd/es/form'
 import { useState } from 'react'
 import { api } from '../api/client'
@@ -32,6 +32,8 @@ export default function SeriesSeoAiControls({ form, seriesKey }: SeriesSeoAiCont
   const [importText, setImportText] = useState('')
   const [importPreview, setImportPreview] = useState<SeriesSeoAiResult | null>(null)
   const [importError, setImportError] = useState('')
+  const [applyMetaTitle, setApplyMetaTitle] = useState(false)
+  const [applyMetaDescription, setApplyMetaDescription] = useState(false)
 
   useDocumentTitle(
     importModalOpen
@@ -117,6 +119,8 @@ export default function SeriesSeoAiControls({ form, seriesKey }: SeriesSeoAiCont
     setImportText('')
     setImportPreview(null)
     setImportError('')
+    setApplyMetaTitle(false)
+    setApplyMetaDescription(false)
   }
 
   function runImportPreview() {
@@ -145,11 +149,15 @@ export default function SeriesSeoAiControls({ form, seriesKey }: SeriesSeoAiCont
       return
     }
 
-    if (importPreview.meta_title) form.setFieldValue('meta_title', importPreview.meta_title)
-    if (importPreview.meta_description) form.setFieldValue('meta_description', importPreview.meta_description)
+    if (applyMetaTitle && importPreview.meta_title) {
+      form.setFieldValue('meta_title', importPreview.meta_title)
+    }
+    if (applyMetaDescription && importPreview.meta_description) {
+      form.setFieldValue('meta_description', importPreview.meta_description)
+    }
     if (importPreview.seo_html) form.setFieldValue('seo_html', importPreview.seo_html)
 
-    message.success('SEO-поля заполнены из ответа ИИ')
+    message.success('Выбранные SEO-поля заполнены из ответа ИИ')
     setImportModalOpen(false)
     setImportText('')
     setImportPreview(null)
@@ -272,7 +280,7 @@ export default function SeriesSeoAiControls({ form, seriesKey }: SeriesSeoAiCont
         styles={{ body: { maxHeight: '75vh', overflowY: 'auto' } }}
       >
         <Typography.Paragraph type="secondary">
-          Вставьте JSON-ответ от ИИ (можно с markdown-блоком ```json). Сначала нажмите «Проверить», затем «Заполнить поля».
+          Вставьте JSON-ответ от ИИ (можно с markdown-блоком ```json). По умолчанию будет заполнен только `SEO-блок (HTML)`. Meta-поля применяются только по галочкам ниже.
         </Typography.Paragraph>
         <Input.TextArea
           value={importText}
@@ -290,6 +298,14 @@ export default function SeriesSeoAiControls({ form, seriesKey }: SeriesSeoAiCont
             {importError}
           </Typography.Paragraph>
         ) : null}
+        <Space direction="vertical" size={4} style={{ marginBottom: 16 }}>
+          <Checkbox checked={applyMetaTitle} onChange={(e) => setApplyMetaTitle(e.target.checked)}>
+            Заполнить `Meta title`
+          </Checkbox>
+          <Checkbox checked={applyMetaDescription} onChange={(e) => setApplyMetaDescription(e.target.checked)}>
+            Заполнить `Meta description`
+          </Checkbox>
+        </Space>
         {importPreview ? (
           <Space direction="vertical" size={12} style={{ width: '100%' }}>
             <div>

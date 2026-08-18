@@ -775,6 +775,19 @@
     color: #79c142;
 }
 
+.dt .home-seo {
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dt .home-seo h2,
+.dt .home-seo h3 {
+    color: #f0f0f0;
+}
+
+.dt .home-seo p {
+    color: #c7c7c7;
+}
+
 
 /* ================================================
    DROPDOWN MENU

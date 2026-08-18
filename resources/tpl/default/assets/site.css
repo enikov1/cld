@@ -967,6 +967,52 @@ body.dt {
     margin-top: 24px;
 }
 
+.home-seo {
+    border-top: 1px solid #d6d6d6;
+}
+
+.home-seo h2,
+.home-seo h3 {
+    margin-top: 22px;
+    margin-bottom: 12px;
+    line-height: 1.35;
+}
+
+.home-seo h2:first-child,
+.home-seo h3:first-child {
+    margin-top: 0;
+}
+
+.home-seo p {
+    margin: 0;
+    line-height: 1.8;
+    font-size: 14px;
+}
+
+.home-seo p + p,
+.home-seo p + ul,
+.home-seo p + ol,
+.home-seo ul + p,
+.home-seo ol + p,
+.home-seo section + section {
+    margin-top: 14px;
+}
+
+.home-seo ul,
+.home-seo ol {
+    margin: 0;
+    padding-left: 22px;
+}
+
+.home-seo li {
+    margin: 8px 0;
+    line-height: 1.7;
+}
+
+.home-seo .comments-compose__hint {
+    margin: 16px 0 10px;
+}
+
 .auth-errors {
     background: #fff3f3;
     border: 1px solid #ffbdbd;
