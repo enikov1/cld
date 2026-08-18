@@ -22,12 +22,15 @@
             background-repeat: no-repeat;
             background-size: 100% auto;
         }
+        body.has-site-bg .wrap {
+            padding-top: 200px !important;
+        }
         body.has-site-bg .wrap-center.wrap-main {
-            margin-top: 200px;
+            margin-top: 0;
         }
         @media (max-width: 768px) {
-            body.has-site-bg.site-bg-hide-mobile .wrap-center.wrap-main {
-                margin-top: 0;
+            body.has-site-bg.site-bg-hide-mobile .wrap {
+                padding-top: 0 !important;
             }
             body.has-site-bg.site-bg-hide-mobile,
             body.has-site-bg.site-bg-hide-mobile.dt {

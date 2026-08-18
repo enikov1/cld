@@ -19,7 +19,10 @@
                 </header>
 
                 [series.description]
-                <div class="serial-description slice-this">{series.description}</div>
+                <div class="serial-description slice-this slice slice-masked">{series.description}</div>
+                <div class="slice-btn slice-btn--compact" data-slice-toggle>
+                    <span role="button" tabindex="0">показать полностью</span>
+                </div>
                 [/series.description]
 
                 <div class="serial-details">
@@ -43,7 +46,7 @@
                         [/series.status_badge_label]
                     </div>
 
-                    <div class="serial-details__rows" data-details-collapse>
+                    <div class="serial-details__rows is-collapsed" data-details-collapse>
                         [series.title_original]
                         <div class="serial-detail">
                             <div class="serial-detail__name">Оригинальное название:</div>
@@ -163,6 +166,7 @@
                         </div>
                         [/series.episode_progress_label]
                     </div>
+                    <button type="button" class="dontusebuttonclass serial-details__toggle" aria-expanded="false">Показать всю информацию</button>
                 </div>
 
                 [has_coming_soon] {anticipation_widget|raw} [/has_coming_soon]

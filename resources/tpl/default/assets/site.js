@@ -3202,8 +3202,14 @@
 
         function scrollActiveTabIntoView() {
             var active = tabsWrap.querySelector('.trailer-tabs__btn.is-active');
-            if (!active) return;
-            active.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
+            if (!active || !tabsWrap) return;
+            var wrapRect = tabsWrap.getBoundingClientRect();
+            var tabRect = active.getBoundingClientRect();
+            if (tabRect.left < wrapRect.left) {
+                tabsWrap.scrollLeft -= wrapRect.left - tabRect.left;
+            } else if (tabRect.right > wrapRect.right) {
+                tabsWrap.scrollLeft += tabRect.right - wrapRect.right;
+            }
         }
 
         function updateNavVisibility() {
@@ -5053,41 +5059,28 @@
             if (el.getAttribute('data-slice-ready') === '1') return;
             el.setAttribute('data-slice-ready', '1');
 
-            var fullHeight = el.scrollHeight;
-            if (fullHeight <= collapsedMax + 24) return;
+            var btn = el.nextElementSibling;
+            if (!btn || !btn.hasAttribute('data-slice-toggle')) {
+                btn = null;
+            }
+            var label = btn ? btn.querySelector('[role="button"], span') : null;
 
-            el.classList.add('slice', 'slice-masked');
-            el.style.height = collapsedMax + 'px';
+            if (el.scrollHeight <= collapsedMax + 24) {
+                el.classList.add('is-expanded');
+                el.classList.remove('slice-masked');
+                if (btn) btn.hidden = true;
+                return;
+            }
 
-            var btn = document.createElement('div');
-            btn.className = 'slice-btn slice-btn--compact';
-            var label = document.createElement('span');
-            label.setAttribute('role', 'button');
-            label.setAttribute('tabindex', '0');
-            label.textContent = 'показать полностью';
-            btn.appendChild(label);
-            el.insertAdjacentElement('afterend', btn);
+            if (!btn || !label) return;
 
             var expanded = false;
 
             function toggle() {
                 expanded = !expanded;
-                if (expanded) {
-                    el.classList.remove('slice-masked');
-                    el.style.height = el.scrollHeight + 'px';
-                    label.textContent = 'свернуть';
-                    window.setTimeout(function () {
-                        if (expanded) el.style.height = 'auto';
-                    }, 220);
-                } else {
-                    var current = el.scrollHeight;
-                    el.style.height = current + 'px';
-                    // force reflow before collapsing
-                    void el.offsetHeight;
-                    el.classList.add('slice-masked');
-                    el.style.height = collapsedMax + 'px';
-                    label.textContent = 'показать полностью';
-                }
+                el.classList.toggle('is-expanded', expanded);
+                el.classList.toggle('slice-masked', !expanded);
+                label.textContent = expanded ? 'свернуть' : 'показать полностью';
             }
 
             label.addEventListener('click', toggle);
@@ -5107,13 +5100,20 @@
         var mq = window.matchMedia('(max-width: 1024px)');
         var visibleCount = 3;
         var details = rows.querySelectorAll('.serial-detail');
-        if (details.length <= visibleCount) return;
+        var btn = document.querySelector('.serial-details__toggle');
+        if (details.length <= visibleCount) {
+            rows.classList.remove('is-collapsed');
+            if (btn) btn.hidden = true;
+            return;
+        }
 
-        var btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'dontusebuttonclass serial-details__toggle';
-        btn.setAttribute('aria-expanded', 'false');
-        rows.insertAdjacentElement('afterend', btn);
+        if (!btn) {
+            btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'dontusebuttonclass serial-details__toggle';
+            btn.setAttribute('aria-expanded', 'false');
+            rows.insertAdjacentElement('afterend', btn);
+        }
 
         function isExpanded() {
             return rows.classList.contains('is-expanded');
