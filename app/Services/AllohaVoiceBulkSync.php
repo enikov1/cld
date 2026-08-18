@@ -28,7 +28,7 @@ class AllohaVoiceBulkSync
             ]);
         }
 
-        @set_time_limit(120);
+        @set_time_limit(40);
         if (session_status() === PHP_SESSION_ACTIVE) {
             session_write_close();
         }
@@ -61,7 +61,7 @@ class AllohaVoiceBulkSync
             AllohaVoiceSyncProgress::save($progress);
         }
 
-        $batchSize = max(1, min(40, (int) config('alloha.bulk_batch_size', 40)));
+        $batchSize = max(1, min(20, (int) config('alloha.voice_bulk_batch_size', 5)));
         $this->syncBatch($progress, $batchSize);
 
         $latest = AllohaVoiceSyncProgress::get();
@@ -140,7 +140,14 @@ class AllohaVoiceBulkSync
             ->limit($limit)
             ->get();
 
+        $startedAt = microtime(true);
+        $timeBudget = max(8, min(25, (int) config('alloha.voice_bulk_time_budget', 18)));
+
         foreach ($seriesList as $series) {
+            if ((microtime(true) - $startedAt) >= $timeBudget) {
+                break;
+            }
+
             $control = AllohaVoiceSyncProgress::get();
             if (($control['status'] ?? '') === 'stopped') {
                 $progress['status'] = 'stopped';
@@ -190,6 +197,8 @@ class AllohaVoiceBulkSync
             $lookupKp,
             AllohaClient::normalizeImdbId($series->imdb_id),
             trim((string) ($series->tmdb_id ?? '')),
+            max(3, (int) config('alloha.voice_request_timeout', 8)),
+            1,
         );
         if ($response === []) {
             return false;

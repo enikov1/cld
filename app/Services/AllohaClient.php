@@ -89,30 +89,39 @@ class AllohaClient
      *
      * @return array<string, mixed>
      */
-    public function getMovieWithFallback(?string $kpId = null, ?string $imdbId = null, ?string $tmdbId = null): array
+    public function getMovieWithFallback(?string $kpId = null, ?string $imdbId = null, ?string $tmdbId = null, ?int $timeout = null, int $maxLookups = 3): array
     {
+        $timeout = $timeout ?? $this->timeout;
+        $maxLookups = max(1, $maxLookups);
+        $lookups = 0;
+
         $kpId = trim((string) ($kpId ?? ''));
         if ($kpId !== '' && preg_match('/^\d+$/', $kpId)) {
-            $response = $this->getMovieByKp($kpId);
+            $response = $this->getJson('/v2/movies/kp/' . rawurlencode($kpId), [], $timeout);
+            $lookups++;
             if ($response !== []) {
                 return $response;
+            }
+            if ($lookups >= $maxLookups) {
+                return [];
             }
         }
 
         $imdbId = self::normalizeImdbId($imdbId);
         if ($imdbId !== '') {
-            $response = $this->getMovieByImdb($imdbId);
+            $response = $this->getJson('/v2/movies/imdb/' . rawurlencode($imdbId), [], $timeout);
+            $lookups++;
             if ($response !== []) {
                 return $response;
+            }
+            if ($lookups >= $maxLookups) {
+                return [];
             }
         }
 
         $tmdbId = trim((string) ($tmdbId ?? ''));
         if ($tmdbId !== '' && preg_match('/^\d+$/', $tmdbId)) {
-            $response = $this->getMovieByTmdb($tmdbId);
-            if ($response !== []) {
-                return $response;
-            }
+            return $this->getJson('/v2/movies/tmdb/' . rawurlencode($tmdbId), [], $timeout);
         }
 
         return [];
@@ -207,20 +216,25 @@ class AllohaClient
      * @param array<string,scalar|null> $query
      * @return array<string,mixed>
      */
-    private function getJson(string $path, array $query = []): array
+    private function getJson(string $path, array $query = [], ?int $timeout = null): array
     {
         if (!$this->isConfigured()) {
             return [];
         }
 
         $url = $this->baseUrl . $path;
-        $request = Http::timeout($this->timeout)
+        $request = Http::timeout($timeout ?? $this->timeout)
+            ->connectTimeout(5)
             ->withHeaders([
                 'Authorization' => 'Bearer ' . $this->apiToken,
                 'Accept' => 'application/json',
             ]);
 
-        $res = $query === [] ? $request->get($url) : $request->get($url, $query);
+        try {
+            $res = $query === [] ? $request->get($url) : $request->get($url, $query);
+        } catch (\Throwable) {
+            return [];
+        }
 
         if (!$res->ok()) {
             return [];

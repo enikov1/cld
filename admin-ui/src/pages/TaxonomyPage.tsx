@@ -3,7 +3,7 @@ import { CloudDownloadOutlined, CopyOutlined, DeleteOutlined, EditOutlined, Impo
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { api, apiUpload } from '../api/client'
+import { api, apiUpload, ApiError } from '../api/client'
 import TemplateCodeEditor from '../components/TemplateCodeEditor'
 import { useBusyFavicon, useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
 import { useAdminTheme } from '../theme/useAdminTheme'
@@ -50,6 +50,19 @@ function voiceProgressBarStatus(status: VoiceSyncProgress['status'], syncing: bo
   if (status === 'done') return 'success'
   if (syncing || status === 'running') return 'active'
   return 'normal'
+}
+
+function isTransientSyncError(error: unknown): boolean {
+  if (error instanceof ApiError) {
+    return [408, 429, 500, 502, 503, 504].includes(error.status)
+  }
+  return error instanceof TypeError
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms)
+  })
 }
 
 async function loadTaxonomySeoPromptTemplate(): Promise<string> {
@@ -205,48 +218,63 @@ function TaxonomyTab({
     voiceSyncAbortRef.current = false
     setAllohaSyncing(true)
     let nextRestart = restart
+    let transientErrors = 0
 
     try {
       while (!voiceSyncAbortRef.current) {
-        const res = await api<{
-          ok: boolean
-          done?: boolean
-          stopped?: boolean
-          percent?: number
-          message?: string
-          progress?: VoiceSyncProgress
-          synced?: number
-          skipped?: number
-          failed?: number
-          catalog?: number
-        }>('/api/admin/taxonomies/voices/sync-alloha', {
-          method: 'POST',
-          body: JSON.stringify({
-            restart: nextRestart,
-            continue: !nextRestart,
-          }),
-        })
+        try {
+          const res = await api<{
+            ok: boolean
+            done?: boolean
+            stopped?: boolean
+            percent?: number
+            message?: string
+            progress?: VoiceSyncProgress
+            synced?: number
+            skipped?: number
+            failed?: number
+            catalog?: number
+          }>('/api/admin/taxonomies/voices/sync-alloha', {
+            method: 'POST',
+            body: JSON.stringify({
+              restart: nextRestart,
+              continue: !nextRestart,
+            }),
+          })
 
-        nextRestart = false
-        if (res.progress) setVoiceSyncProgress(res.progress)
-        setVoiceSyncPercent(res.percent ?? 0)
+          nextRestart = false
+          transientErrors = 0
+          if (res.progress) setVoiceSyncProgress(res.progress)
+          setVoiceSyncPercent(res.percent ?? 0)
 
-        if (res.stopped || res.progress?.status === 'stopped') {
-          message.warning(res.message || 'Синхронизация остановлена')
-          break
-        }
+          if (res.stopped || res.progress?.status === 'stopped') {
+            message.warning(res.message || 'Синхронизация остановлена')
+            break
+          }
 
-        if (res.done) {
-          message.success(
-            res.message
-            || `Готово: озвучек у сериалов ${res.catalog ?? 0}, сериалов с озвучками ${res.synced ?? 0}`,
-          )
-          await load()
+          if (res.done) {
+            message.success(
+              res.message
+              || `Готово: озвучек у сериалов ${res.catalog ?? 0}, сериалов с озвучками ${res.synced ?? 0}`,
+            )
+            await load()
+            break
+          }
+        } catch (e) {
+          nextRestart = false
+          if (voiceSyncAbortRef.current) break
+          if (isTransientSyncError(e) && transientErrors < 8) {
+            transientErrors += 1
+            setVoiceSyncProgress((prev) => prev
+              ? { ...prev, message: `Сервер не ответил вовремя, повтор ${transientErrors} из 8…` }
+              : prev)
+            await wait(1200 * transientErrors)
+            continue
+          }
+          message.error(String((e as Error).message))
           break
         }
       }
-    } catch (e) {
-      message.error(String((e as Error).message))
     } finally {
       voiceSyncLoopRef.current = false
       setAllohaSyncing(false)
@@ -529,12 +557,16 @@ function TaxonomyTab({
         </span>
         <Space>
           {type === 'voices' ? (
-            voiceSyncProgress?.status === 'running' || (allohaSyncing && voiceSyncProgress?.status !== 'stopped') ? (
+            allohaSyncing && voiceSyncProgress?.status !== 'stopped' ? (
               <Button icon={<StopOutlined />} onClick={() => void stopVoiceSync()}>
                 Остановить
               </Button>
             ) : allohaSyncing ? (
               <Button disabled>Остановка…</Button>
+            ) : voiceSyncProgress?.status === 'running' ? (
+              <Button icon={<CloudDownloadOutlined />} onClick={() => void runVoiceSyncLoop(false)}>
+                Продолжить
+              </Button>
             ) : (
               <Button icon={<CloudDownloadOutlined />} onClick={() => void runVoiceSyncLoop(true)}>
                 Загрузить из Alloha
