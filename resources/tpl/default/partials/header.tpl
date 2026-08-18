@@ -1,7 +1,7 @@
 <header class="ls-header" id="header">
     <div class="ls-header__inner wrap-center">
         <a href="/" class="ls-logo logo">
-            <img src="{site.logo|raw}" alt="{site.name}">
+            <img src="{site.logo|raw}" alt="{site.name}" width="158" height="70">
         </a>
 
         <nav class="ls-nav">
@@ -60,7 +60,7 @@
             <button class="dontusebuttonclass" type="submit" aria-label="Найти">
                 <span class="fa fa-search"></span>
             </button>
-            <div class="ls-search__panel" id="lsQuickSearchPanel" hidden></div>
+            <div class="ls-search__panel" id="lsQuickSearchPanel" hidden role="listbox"></div>
         </form>
 
         <div class="ls-actions">
@@ -108,11 +108,11 @@
     </div>
 </header>
 
-<div class="ls-mobile-overlay js-mobile-menu-close" aria-hidden="true"></div>
-<aside class="ls-mobile-menu" id="lsMobileMenu" aria-hidden="true">
+<div class="ls-mobile-overlay js-mobile-menu-close" aria-hidden="true" inert></div>
+<aside class="ls-mobile-menu" id="lsMobileMenu" aria-hidden="true" inert>
     <div class="ls-mobile-menu__head">
         <a href="/" class="ls-mobile-menu__logo logo">
-            <img src="{site.logo|raw}" alt="{site.name}">
+            <img src="{site.logo|raw}" alt="{site.name}" width="158" height="70">
         </a>
         <button class="dontusebuttonclass ls-mobile-menu__close js-mobile-menu-close" type="button" aria-label="Закрыть">
             <span class="fa fa-times"></span>
@@ -121,7 +121,7 @@
     <form class="ls-mobile-search js-quick-search" action="/search" method="get" autocomplete="off">
         <input type="text" class="dontuseinputclass" name="q" placeholder="Что ищем?" value="{search_query}" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="lsQuickSearchPanelMobile" aria-autocomplete="list">
         <button class="dontusebuttonclass" type="submit"><span class="fa fa-search"></span></button>
-        <div class="ls-search__panel ls-search__panel--mobile" id="lsQuickSearchPanelMobile" hidden></div>
+        <div class="ls-search__panel ls-search__panel--mobile" id="lsQuickSearchPanelMobile" hidden role="listbox"></div>
     </form>
     <div class="ls-mobile-accordion">
         [loop nav_mobile_items]

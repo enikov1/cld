@@ -967,7 +967,7 @@
                     html += '<div class="ls-search__group-title">' + escapeHtml(group.label) + '</div>';
                     html += '<div class="ls-search__group-list">';
                     group.items.forEach(function(item) {
-                        html += '<a class="ls-search__item ls-search__item--' + escapeHtml(group.type) + '" href="' + escapeHtml(item.url) + '">';
+                        html += '<a class="ls-search__item ls-search__item--' + escapeHtml(group.type) + '" href="' + escapeHtml(item.url) + '" role="option">';
                         if (item.image) {
                             html += '<span class="ls-search__item-media"><img src="' + escapeHtml(item.image) + '" alt="" loading="lazy"></span>';
                         } else {
@@ -1078,13 +1078,21 @@
             }
             document.body.classList.add('ls-menu-open');
             menu.setAttribute('aria-hidden', 'false');
-            if (overlay) overlay.setAttribute('aria-hidden', 'false');
+            menu.inert = false;
+            if (overlay) {
+                overlay.setAttribute('aria-hidden', 'false');
+                overlay.inert = false;
+            }
         }
 
         function closeMobileMenu() {
             document.body.classList.remove('ls-menu-open');
             menu.setAttribute('aria-hidden', 'true');
-            if (overlay) overlay.setAttribute('aria-hidden', 'true');
+            menu.inert = true;
+            if (overlay) {
+                overlay.setAttribute('aria-hidden', 'true');
+                overlay.inert = true;
+            }
             closeMobileSections();
         }
 
@@ -1773,7 +1781,11 @@
         tabs.forEach(function(tab) {
             tab.addEventListener('click', function() {
                 var name = tab.getAttribute('data-profile-tab');
-                tabs.forEach(function(t) { t.classList.toggle('is-active', t === tab); });
+                tabs.forEach(function(t) {
+                    var active = t === tab;
+                    t.classList.toggle('is-active', active);
+                    t.setAttribute('aria-selected', active ? 'true' : 'false');
+                });
                 document.querySelectorAll('[data-profile-panel]').forEach(function(panel) {
                     var active = panel.getAttribute('data-profile-panel') === name;
                     panel.hidden = !active;
@@ -1808,8 +1820,8 @@
                 panels.forEach(function (panel) {
                     var match = panel.getAttribute('data-engagement-panel') === name;
                     panel.classList.toggle('is-active', match);
-                    panel.setAttribute('aria-hidden', match ? 'false' : 'true');
-                    // Keep markup in DOM for SEO — do not set the HTML hidden attribute.
+                    panel.inert = !match;
+                    panel.removeAttribute('aria-hidden');
                     if (panel.hasAttribute('hidden')) panel.removeAttribute('hidden');
                 });
             });
@@ -3243,6 +3255,7 @@
             tabs.forEach(function(tab) {
                 var active = tab.getAttribute('data-player-index') === String(index);
                 tab.classList.toggle('is-active', active);
+                tab.setAttribute('aria-selected', active ? 'true' : 'false');
             });
 
             panels.forEach(function(panel) {

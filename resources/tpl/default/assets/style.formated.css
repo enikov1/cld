@@ -380,7 +380,7 @@ strong {
 .wrap {
     min-width: 320px;
     position: relative;
-    padding-top: 250px;
+    padding-top: 0;
 }
 
 .wrap-center {
@@ -10568,12 +10568,14 @@ body.ls-menu-open {
     overflow: hidden;
     background: #eef1f4;
     box-shadow: 0 12px 26px rgba(20, 28, 36, .16);
+    aspect-ratio: 2 / 3;
 }
 
 .serial-poster-card img:not(.hot) {
     display: block;
     width: 100%;
-    /* aspect-ratio: 2 / 3; */
+    height: 100%;
+    aspect-ratio: 2 / 3;
     object-fit: cover;
 }
 

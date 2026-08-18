@@ -170,7 +170,7 @@
 
             <aside class="serial-view__left">
                 <div class="serial-poster-card">
-                    <img src="{series.poster_url|raw}" alt="{series.title}">
+                    <img src="{series.poster_url|raw}" alt="{series.title}" width="220" height="330" fetchpriority="high" decoding="async">
                     [series.has_gallery]
                     <button type="button" class="serial-poster-card__gallery dontusebuttonclass" data-series-gallery data-series-id="{series.id}" title="Галерея" aria-label="Открыть галерею">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 16V4c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2zm-11-4 2.03 2.71L16 11l4 5H8l3-4zM2 6v14c0 1.1.9 2 2 2h14v-2H4V6H2z"/></svg>
@@ -284,8 +284,8 @@
                 </button>
                 <div class="trailer-tabs" role="tablist" data-player-tabs>
                     [loop players] [item.is_first]
-                    <button type="button" class="trailer-tabs__btn dontusebuttonclass is-active" data-player-index="{item.index}">{item.label}</button> [/item.is_first] [not-item.is_first]
-                    <button type="button" class="trailer-tabs__btn dontusebuttonclass" data-player-index="{item.index}">{item.label}</button> [/not-item.is_first] [/loop]
+                    <button type="button" class="trailer-tabs__btn dontusebuttonclass is-active" role="tab" aria-selected="true" data-player-index="{item.index}">{item.label}</button> [/item.is_first] [not-item.is_first]
+                    <button type="button" class="trailer-tabs__btn dontusebuttonclass" role="tab" aria-selected="false" data-player-index="{item.index}">{item.label}</button> [/not-item.is_first] [/loop]
                 </div>
                 <button type="button" class="trailer-tabs-nav trailer-tabs-nav--next dontusebuttonclass" aria-label="Вперёд" hidden>
                     <span class="fa fa-angle-right"></span>
@@ -305,7 +305,7 @@
         </div>
         <div class="trailer-box__body">
             [loop players] [item.is_first]
-            <div class="trailer-panel is-active" data-player-panel="{item.index}">
+            <div class="trailer-panel is-active" data-player-panel="{item.index}" role="tabpanel">
                 <div class="trailer-frame">
                     [item.is_embed]
                     <div class="player-embed">{item.html|raw}</div>
@@ -314,7 +314,7 @@
                 </div>
             </div>
             [/item.is_first] [not-item.is_first]
-            <div class="trailer-panel" data-player-panel="{item.index}" hidden>
+            <div class="trailer-panel" data-player-panel="{item.index}" role="tabpanel" hidden>
                 <div class="trailer-frame">
                     [item.is_embed]
                     <div class="player-embed">{item.html|raw}</div>
@@ -327,7 +327,7 @@
         [/has_players] [not-has_players]
         <div class="trailer-box__top">
             <div class="trailer-tabs" role="tablist">
-                <button type="button" class="trailer-tabs__btn dontusebuttonclass is-active" disabled>Смотреть онлайн</button>
+                <button type="button" class="trailer-tabs__btn dontusebuttonclass is-active" role="tab" aria-selected="true" disabled>Смотреть онлайн</button>
             </div>
             <div class="trailer-actions">
                 <label class="trailer-light">
@@ -438,7 +438,7 @@
             <button type="button" class="dontusebuttonclass engagement-tabs__btn" role="tab" aria-selected="false" data-engagement-tab="reviews">{reviews_ui_tab_reviews}<span class="engagement-tabs__count" data-engagement-reviews-count[not-reviews_count] hidden[/not-reviews_count]>({reviews_count})</span></button>
         </div>
 
-        <div class="engagement-panel is-active" data-engagement-panel="comments" role="tabpanel" aria-hidden="false">
+        <div class="engagement-panel is-active" data-engagement-panel="comments" role="tabpanel">
             <section class="comments-section comments-section--embedded" id="commentsSection" data-series-id="{series.id}">
                 <header class="comments-section__header">
                     <h2 class="comments-section__title">{comments_ui_title}</h2>
@@ -496,7 +496,7 @@
             </section>
         </div>
 
-        <div class="engagement-panel" data-engagement-panel="reviews" role="tabpanel" aria-hidden="true">
+        <div class="engagement-panel" data-engagement-panel="reviews" role="tabpanel" inert>
             <section class="reviews-section reviews-section--embedded" id="reviewsSection" data-series-id="{series.id}">
                 <header class="comments-section__header">
                     <h2 class="comments-section__title">{reviews_ui_title}</h2>

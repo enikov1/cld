@@ -5,10 +5,49 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#111">
+    <style id="site-critical">
+        html { background-color: #f1f3f5; }
+        .wrap { padding-top: 0 !important; }
+        [site.has_background]
+        :root {
+            --site-bg-header-offset: {site.background_header_offset}px;
+            --site-bg-color: {site.background_color};
+            --site-bg-image: url('{site.background|raw}');
+        }
+        html { background-color: var(--site-bg-color); }
+        body.has-site-bg,
+        body.has-site-bg.dt {
+            background-color: var(--site-bg-color);
+            background-image: url('{site.background|raw}');
+            background-position: center top;
+            background-repeat: no-repeat;
+            background-size: 100% auto;
+        }
+        .site-bg-slot {
+            flex: 0 0 auto;
+            width: 100%;
+            height: var(--site-bg-header-offset);
+            pointer-events: none;
+        }
+        @media (max-width: 768px) {
+            body.site-bg-hide-mobile .site-bg-slot {
+                display: none;
+                height: 0;
+            }
+            body.has-site-bg.site-bg-hide-mobile,
+            body.has-site-bg.site-bg-hide-mobile.dt {
+                background-image: none;
+            }
+        }
+        [/site.has_background]
+    </style>
 
     [site.has_favicon]
     <link rel="shortcut icon" href="{site.favicon|raw}" />
     [/site.has_favicon]
+    [site.has_background]
+    <link rel="preload" as="image" href="{site.background|raw}">
+    [/site.has_background]
 
     <title>{meta.title}</title>
     <meta name="description" content="{meta.description}">
@@ -27,44 +66,17 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Oswald:wght@600;700;800&display=swap" rel="stylesheet"> [theme.stylesheets] [loop theme.stylesheets]
     <link rel="stylesheet" href="{item|raw}"> [/loop] [/theme.stylesheets]
-    [site.has_background]
-    <style id="site-branding">
-        :root {
-            --site-bg-header-offset: {site.background_header_offset}px;
-            --site-bg-color: {site.background_color};
-        }
-
-        body.has-site-bg {
-            background-color: var(--site-bg-color);
-            background-image: url('{site.background|raw}');
-            background-position: center top;
-            background-repeat: no-repeat;
-        }
-
-        body.has-site-bg.dt {
-            background-color: var(--site-bg-color);
-        }
-
-        body.has-site-bg .wrap-main {
-            margin-top: var(--site-bg-header-offset);
-        }
-
-        @media (max-width: 768px) {
-            body.has-site-bg.site-bg-hide-mobile {
-                background-image: none;
-            }
-
-            body.has-site-bg.site-bg-hide-mobile .wrap-main {
-                margin-top: 0;
-            }
-        }
-    </style>
-    [/site.has_background]
 
     <meta name="csrf-token" content="{csrf_token|raw}">
 </head>
 
 <body class="{site.body_class|raw}" data-auth-panel="{auth_panel|raw}"[auth.logged_in] data-logged-in="1"[/auth.logged_in]>
+    <script>
+        (function () { try { if (localStorage.getItem('darkTheme') === '1') document.body.classList.add('dt'); } catch (e) {} })();
+    </script>
+    [site.has_background]
+    <div class="site-bg-slot" aria-hidden="true"[not-site.background_hide_mobile] style="height:{site.background_header_offset}px"[/not-site.background_hide_mobile]></div>
+    [/site.has_background]
     <div class="wrap">
         <div class="wrap-center wrap-main">
             {header|raw} {notifications_dropdown|raw}

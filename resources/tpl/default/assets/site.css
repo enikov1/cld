@@ -17,7 +17,38 @@ body {
 }
 
 body.dt {
-    background: #111 url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"><rect fill="%23181818" width="4" height="4"/></svg>') center top repeat;
+    background-color: #111;
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"><rect fill="%23181818" width="4" height="4"/></svg>');
+    background-position: center top;
+    background-repeat: repeat;
+}
+
+body.has-site-bg,
+body.has-site-bg.dt {
+    background-color: var(--site-bg-color, #111);
+    background-image: var(--site-bg-image, none);
+    background-position: center top;
+    background-repeat: no-repeat;
+    background-size: 100% auto;
+}
+
+.site-bg-slot {
+    flex: 0 0 auto;
+    width: 100%;
+    height: var(--site-bg-header-offset, 200px);
+    pointer-events: none;
+}
+
+@media (max-width: 768px) {
+    body.site-bg-hide-mobile .site-bg-slot {
+        display: none;
+        height: 0;
+    }
+
+    body.has-site-bg.site-bg-hide-mobile,
+    body.has-site-bg.site-bg-hide-mobile.dt {
+        background-image: none;
+    }
 }
 
 
@@ -61,7 +92,9 @@ body.dt {
 
 .ls-logo img {
     width: auto;
+    height: 70px;
     max-width: 158px;
+    object-fit: contain;
 }
 
 .ls-nav__list {

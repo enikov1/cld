@@ -1,7 +1,7 @@
 <div class="th-item">
     <a class="th-in with-mask" href="{item.url|raw}">
         <div class="th-img img-resp-vert">
-            <img src="{item.poster_url|raw}" alt="{item.title}" loading="lazy">
+            <img src="{item.poster_url|raw}" alt="{item.title}" width="180" height="261" loading="lazy" decoding="async">
         </div>
         <div class="th-desc">
             <div class="th-title">{item.title}</div>

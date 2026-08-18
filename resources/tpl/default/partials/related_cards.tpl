@@ -24,7 +24,7 @@
                         <span class="th-card-emoji" title="Топ-реакция">{item.top_reaction_emoji}</span>
                     [/item.top_reaction_emoji]
                 </div>
-                <img src="{item.poster_url|raw}" alt="{item.title}" loading="lazy">
+                <img src="{item.poster_url|raw}" alt="{item.title}" width="180" height="261" loading="lazy" decoding="async">
             </div>
             <div class="th-desc">
                 <div class="th-title">{item.title}</div>

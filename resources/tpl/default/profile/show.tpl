@@ -43,14 +43,14 @@
 
         <div class="profile-main">
             <nav class="profile-tabs" role="tablist">
-                <button type="button" class="profile-tabs__btn is-active" data-profile-tab="account">Аккаунт</button>
-                <button type="button" class="profile-tabs__btn" data-profile-tab="lists">Мои списки</button>
+                <button type="button" class="profile-tabs__btn is-active" role="tab" aria-selected="true" data-profile-tab="account">Аккаунт</button>
+                <button type="button" class="profile-tabs__btn" role="tab" aria-selected="false" data-profile-tab="lists">Мои списки</button>
                 [has_notifications]
-                    <button type="button" class="profile-tabs__btn" data-profile-tab="notifications">Уведомления</button>
+                    <button type="button" class="profile-tabs__btn" role="tab" aria-selected="false" data-profile-tab="notifications">Уведомления</button>
                 [/has_notifications]
-                <button type="button" class="profile-tabs__btn" data-profile-tab="comments">Комментарии</button>
+                <button type="button" class="profile-tabs__btn" role="tab" aria-selected="false" data-profile-tab="comments">Комментарии</button>
                 [has_profile_reviews]
-                <button type="button" class="profile-tabs__btn" data-profile-tab="reviews">
+                <button type="button" class="profile-tabs__btn" role="tab" aria-selected="false" data-profile-tab="reviews">
                     Рецензии
                     [has_reviews_pending]<span class="profile-tabs__badge">{profile_stats.reviews_pending}</span>[/has_reviews_pending]
                 </button>
