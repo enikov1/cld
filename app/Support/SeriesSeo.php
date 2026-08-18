@@ -40,6 +40,8 @@ class SeriesSeo
             return '';
         }
 
+        $path = PublicMedia::rewriteInText($path);
+
         if (preg_match('#^https?://#i', $path) === 1) {
             return $path;
         }

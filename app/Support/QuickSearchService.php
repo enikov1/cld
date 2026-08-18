@@ -126,7 +126,7 @@ class QuickSearchService
                         'title' => $item->title,
                         'subtitle' => $item->year ? (string)$item->year : '',
                         'url' => SeriesUrl::path($item),
-                        'image' => $item->poster_url ?? '',
+                        'image' => PublicMedia::url($item->poster_url ?? ''),
                     ])->all(),
                 ];
             }
@@ -142,7 +142,7 @@ class QuickSearchService
                     'title' => Utf8::ucfirst($item->name),
                     'subtitle' => 'Актёр',
                     'url' => '/person/' . rawurlencode($item->slug) . '/',
-                    'image' => $item->photo_url ?? '',
+                    'image' => PublicMedia::url($item->photo_url ?? ''),
                 ])->all(),
             ];
         }
@@ -158,7 +158,7 @@ class QuickSearchService
                         'title' => Utf8::ucfirst($item->name),
                         'subtitle' => 'Режиссёр',
                         'url' => '/person/' . rawurlencode($item->slug) . '/',
-                        'image' => $item->photo_url ?? '',
+                        'image' => PublicMedia::url($item->photo_url ?? ''),
                     ])->all(),
                 ];
             }
@@ -234,7 +234,7 @@ class QuickSearchService
                     'title' => TaxonomyRegistry::displayName($item),
                     'subtitle' => 'Студия',
                     'url' => '/studios/' . $item->slug . '/',
-                    'image' => $item->logo_url ?? '',
+                    'image' => PublicMedia::url($item->logo_url ?? ''),
                 ])->all(),
             ];
         }
@@ -256,7 +256,7 @@ class QuickSearchService
                     'title' => TaxonomyRegistry::displayName($item),
                     'subtitle' => 'Подборка',
                     'url' => '/collections/' . $item->slug . '/',
-                    'image' => $item->cover_url ?? '',
+                    'image' => PublicMedia::url($item->cover_url ?? ''),
                 ])->all(),
             ];
         }

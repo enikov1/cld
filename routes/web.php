@@ -24,7 +24,6 @@ use App\Http\Controllers\SeriesPreviewController;
 use App\Http\Controllers\SeriesReactionController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\TaxonomyController;
-use App\Http\Controllers\ThemeAssetController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\UserLibraryController;
 use App\Http\Controllers\WatchlistController;
@@ -131,11 +130,6 @@ Route::middleware(['auth', 'site.feature:auth_profile_enabled'])->group(function
 
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
 Route::get('/robots.txt', [RobotsController::class, 'index'])->name('robots');
-
-Route::get('/theme-assets/{theme}/{path}', [ThemeAssetController::class, 'show'])
-    ->where('theme', '[a-zA-Z0-9_-]+')
-    ->where('path', '.+')
-    ->name('theme.asset');
 
 Route::prefix('api/series/{seriesId}')->where(['seriesId' => '[0-9]+'])->group(function () {
     Route::get('/preview', [SeriesPreviewController::class, 'show']);

@@ -42,7 +42,7 @@ class ThemeAssetController extends Controller
 
         return ResponseFactory::file($resolved, [
             'Content-Type' => self::MIME[$ext] ?? 'application/octet-stream',
-            'Cache-Control' => 'public, max-age=3600',
+            'Cache-Control' => 'public, max-age=31536000, immutable',
         ]);
     }
 

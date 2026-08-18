@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Series;
+use App\Support\PublicMedia;
 use Illuminate\Http\JsonResponse;
 
 class SeriesGalleryController extends Controller
@@ -17,7 +18,7 @@ class SeriesGalleryController extends Controller
             ->map(static fn ($url) => trim((string)$url))
             ->filter()
             ->values()
-            ->map(static fn (string $url) => ['url' => $url])
+            ->map(static fn (string $url) => ['url' => PublicMedia::url($url)])
             ->all();
 
         return response()->json([

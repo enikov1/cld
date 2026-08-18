@@ -50,7 +50,7 @@ class SeriesSeoTest extends TestCase
     public function test_absolute_url_keeps_http_and_prefixes_paths(): void
     {
         $this->assertSame('https://cdn.example/poster.jpg', SeriesSeo::absoluteUrl('https://cdn.example/poster.jpg'));
-        $this->assertSame(url('/storage/posters/kp-1.webp'), SeriesSeo::absoluteUrl('/storage/posters/kp-1.webp'));
+        $this->assertSame(url('/media/posters/kp-1.webp'), SeriesSeo::absoluteUrl('/storage/posters/kp-1.webp'));
     }
 
     public function test_schema_and_og_types_depend_on_content_type(): void
@@ -145,7 +145,7 @@ class SeriesSeoTest extends TestCase
         $this->assertSame('Person', $nodes[0]['actor'][0]['@type']);
         $this->assertSame(1, $nodes[0]['numberOfSeasons']);
         $this->assertSame(2, $nodes[0]['numberOfEpisodes']);
-        $this->assertStringContainsString('/storage/posters/kp-412344.webp', $nodes[0]['image']);
+        $this->assertStringContainsString('/media/posters/kp-412344.webp', $nodes[0]['image']);
         $this->assertStringStartsWith('http', $nodes[0]['image']);
         $this->assertSame('VideoObject', $nodes[1]['@type']);
         $this->assertSame('WatchAction', $nodes[1]['potentialAction']['@type']);

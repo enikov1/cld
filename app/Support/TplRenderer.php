@@ -269,6 +269,7 @@ class TplRenderer
                 $isRaw = !empty($m[2]) && $m[2] === '|raw';
                 $val = $this->resolvePath($vars, $key);
                 $val = $val === null ? '' : (string)$val;
+                $val = PublicMedia::rewriteInText($val);
                 if ($isRaw) {
                     return $val;
                 }

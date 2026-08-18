@@ -23,6 +23,7 @@ return [
         'voice',
         'skoro',
         'kalendar',
+        'media',
         'theme-assets',
         '_admin-assets',
         '_admin_ui',
