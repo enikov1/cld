@@ -538,6 +538,7 @@ export default function StudiosPage() {
               options={[
                 { value: 'company', label: 'company' },
                 { value: 'movie', label: 'movie' },
+                { value: 'network', label: 'network' },
                 { value: 'tv', label: 'tv' },
               ]}
               placeholder="Опционально"

@@ -35,7 +35,7 @@ class AdminStudioController extends Controller
             'seo_html' => ['nullable', 'string', 'max:65535'],
             'logo_url' => ['nullable', 'string', 'max:2048'],
             'tmdb_id' => ['nullable', 'integer', 'min:1'],
-            'tmdb_type' => ['nullable', 'string', Rule::in(['movie', 'tv', 'company'])],
+            'tmdb_type' => ['nullable', 'string', Rule::in(['movie', 'tv', 'company', 'network'])],
             'sort_order' => ['nullable', 'integer'],
             'is_pinned' => ['nullable', 'boolean'],
             'is_active' => ['nullable', 'boolean'],
