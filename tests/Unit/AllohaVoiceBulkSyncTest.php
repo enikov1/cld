@@ -38,7 +38,7 @@ class AllohaVoiceBulkSyncTest extends TestCase
         $client->shouldNotReceive('translations');
         $client->shouldReceive('getMovieWithFallback')
             ->once()
-            ->with('5165951', '', '')
+            ->with('5165951', '', '', Mockery::any(), Mockery::any())
             ->andReturn([
                 'data' => [
                     'name' => 'Mentalist',
