@@ -87,7 +87,7 @@ export default function StudiosPage() {
   const [form] = Form.useForm()
   const [addForm] = Form.useForm()
   const [searchParams, setSearchParams] = useSearchParams()
-  const deepLinkHandled = useRef(false)
+  const lastDeepLinkKey = useRef<string | null>(null)
   const logoUrl = Form.useWatch('logo_url', form)
 
   useDocumentTitle(
@@ -165,15 +165,17 @@ export default function StudiosPage() {
   }
 
   useEffect(() => {
-    if (deepLinkHandled.current || studios.length === 0) {
-      return
-    }
     const id = searchParams.get('id')?.trim()
     const slug = searchParams.get('slug')?.trim()
-    if (!id && !slug) {
+    const key = id ? `id:${id}` : slug ? `slug:${slug}` : null
+    if (!key) {
+      lastDeepLinkKey.current = null
       return
     }
-    deepLinkHandled.current = true
+    if (studios.length === 0 || lastDeepLinkKey.current === key) {
+      return
+    }
+    lastDeepLinkKey.current = key
     const row = id
       ? studios.find((item) => String(item.id) === id)
       : studios.find((item) => item.slug === slug)

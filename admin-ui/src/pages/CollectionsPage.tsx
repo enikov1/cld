@@ -93,7 +93,7 @@ export default function CollectionsPage() {
   const [form] = Form.useForm()
   const [addForm] = Form.useForm()
   const [searchParams, setSearchParams] = useSearchParams()
-  const deepLinkHandled = useRef(false)
+  const lastDeepLinkKey = useRef<string | null>(null)
   const watchedSeriesIds = (Form.useWatch('series_ids', form) as number[] | undefined) ?? []
   const watchedSlug = String(Form.useWatch('slug', form) ?? '').trim()
   const watchedTitle = String(Form.useWatch('title', form) ?? '').trim()
@@ -243,15 +243,17 @@ export default function CollectionsPage() {
   }
 
   useEffect(() => {
-    if (deepLinkHandled.current) {
-      return
-    }
     const id = searchParams.get('id')?.trim()
     const slug = searchParams.get('slug')?.trim()
-    if (!id && !slug) {
+    const key = id ? `id:${id}` : slug ? `slug:${slug}` : null
+    if (!key) {
+      lastDeepLinkKey.current = null
       return
     }
-    deepLinkHandled.current = true
+    if (lastDeepLinkKey.current === key) {
+      return
+    }
+    lastDeepLinkKey.current = key
     let cancelled = false
 
     ;(async () => {

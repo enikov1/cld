@@ -65,6 +65,18 @@ function wait(ms: number): Promise<void> {
   })
 }
 
+function cmpStr(a: string | null | undefined, b: string | null | undefined): number {
+  return (a ?? '').localeCompare(b ?? '', 'ru', { numeric: true, sensitivity: 'base' })
+}
+
+function hasSeo(row: TaxonomyItem): boolean {
+  return Boolean(row.meta_title?.trim() || row.seo_html?.trim())
+}
+
+function statusRank(row: TaxonomyItem): number {
+  return (row.is_active ? 4 : 0) + (row.is_hidden ? 0 : 2) + (row.noindex ? 0 : 1)
+}
+
 async function loadTaxonomySeoPromptTemplate(): Promise<string> {
   const data = await api<{ items: SettingRow[] }>('/api/admin/settings')
   const value = data.items.find((row) => row.key === TAXONOMY_SEO_AI_PROMPT_KEY)?.value?.trim()
@@ -91,7 +103,7 @@ function TaxonomyTab({
   const [editing, setEditing] = useState<TaxonomyItem | null>(null)
   const [form] = Form.useForm()
   const photoUrl = Form.useWatch('photo_url', form)
-  const deepLinkHandled = useRef(false)
+  const lastDeepLinkId = useRef<string | null>(null)
 
   const [promptModalOpen, setPromptModalOpen] = useState(false)
   const [promptLoading, setPromptLoading] = useState(false)
@@ -145,10 +157,14 @@ function TaxonomyTab({
   }, [load])
 
   useEffect(() => {
-    if (deepLinkHandled.current || !deepLinkId || loading || items.length === 0) {
+    if (!deepLinkId) {
+      lastDeepLinkId.current = null
       return
     }
-    deepLinkHandled.current = true
+    if (loading || items.length === 0 || lastDeepLinkId.current === deepLinkId) {
+      return
+    }
+    lastDeepLinkId.current = deepLinkId
     const row = items.find((item) => String(item.id) === deepLinkId)
     if (row) {
       openEdit(row)
@@ -492,12 +508,18 @@ function TaxonomyTab({
           ),
         }]
       : []),
-    { title: 'Название', dataIndex: 'name', key: 'name' },
+    {
+      title: 'Название',
+      dataIndex: 'name',
+      key: 'name',
+      sorter: (a, b) => cmpStr(a.name, b.name),
+    },
     {
       title: 'URL',
       dataIndex: 'slug',
       key: 'slug',
       width: 200,
+      sorter: (a, b) => cmpStr(a.slug, b.slug),
       render: (slug) => `/${urlPrefix}/${slug}/`,
     },
     {
@@ -505,25 +527,35 @@ function TaxonomyTab({
       dataIndex: 'series_count',
       key: 'series_count',
       width: 100,
+      sorter: (a, b) => (a.series_count ?? 0) - (b.series_count ?? 0),
       render: (count: number | undefined) => count ?? 0,
     },
-    { title: 'Порядок', dataIndex: 'sort_order', key: 'sort_order', width: 90 },
+    {
+      title: 'Порядок',
+      dataIndex: 'sort_order',
+      key: 'sort_order',
+      width: 90,
+      sorter: (a, b) => a.sort_order - b.sort_order,
+    },
     {
       title: 'Главная',
       key: 'home',
       width: 110,
+      sorter: (a, b) => Number(!!a.show_on_home) - Number(!!b.show_on_home),
       render: (_, row) => (row.show_on_home ? <Tag color="blue">Блок</Tag> : <Tag>—</Tag>),
     },
     {
       title: 'SEO',
       key: 'seo',
       width: 90,
-      render: (_, row) => (row.meta_title?.trim() || row.seo_html?.trim() ? <Tag color="blue">Есть</Tag> : <Tag>Нет</Tag>),
+      sorter: (a, b) => Number(hasSeo(a)) - Number(hasSeo(b)),
+      render: (_, row) => (hasSeo(row) ? <Tag color="blue">Есть</Tag> : <Tag>Нет</Tag>),
     },
     {
       title: 'Статус',
       key: 'status',
       width: 140,
+      sorter: (a, b) => statusRank(a) - statusRank(b),
       render: (_, row) => (
         <Space size={4} wrap>
           {row.is_active ? <Tag color="green">Активен</Tag> : <Tag>Выключен</Tag>}

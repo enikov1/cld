@@ -14,22 +14,23 @@ type UseSeriesDeepLinkOptions = {
  * Opens the series editor from `?id=` / `?series_id=` / `?kp_id=` query params.
  */
 export function useSeriesDeepLink({ searchParams, setSearchParams, openEdit }: UseSeriesDeepLinkOptions) {
-  const deepLinkHandled = useRef(false)
+  const lastDeepLinkKey = useRef<string | null>(null)
   const openEditRef = useRef(openEdit)
   openEditRef.current = openEdit
 
   useEffect(() => {
-    if (deepLinkHandled.current) {
-      return
-    }
-
     const seriesId = searchParams.get('id')?.trim() || searchParams.get('series_id')?.trim()
     const kpId = searchParams.get('kp_id')?.trim()
-    if (!seriesId && !kpId) {
+    const key = seriesId ? `id:${seriesId}` : kpId ? `kp:${kpId}` : null
+    if (!key) {
+      lastDeepLinkKey.current = null
+      return
+    }
+    if (lastDeepLinkKey.current === key) {
       return
     }
 
-    deepLinkHandled.current = true
+    lastDeepLinkKey.current = key
     let cancelled = false
 
     ;(async () => {
