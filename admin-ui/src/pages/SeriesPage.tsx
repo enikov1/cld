@@ -51,6 +51,7 @@ import { api, apiUpload } from '../api/client'
 import SeriesPlayersEditor, { type SeriesPlayersEditorHandle } from '../components/SeriesPlayersEditor'
 import BrandImageEditorModal from '../components/BrandImageEditorModal'
 import SeriesLookupSearch from '../components/SeriesLookupSearch'
+import SeriesSeoAiControls from '../components/SeriesSeoAiControls'
 import MediaPickerModal from '../components/MediaPickerModal'
 import TmdbImagePickerModal, { type TmdbImageTarget } from '../components/TmdbImagePickerModal'
 import { useBusyFavicon, useDocumentTitle } from '../documentMeta/AdminDocumentMeta'
@@ -2249,6 +2250,7 @@ export default function SeriesPage() {
                     <Form.Item label="Meta description" name="meta_description" extra="Если пусто — краткое описание или обрезка полного">
                       <Input.TextArea rows={2} />
                     </Form.Item>
+                    <SeriesSeoAiControls form={form} seriesKey={editorRouteKey} />
                     <Form.Item label="SEO-блок (HTML)" name="seo_html" extra="Выводится внизу страницы сериала">
                       <TemplateCodeEditor filePath="series-seo.html" isDark={isDark} height="220px" />
                     </Form.Item>

@@ -22,6 +22,7 @@ use App\Support\PlayerUrlHelper;
 use App\Support\ContentTypes;
 use App\Support\SeasonEpisodeLabels;
 use App\Support\SeriesSeo;
+use App\Support\SeriesSeoHtml;
 use App\Support\SiteConfig;
 use App\Support\SeriesUrl;
 use App\Support\Speedbar;
@@ -350,7 +351,7 @@ class SeriesController extends TplController
                     ['series_list' => $relatedMapped]
                 )
                 : '',
-            'series_seo_html' => trim((string) ($series->seo_html ?? '')),
+            'series_seo_html' => SeriesSeoHtml::render((string) ($series->seo_html ?? '')),
         ]);
 
         $jsonLdNodes = SeriesSeo::jsonLdNodes($series, $seriesUrl, $schedule, $reviewItems, $commentsCount);

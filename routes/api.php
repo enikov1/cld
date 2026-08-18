@@ -269,6 +269,7 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
     Route::post('/series/{kp_id}/visibility', [AdminSeriesController::class, 'visibility']);
     Route::delete('/series/{kp_id}', [AdminSeriesController::class, 'destroy']);
     Route::post('/series/{kp_id}/restore', [AdminSeriesController::class, 'restore']);
+    Route::get('/series/{kp_id}/seo-ai-prompt', [AdminSeriesController::class, 'seoAiPrompt']);
     Route::get('/series/{kp_id}/schedule', [AdminScheduleController::class, 'show']);
     Route::post('/series/{kp_id}/schedule', [AdminScheduleController::class, 'save']);
     Route::post('/series/{kp_id}/schedule/import-tmdb', [AdminScheduleController::class, 'importFromTmdb']);

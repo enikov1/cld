@@ -14,7 +14,10 @@ use App\Services\AllohaImportService;
 use App\Services\PosterContext;
 use App\Services\PosterStorage;
 use App\Services\SeriesLookupService;
+use App\Services\SeriesSeoAiContextService;
 use App\Services\SeriesViewService;
+use App\Support\SeriesUrl;
+use App\Support\SiteConfig;
 use App\Services\TaxonomyService;
 use App\Services\TmdbImportService;
 use App\Services\TmdbImageService;
@@ -1144,6 +1147,30 @@ class AdminSeriesController extends Controller
             'sort_order',
             'deleted_at',
         ];
+    }
+
+    public function seoAiPrompt(string $kp_id, SeriesSeoAiContextService $contextService)
+    {
+        $series = AdminSeriesResolver::byKey($kp_id);
+        $publicUrl = rtrim((string) config('app.url'), '/') . SeriesUrl::path($series);
+        $built = $contextService->build($series, $publicUrl);
+
+        $template = SiteConfig::str('series_seo_ai_prompt');
+        $prompt = str_replace(
+            ['{title}', '{slug}', '{url}', '{series_context}'],
+            [
+                (string) $series->title,
+                (string) $series->slug,
+                $publicUrl,
+                $built['context'],
+            ],
+            $template,
+        );
+
+        return response()->json([
+            'prompt' => trim($prompt),
+            'warnings' => $built['warnings'],
+        ]);
     }
 
     /**
