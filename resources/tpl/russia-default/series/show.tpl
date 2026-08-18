@@ -1,4 +1,4 @@
-[meta-title]{series.title} ([type-1]Фильм[/type-1][type-2]сериал[/type-2][type-3]Мультфильм[/type-3][type-4]Мультсериал[/type-4][type-5]Аниме[/type-5][type-6]Дорама[/type-6][type-7]ТВ-шоу[/type-7], {series.year}) {series_meta_title_suffix}[/meta-title]
+[meta-title]{series.title} ([type-1]Фильм[/type-1][type-2]сериал[/type-2][type-3]Мультфильм[/type-3][type-4]Мультсериал[/type-4][type-5]Аниме[/type-5][type-6]Дорама[/type-6][type-7]ТВ-шоу[/type-7], {series.year_full}) {series_meta_title_suffix}[/meta-title]
 [meta-description][series.short_description]{series.short_description}[/series.short_description][not-series.short_description][series.description]{series.description}[/series.description][/not-series.short_description][/meta-description]
 [meta-image]{series.poster_url|raw}[/meta-image]
 [meta-canonical]{seo.canonical|raw}[/meta-canonical]
@@ -18,7 +18,7 @@
     <article class="full ignore-select">
         <div class="fpage">
             <div class="ftitle">
-                <h1>{series.title}</h1>
+                <h1>{series.title} {series.year_full}</h1>
                 <div class="to-fav">
                     [has_favourites]
                     <button type="button" class="dontusebuttonclass" data-favourite-toggle data-series-id="{series.id}" aria-pressed="false" title="{favourites_ui_add_label}">
@@ -64,6 +64,12 @@
                         [/series.premiere_countdown_label]
                     </div>
                     [/series.year_label]
+                    [series.finale_date_label]
+                    <div class="sd-line"><span>Дата завершения:</span> {series.finale_date_label}</div>
+                    [/series.finale_date_label]
+                    [series.duration_label]
+                    <div class="sd-line"><span>Длительность:</span> {series.duration_label}</div>
+                    [/series.duration_label]
                     [series.genres]
                     <div class="sd-line"><span>Жанр:</span>
                         [loop series.genres]
@@ -81,9 +87,6 @@
                     [series.episode_progress_label]
                     <div class="sd-line"><span>Количество серий:</span> {series.episode_progress_label}</div>
                     [/series.episode_progress_label]
-                    [series.duration_minutes]
-                    <div class="sd-line"><span>Продолжительность:</span> {series.duration_minutes} минут</div>
-                    [/series.duration_minutes]
                     [series.directors]
                     <div class="sd-line"><span>Режиссер:</span>
                         [loop series.directors]
@@ -129,7 +132,7 @@
         </div>
 
         <div class="fplayer-title">
-            <h2>смотреть {series.title} онлайн бесплатно в хорошем качестве HD 1080</h2>
+            <h2>смотреть {series.title} {series.year_full} онлайн бесплатно в хорошем качестве HD 1080</h2>
         </div>
 
         [has_notifications]

@@ -83,4 +83,44 @@ class PluralRu
 
         return 'дней';
     }
+
+    public static function hours(int $count): string
+    {
+        $mod10 = $count % 10;
+        $mod100 = $count % 100;
+
+        if ($mod100 >= 11 && $mod100 <= 14) {
+            return 'часов';
+        }
+
+        if ($mod10 === 1) {
+            return 'час';
+        }
+
+        if ($mod10 >= 2 && $mod10 <= 4) {
+            return 'часа';
+        }
+
+        return 'часов';
+    }
+
+    public static function minutes(int $count): string
+    {
+        $mod10 = $count % 10;
+        $mod100 = $count % 100;
+
+        if ($mod100 >= 11 && $mod100 <= 14) {
+            return 'минут';
+        }
+
+        if ($mod10 === 1) {
+            return 'минута';
+        }
+
+        if ($mod10 >= 2 && $mod10 <= 4) {
+            return 'минуты';
+        }
+
+        return 'минут';
+    }
 }

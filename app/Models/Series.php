@@ -36,6 +36,7 @@ class Series extends Model
         'brand_url',
         'player_url',
         'premiere_date',
+        'finale_date',
         'translation',
         'channel_name',
         'channel_url',
@@ -97,6 +98,7 @@ class Series extends Model
         'anticipation_no_count' => 'integer',
         'studio_id' => 'integer',
         'premiere_date' => 'date',
+        'finale_date' => 'date',
         'gallery_urls' => 'array',
     ];
 
@@ -232,6 +234,61 @@ class Series extends Model
         };
     }
 
+    public function finaleDateLabel(): ?string
+    {
+        if ($this->finale_date) {
+            if ($this->premiere_date
+                && $this->finale_date->format('Y-m-d') === $this->premiere_date->format('Y-m-d')
+            ) {
+                return null;
+            }
+
+            $year = (int) $this->finale_date->format('Y');
+            if ($this->finale_date->format('m-d') === '01-01') {
+                return (string) $year;
+            }
+
+            $months = self::premiereMonthNames();
+            $day = (int) $this->finale_date->format('j');
+            $month = (int) $this->finale_date->format('n');
+
+            return sprintf('%d %s %d', $day, $months[$month] ?? '', $year);
+        }
+
+        $year = (int) ($this->end_year ?: 0);
+        $start = (int) ($this->start_year ?: $this->year ?: 0);
+        if ($year < 1900 || $year === $start) {
+            return null;
+        }
+
+        return (string) $year;
+    }
+
+    public function durationLabel(): ?string
+    {
+        $total = (int) $this->duration_minutes;
+        if ($total < 1) {
+            return null;
+        }
+
+        $days = intdiv($total, 1440);
+        $hours = intdiv($total % 1440, 60);
+        $minutes = $total % 60;
+        $parts = [];
+
+        if ($days > 0) {
+            $parts[] = $days . ' ' . PluralRu::days($days);
+        }
+        if ($hours > 0) {
+            $parts[] = $hours . ' ' . PluralRu::hours($hours);
+        }
+        if ($minutes > 0 || $parts === []) {
+            $parts[] = $minutes . ' ' . PluralRu::minutes($minutes);
+        }
+
+        return implode(' ', $parts);
+    }
+
     public function ageLimitLabel(): ?string
     {
         return AgeLimitFormatter::label($this->age_limit);
@@ -240,6 +297,35 @@ class Series extends Model
     public function ageLimitTooltip(): ?string
     {
         return AgeLimitFormatter::tooltip($this->age_limit);
+    }
+
+    public function yearStart(): ?int
+    {
+        $year = (int)($this->start_year ?: $this->year ?: 0);
+
+        return $year > 0 ? $year : null;
+    }
+
+    public function yearEnd(): ?int
+    {
+        $year = (int)($this->end_year ?: 0);
+
+        return $year > 0 ? $year : null;
+    }
+
+    public function yearFull(): string
+    {
+        $start = $this->yearStart();
+        if ($start === null) {
+            return '';
+        }
+
+        $end = $this->yearEnd();
+        if ($end === null || $end === $start) {
+            return (string)$start;
+        }
+
+        return $start . '-' . $end;
     }
 
     /**

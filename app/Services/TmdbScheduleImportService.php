@@ -27,7 +27,10 @@ class TmdbScheduleImportService
      *         broadcast_status_mapped: string|null,
      *         seasons_count: int,
      *         episodes_count: int,
-     *         skipped_specials: bool
+     *         skipped_specials: bool,
+     *         first_air_date: ?string,
+     *         last_air_date: ?string,
+     *         total_runtime: ?int
      *     }
      * }
      */
@@ -52,6 +55,10 @@ class TmdbScheduleImportService
 
         $seasonNumbers = $this->seasonNumbersFromDetails($details);
         $seasonPayloads = $this->fetchSeasonPayloads($tmdbId, $seasonNumbers);
+        $airStats = TmdbMapper::episodeAirStatsFromSeasonPayloads(
+            $seasonPayloads,
+            TmdbMapper::typicalEpisodeRuntime($details),
+        );
 
         $today = Carbon::today()->toDateString();
         $seasons = [];
@@ -97,6 +104,9 @@ class TmdbScheduleImportService
                 'seasons_count' => count($seasons),
                 'episodes_count' => $episodesCount,
                 'skipped_specials' => $skippedSpecials,
+                'first_air_date' => $airStats['first_air_date'],
+                'last_air_date' => $airStats['last_air_date'],
+                'total_runtime' => $airStats['total_runtime'],
             ],
         ];
     }
@@ -105,7 +115,15 @@ class TmdbScheduleImportService
      * Fetch TMDB schedule, merge with local (preserve voices), and persist.
      *
      * @param  array<string, mixed>|null  $prefetchedDetails
-     * @return array{ok: bool, seasons_count: int, episodes_count: int, error?: string}
+     * @return array{
+     *     ok: bool,
+     *     seasons_count: int,
+     *     episodes_count: int,
+     *     first_air_date?: ?string,
+     *     last_air_date?: ?string,
+     *     total_runtime?: ?int,
+     *     error?: string
+     * }
      */
     public function syncMergedToDatabase(Series $series, ?array $prefetchedDetails = null): array
     {
@@ -128,6 +146,9 @@ class TmdbScheduleImportService
             'ok' => true,
             'seasons_count' => (int)($imported['meta']['seasons_count'] ?? 0),
             'episodes_count' => (int)($imported['meta']['episodes_count'] ?? 0),
+            'first_air_date' => $imported['meta']['first_air_date'] ?? null,
+            'last_air_date' => $imported['meta']['last_air_date'] ?? null,
+            'total_runtime' => $imported['meta']['total_runtime'] ?? null,
         ];
     }
 

@@ -7,7 +7,7 @@ use App\Support\TplCache;
 
 class TmdbImportService
 {
-    private const DETAILS_APPEND = ['credits', 'external_ids', 'content_ratings'];
+    private const DETAILS_APPEND = ['credits', 'external_ids', 'content_ratings', 'release_dates'];
 
     public function __construct(
         private readonly TmdbClient $client,

@@ -9,6 +9,8 @@ use App\Support\TplCache;
 
 class TmdbPopularitySyncService
 {
+    private const DETAILS_APPEND = ['content_ratings', 'release_dates'];
+
     public function __construct(
         private readonly TmdbClient $client,
         private readonly TmdbScheduleImportService $scheduleImport,
@@ -355,15 +357,15 @@ class TmdbPopularitySyncService
 
         $preferTv = ContentTypes::isSerialLike($series->content_type);
         $details = $preferTv
-            ? $this->client->getTvDetails($tmdbId)
-            : $this->client->getMovieDetails($tmdbId);
+            ? $this->client->getTvDetails($tmdbId, self::DETAILS_APPEND)
+            : $this->client->getMovieDetails($tmdbId, self::DETAILS_APPEND);
 
         $usedTvEndpoint = $preferTv;
 
         if ($details === [] || !isset($details['popularity'])) {
             $details = $preferTv
-                ? $this->client->getMovieDetails($tmdbId)
-                : $this->client->getTvDetails($tmdbId);
+                ? $this->client->getMovieDetails($tmdbId, self::DETAILS_APPEND)
+                : $this->client->getTvDetails($tmdbId, self::DETAILS_APPEND);
             $usedTvEndpoint = !$preferTv;
         }
 
@@ -387,6 +389,7 @@ class TmdbPopularitySyncService
             $series->broadcast_status = $nextStatus;
         }
 
+        TmdbMapper::applyAirMetadata($series, $details, $usedTvEndpoint);
         $series->save();
 
         $statusChanged = $oldStatus !== $series->broadcast_status;
@@ -397,6 +400,13 @@ class TmdbPopularitySyncService
             $schedule = $this->scheduleImport->syncMergedToDatabase($series->fresh(), $details);
             if ($schedule['ok']) {
                 $scheduleSynced = true;
+                $series->refresh();
+                TmdbMapper::applyAirMetadata($series, $details, true, [
+                    'first_air_date' => $schedule['first_air_date'] ?? null,
+                    'last_air_date' => $schedule['last_air_date'] ?? null,
+                    'total_runtime' => $schedule['total_runtime'] ?? null,
+                ]);
+                $series->save();
             } else {
                 $scheduleFailed = true;
             }

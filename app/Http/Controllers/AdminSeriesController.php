@@ -235,6 +235,7 @@ class AdminSeriesController extends Controller
             'season_number' => ['nullable', 'integer', 'min:1', 'max:999'],
             'last_episode_number' => ['nullable', 'integer', 'min:1', 'max:9999'],
             'premiere_date' => ['nullable', 'date'],
+            'finale_date' => ['nullable', 'date'],
             'translation' => ['nullable', 'string', 'max:200'],
             'channel_name' => ['nullable', 'string', 'max:120'],
             'channel_url' => ['nullable', 'string'],
@@ -402,7 +403,7 @@ class AdminSeriesController extends Controller
             'description', 'short_description', 'slogan', 'year', 'start_year', 'end_year',
             'duration_minutes', 'kp_rating', 'imdb_rating', 'kp_votes_count', 'imdb_votes_count',
             'imdb_id', 'tmdb_id', 'content_type', 'broadcast_status', 'season_number',
-            'last_episode_number', 'premiere_date', 'translation', 'channel_name', 'channel_url',
+            'last_episode_number', 'premiere_date', 'finale_date', 'translation', 'channel_name', 'channel_url',
             'channel_logo_url', 'age_limit', 'kp_web_url',
         ];
 

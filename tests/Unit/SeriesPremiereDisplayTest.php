@@ -71,6 +71,41 @@ class SeriesPremiereDisplayTest extends TestCase
         $this->assertSame('зрителям, достигшим 18+ лет', $series->ageLimitTooltip());
     }
 
+    public function test_year_full_formats_start_end_range(): void
+    {
+        $range = new Series(['year' => 2010, 'start_year' => 2010, 'end_year' => 2014]);
+        $this->assertSame(2010, $range->yearStart());
+        $this->assertSame(2014, $range->yearEnd());
+        $this->assertSame('2010-2014', $range->yearFull());
+
+        $ongoing = new Series(['year' => 2010, 'start_year' => 2010, 'end_year' => null]);
+        $this->assertSame('2010', $ongoing->yearFull());
+
+        $sameYear = new Series(['year' => 2014, 'start_year' => 2014, 'end_year' => 2014]);
+        $this->assertSame('2014', $sameYear->yearFull());
+    }
+
+    public function test_finale_date_label_uses_full_date_when_series_ended(): void
+    {
+        $series = new Series([
+            'premiere_date' => Carbon::parse('2008-01-20'),
+            'finale_date' => Carbon::parse('2013-09-29'),
+            'start_year' => 2008,
+            'end_year' => 2013,
+        ]);
+
+        $this->assertSame('29 сентября 2013', $series->finaleDateLabel());
+    }
+
+    public function test_duration_label_formats_days_hours_and_minutes(): void
+    {
+        $this->assertSame('1 день 23 часа', (new Series(['duration_minutes' => 2820]))->durationLabel());
+        $this->assertSame('4 дня 9 часов 25 минут', (new Series(['duration_minutes' => 6325]))->durationLabel());
+        $this->assertSame('45 минут', (new Series(['duration_minutes' => 45]))->durationLabel());
+        $this->assertSame('2 часа 15 минут', (new Series(['duration_minutes' => 135]))->durationLabel());
+        $this->assertNull((new Series(['duration_minutes' => null]))->durationLabel());
+    }
+
     public function test_resolves_premiere_from_kinopoisk_distributions(): void
     {
         $date = KinoPoiskMapper::resolvePremiereDate([], [[

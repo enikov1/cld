@@ -74,6 +74,7 @@ export type SeriesItem = {
   season_number?: number | null
   last_episode_number?: number | null
   premiere_date?: string | null
+  finale_date?: string | null
   genre_ids?: number[]
   country_ids?: number[]
   actor_ids?: number[]

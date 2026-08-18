@@ -69,11 +69,8 @@ class TmdbMapper
             'content_type' => $contentType,
             'broadcast_status' => TmdbBroadcastStatusMapper::fromDetails($details, $contentType),
             'premiere_date' => $yearData['premiere_date'],
-            'age_limit' => AgeLimitFormatter::normalize(
-                is_array($details['content_ratings'] ?? null)
-                    ? self::pickAgeLimit($details['content_ratings'])
-                    : null,
-            ),
+            'finale_date' => $yearData['finale_date'],
+            'age_limit' => self::pickAgeLimitFromDetails($details),
             '_genre_names' => $genres,
             '_country_names' => $countries,
             'poster_source_url' => self::posterUrl($details['poster_path'] ?? null),
@@ -81,31 +78,174 @@ class TmdbMapper
     }
 
     /**
+     * Apply TMDB air dates, total runtime and age rating onto an existing series.
+     *
      * @param  array<string, mixed>  $details
-     * @return array{year: ?int, start_year: ?int, end_year: ?int, premiere_date: ?string}
+     * @param  array{first_air_date?: ?string, last_air_date?: ?string, total_runtime?: ?int}  $episodeStats
+     */
+    public static function applyAirMetadata(Series $series, array $details, bool $isTv, array $episodeStats = []): void
+    {
+        $attrs = self::toSeriesAttributes($details, $isTv);
+        foreach (['year', 'start_year', 'premiere_date', 'duration_minutes', 'age_limit'] as $key) {
+            if (!array_key_exists($key, $attrs)) {
+                continue;
+            }
+            $value = $attrs[$key];
+            if ($value === null || $value === '') {
+                continue;
+            }
+            $series->{$key} = $value;
+        }
+
+        $mappedStatus = TmdbBroadcastStatusMapper::fromDetails($details, $isTv ? 'series' : 'film');
+        if ($mappedStatus === 'completed') {
+            if (array_key_exists('end_year', $attrs)) {
+                $series->end_year = $attrs['end_year'];
+            }
+            if (!empty($attrs['finale_date'])) {
+                $series->finale_date = $attrs['finale_date'];
+            }
+        } elseif ($mappedStatus === 'ongoing') {
+            $series->end_year = null;
+            $series->finale_date = null;
+        }
+
+        $firstAir = self::dateFromString($episodeStats['first_air_date'] ?? null);
+        if ($firstAir !== null) {
+            $series->premiere_date = $firstAir;
+            $year = self::yearFromDate($firstAir);
+            if ($year !== null) {
+                $series->year = $year;
+                $series->start_year = $year;
+            }
+        }
+
+        $lastAir = self::dateFromString($episodeStats['last_air_date'] ?? null);
+        if ($mappedStatus === 'completed' && $lastAir !== null) {
+            $endYear = self::yearFromDate($lastAir);
+            if ($endYear !== null) {
+                $series->end_year = $endYear;
+            }
+            $series->finale_date = $lastAir;
+        } elseif ($mappedStatus === 'ongoing') {
+            $series->end_year = null;
+            $series->finale_date = null;
+        }
+
+        $totalRuntime = isset($episodeStats['total_runtime']) ? (int)$episodeStats['total_runtime'] : 0;
+        if ($totalRuntime > 0) {
+            $series->duration_minutes = $totalRuntime;
+        }
+    }
+
+    /**
+     * First/last episode air dates and summed runtimes from TMDB season payloads.
+     *
+     * @param  array<int|string, array<string, mixed>>  $seasonPayloads
+     * @return array{first_air_date: ?string, last_air_date: ?string, total_runtime: ?int}
+     */
+    public static function episodeAirStatsFromSeasonPayloads(array $seasonPayloads, ?int $typicalRuntime = null): array
+    {
+        $first = null;
+        $last = null;
+        $total = 0;
+        $hasRuntime = false;
+        $typical = $typicalRuntime !== null && $typicalRuntime > 0 ? $typicalRuntime : null;
+
+        foreach ($seasonPayloads as $seasonNumber => $payload) {
+            if ((int)$seasonNumber < 1 || !is_array($payload)) {
+                continue;
+            }
+
+            foreach ($payload['episodes'] ?? [] as $episode) {
+                if (!is_array($episode) || (int)($episode['episode_number'] ?? 0) < 1) {
+                    continue;
+                }
+
+                $airDate = self::dateFromString($episode['air_date'] ?? null);
+                if ($airDate !== null) {
+                    if ($first === null || $airDate < $first) {
+                        $first = $airDate;
+                    }
+                    if ($last === null || $airDate > $last) {
+                        $last = $airDate;
+                    }
+                }
+
+                $runtime = (int)($episode['runtime'] ?? 0);
+                if ($runtime <= 0 && $typical !== null) {
+                    $runtime = $typical;
+                }
+                if ($runtime > 0) {
+                    $total += $runtime;
+                    $hasRuntime = true;
+                }
+            }
+        }
+
+        return [
+            'first_air_date' => $first,
+            'last_air_date' => $last,
+            'total_runtime' => $hasRuntime ? $total : null,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $details
+     * @return array{year: ?int, start_year: ?int, end_year: ?int, premiere_date: ?string, finale_date: ?string}
      */
     private static function resolveYears(array $details, bool $isTv): array
     {
         if ($isTv) {
-            $start = self::yearFromDate($details['first_air_date'] ?? null);
-            $end = self::yearFromDate($details['last_air_date'] ?? null);
+            $firstDate = self::firstEpisodeDate($details);
+            $lastDate = self::lastEpisodeDate($details);
+            $start = self::yearFromDate($firstDate);
+            $isCompleted = TmdbBroadcastStatusMapper::fromDetails($details, 'series') === 'completed';
+            $end = $isCompleted ? self::yearFromDate($lastDate) : null;
 
             return [
                 'year' => $start,
                 'start_year' => $start,
                 'end_year' => $end,
-                'premiere_date' => self::dateFromString($details['first_air_date'] ?? null),
+                'premiere_date' => $firstDate,
+                'finale_date' => $isCompleted ? $lastDate : null,
             ];
         }
 
         $year = self::yearFromDate($details['release_date'] ?? null);
+        $releaseDate = self::dateFromString($details['release_date'] ?? null);
 
         return [
             'year' => $year,
             'start_year' => $year,
             'end_year' => $year,
-            'premiere_date' => self::dateFromString($details['release_date'] ?? null),
+            'premiere_date' => $releaseDate,
+            'finale_date' => $releaseDate,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $details
+     */
+    private static function firstEpisodeDate(array $details): ?string
+    {
+        $fromEpisode = is_array($details['first_episode_to_air'] ?? null)
+            ? self::dateFromString($details['first_episode_to_air']['air_date'] ?? null)
+            : null;
+
+        return $fromEpisode ?? self::dateFromString($details['first_air_date'] ?? null);
+    }
+
+    /**
+     * @param  array<string, mixed>  $details
+     */
+    private static function lastEpisodeDate(array $details): ?string
+    {
+        $fromEpisode = is_array($details['last_episode_to_air'] ?? null)
+            ? self::dateFromString($details['last_episode_to_air']['air_date'] ?? null)
+            : null;
+
+        return $fromEpisode ?? self::dateFromString($details['last_air_date'] ?? null);
     }
 
     /**
@@ -139,44 +279,131 @@ class TmdbMapper
      */
     private static function resolveDuration(array $details, bool $isTv): ?int
     {
-        if ($isTv) {
-            $runtimes = $details['episode_run_time'] ?? [];
-            if (!is_array($runtimes) || $runtimes === []) {
-                return null;
-            }
-            $minutes = (int)($runtimes[0] ?? 0);
+        if (!$isTv) {
+            $runtime = (int)($details['runtime'] ?? 0);
 
-            return $minutes > 0 ? $minutes : null;
+            return $runtime > 0 ? $runtime : null;
         }
 
-        $runtime = (int)($details['runtime'] ?? 0);
-
-        return $runtime > 0 ? $runtime : null;
-    }
-
-    /**
-     * @param  array<string, mixed>  $contentRatings
-     */
-    private static function pickAgeLimit(array $contentRatings): ?string
-    {
-        $results = $contentRatings['results'] ?? [];
-        if (!is_array($results)) {
-            return null;
-        }
-
-        foreach ($results as $item) {
-            if (!is_array($item)) {
-                continue;
-            }
-            if (strtoupper((string)($item['iso_3166_1'] ?? '')) !== 'RU') {
-                continue;
-            }
-            $rating = trim((string)($item['rating'] ?? ''));
-
-            return $rating !== '' ? $rating : null;
+        $typical = self::typicalEpisodeRuntime($details);
+        $episodeCount = (int)($details['number_of_episodes'] ?? 0);
+        if ($typical !== null && $episodeCount > 0) {
+            return $typical * $episodeCount;
         }
 
         return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $details
+     */
+    public static function typicalEpisodeRuntime(array $details): ?int
+    {
+        $runtimes = $details['episode_run_time'] ?? [];
+        if (is_array($runtimes) && $runtimes !== []) {
+            $minutes = (int)($runtimes[0] ?? 0);
+            if ($minutes > 0) {
+                return $minutes;
+            }
+        }
+
+        $last = is_array($details['last_episode_to_air'] ?? null) ? $details['last_episode_to_air'] : null;
+        if ($last !== null) {
+            $minutes = (int)($last['runtime'] ?? 0);
+            if ($minutes > 0) {
+                return $minutes;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $details
+     */
+    private static function pickAgeLimitFromDetails(array $details): ?string
+    {
+        $candidates = [];
+
+        $contentRatings = is_array($details['content_ratings'] ?? null) ? $details['content_ratings'] : null;
+        if ($contentRatings !== null) {
+            foreach ($contentRatings['results'] ?? [] as $item) {
+                if (!is_array($item)) {
+                    continue;
+                }
+                $iso = strtoupper(trim((string)($item['iso_3166_1'] ?? '')));
+                $rating = trim((string)($item['rating'] ?? ''));
+                if ($iso !== '' && $rating !== '') {
+                    $candidates[$iso] = $rating;
+                }
+            }
+        }
+
+        $releaseDates = is_array($details['release_dates'] ?? null) ? $details['release_dates'] : null;
+        if ($releaseDates !== null) {
+            foreach ($releaseDates['results'] ?? [] as $country) {
+                if (!is_array($country)) {
+                    continue;
+                }
+                $iso = strtoupper(trim((string)($country['iso_3166_1'] ?? '')));
+                if ($iso === '' || isset($candidates[$iso])) {
+                    continue;
+                }
+                $best = '';
+                foreach ($country['release_dates'] ?? [] as $release) {
+                    if (!is_array($release)) {
+                        continue;
+                    }
+                    $cert = trim((string)($release['certification'] ?? ''));
+                    if ($cert === '') {
+                        continue;
+                    }
+                    $best = $cert;
+                    if ((int)($release['type'] ?? 0) === 3) {
+                        break;
+                    }
+                }
+                if ($best !== '') {
+                    $candidates[$iso] = $best;
+                }
+            }
+        }
+
+        foreach (['RU', 'US', 'GB', 'DE'] as $prefer) {
+            if (!isset($candidates[$prefer])) {
+                continue;
+            }
+            $normalized = self::normalizeCertification($candidates[$prefer]);
+            if ($normalized !== null) {
+                return $normalized;
+            }
+        }
+
+        foreach ($candidates as $rating) {
+            $normalized = self::normalizeCertification($rating);
+            if ($normalized !== null) {
+                return $normalized;
+            }
+        }
+
+        return null;
+    }
+
+    private static function normalizeCertification(string $rating): ?string
+    {
+        $mapped = match (strtoupper(trim($rating))) {
+            'TV-MA', 'NC-17', 'R', 'X' => '18',
+            'TV-14', 'PG-13' => '16',
+            'TV-PG', 'PG' => '12',
+            'TV-G', 'TV-Y', 'TV-Y7', 'G' => '0',
+            default => null,
+        };
+
+        if ($mapped !== null) {
+            return AgeLimitFormatter::normalize($mapped);
+        }
+
+        return AgeLimitFormatter::normalize($rating);
     }
 
     private static function posterUrl(mixed $posterPath): ?string

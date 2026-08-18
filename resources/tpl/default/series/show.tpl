@@ -1,4 +1,4 @@
-[meta-title]{series.title} ([type-1]Фильм[/type-1][type-2]сериал[/type-2][type-3]Мультфильм[/type-3][type-4]Мультсериал[/type-4][type-5]Аниме[/type-5][type-6]Дорама[/type-6][type-7]ТВ-шоу[/type-7], {series.year}) {season-type-4} {series_meta_title_suffix}[/meta-title] [meta-description][series.short_description]{series.short_description}[/series.short_description][not-series.short_description][series.description]{series.description}[/series.description][/not-series.short_description][/meta-description]
+[meta-title]{series.title} ([type-1]Фильм[/type-1][type-2]сериал[/type-2][type-3]Мультфильм[/type-3][type-4]Мультсериал[/type-4][type-5]Аниме[/type-5][type-6]Дорама[/type-6][type-7]ТВ-шоу[/type-7], {series.year_full}) {season-type-4} {series_meta_title_suffix}[/meta-title] [meta-description][series.short_description]{series.short_description}[/series.short_description][not-series.short_description][series.description]{series.description}[/series.description][/not-series.short_description][/meta-description]
 [meta-image]{series.poster_url|raw}[/meta-image] [meta-canonical]{seo.canonical|raw}[/meta-canonical] [meta-robots]{seo.robots|raw}[/meta-robots]
 <div class="fmain" data-series-id="{series.id}">
     [auth.logged_in]<span hidden data-logged-in="1"></span>[/auth.logged_in]
@@ -10,7 +10,7 @@
 
                 [/ad_vpaid_code]
                 <header class="serial-titleline">
-                    <h1>{series.title} {series.year} {season-type-4} смотреть онлайн</h1>
+                    <h1>{series.title} {series.year_full} {season-type-4} смотреть онлайн</h1>
                     [auth.is_admin] [series.kp_id]
                     <div class="usp-edit">
                         <a href="{admin_url|raw}/series?kp_id={series.kp_id}">Редактировать</a>
@@ -70,7 +70,17 @@
                                 <a href="{series.year_url|raw}" class="serial-detail__link">{series.year_label}</a> [/series.year_url] [not-series.year_url]{series.year_label}[/not-series.year_url]
                             </div>
                         </div>
-                        [/series.year_label] [/not-series.premiere_date_label] [series.countries]
+                        [/series.year_label] [/not-series.premiere_date_label] [series.finale_date_label]
+                        <div class="serial-detail">
+                            <div class="serial-detail__name">Дата завершения:</div>
+                            <div class="serial-detail__value">{series.finale_date_label}</div>
+                        </div>
+                        [/series.finale_date_label] [series.duration_label]
+                        <div class="serial-detail">
+                            <div class="serial-detail__name">Длительность:</div>
+                            <div class="serial-detail__value">{series.duration_label}</div>
+                        </div>
+                        [/series.duration_label] [series.countries]
                         <div class="serial-detail">
                             <div class="serial-detail__name">Страна:</div>
                             <div class="serial-detail__value serial-detail__links">
@@ -152,12 +162,7 @@
                                 [/loop]
                             </div>
                         </div>
-                        [/series.actors] [series.duration_minutes]
-                        <div class="serial-detail">
-                            <div class="serial-detail__name">Длительность:</div>
-                            <div class="serial-detail__value">{series.duration_minutes} мин.</div>
-                        </div>
-                        [/series.duration_minutes] [series.episode_progress_label]
+                        [/series.actors] [series.episode_progress_label]
                         <div class="serial-detail">
                             <div class="serial-detail__name">Серии:</div>
                             <div class="serial-detail__value">
@@ -247,7 +252,7 @@
         </div>
     </section>
 
-    <h2 class="serial-watch-title">«{series.title}» смотреть онлайн бесплатно в хорошем качестве</h2>
+    <h2 class="serial-watch-title">«{series.title}» {series.year_full} смотреть онлайн бесплатно в хорошем качестве</h2>
 
     [has_notifications]
     <div class="series-subscribe-box[notification_subscribed] is-subscribed[/notification_subscribed]" id="seriesSubscribeBox" data-subscribed="{notification_subscribed}">

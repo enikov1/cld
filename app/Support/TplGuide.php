@@ -444,8 +444,9 @@ TPL),
 TPL),
                 self::h2('Метаданные', 'meta-data'),
                 self::code(<<<'TPL'
-<h1>{series.title}</h1>
+<h1>{series.title} {series.year_full}</h1>
 [series.year]<a href="{series.year_url|raw}">{series.year}</a>[/series.year]
+[series.year_full]{series.year_full}[/series.year_full]
 <div>{series.genres_text}</div>
 [loop series.genres]
   <a href="{item.url}">{item.name}</a>[not-item.is_last], [/not-item.is_last]

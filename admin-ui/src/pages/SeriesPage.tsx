@@ -319,6 +319,7 @@ function seriesToFormValues(item: SeriesItem): Record<string, unknown> {
     season_number: item.season_number,
     last_episode_number: item.last_episode_number,
     premiere_date: item.premiere_date ? dayjs(item.premiere_date) : null,
+    finale_date: item.finale_date ? dayjs(item.finale_date) : null,
     age_limit: item.age_limit,
     kp_web_url: item.kp_web_url,
     meta_title: item.meta_title,
@@ -830,6 +831,13 @@ export default function SeriesPage() {
       payload.premiere_date = premiereDate.format('YYYY-MM-DD')
     } else {
       payload.premiere_date = null
+    }
+
+    const finaleDate = payload.finale_date
+    if (finaleDate && dayjs.isDayjs(finaleDate)) {
+      payload.finale_date = finaleDate.format('YYYY-MM-DD')
+    } else {
+      payload.finale_date = null
     }
 
     const durationMinutes = payload.duration_minutes
@@ -2175,6 +2183,11 @@ export default function SeriesPage() {
                       <Col span={8}>
                         <Form.Item label="Дата премьеры" name="premiere_date">
                           <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" placeholder="15.07.2016" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={8}>
+                        <Form.Item label="Дата завершения" name="finale_date">
+                          <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" placeholder="29.09.2013" />
                         </Form.Item>
                       </Col>
                     </Row>
