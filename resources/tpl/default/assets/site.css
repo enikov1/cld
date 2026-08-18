@@ -32,17 +32,13 @@ body.has-site-bg.dt {
     background-size: 100% auto;
 }
 
-.site-bg-slot {
-    flex: 0 0 auto;
-    width: 100%;
-    height: var(--site-bg-header-offset, 200px);
-    pointer-events: none;
+body.has-site-bg .wrap-center.wrap-main {
+    margin-top: 200px;
 }
 
 @media (max-width: 768px) {
-    body.site-bg-hide-mobile .site-bg-slot {
-        display: none;
-        height: 0;
+    body.has-site-bg.site-bg-hide-mobile .wrap-center.wrap-main {
+        margin-top: 0;
     }
 
     body.has-site-bg.site-bg-hide-mobile,

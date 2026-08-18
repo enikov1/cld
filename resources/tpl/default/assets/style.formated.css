@@ -394,6 +394,16 @@ strong {
     background-color: #ededed;
 }
 
+body.has-site-bg .wrap-center.wrap-main {
+    margin-top: 200px;
+}
+
+@media (max-width: 768px) {
+    body.has-site-bg.site-bg-hide-mobile .wrap-center.wrap-main {
+        margin-top: 0;
+    }
+}
+
 .header {
     background-color: #fff;
     box-shadow: 0 1px 5px 0 rgba(0, 0, 0, 0.15);

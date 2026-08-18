@@ -10,7 +10,6 @@
         .wrap { padding-top: 0 !important; }
         [site.has_background]
         :root {
-            --site-bg-header-offset: {site.background_header_offset}px;
             --site-bg-color: {site.background_color};
             --site-bg-image: url('{site.background|raw}');
         }
@@ -23,16 +22,12 @@
             background-repeat: no-repeat;
             background-size: 100% auto;
         }
-        .site-bg-slot {
-            flex: 0 0 auto;
-            width: 100%;
-            height: var(--site-bg-header-offset);
-            pointer-events: none;
+        body.has-site-bg .wrap-center.wrap-main {
+            margin-top: 200px;
         }
         @media (max-width: 768px) {
-            body.site-bg-hide-mobile .site-bg-slot {
-                display: none;
-                height: 0;
+            body.has-site-bg.site-bg-hide-mobile .wrap-center.wrap-main {
+                margin-top: 0;
             }
             body.has-site-bg.site-bg-hide-mobile,
             body.has-site-bg.site-bg-hide-mobile.dt {
@@ -74,9 +69,6 @@
     <script>
         (function () { try { if (localStorage.getItem('darkTheme') === '1') document.body.classList.add('dt'); } catch (e) {} })();
     </script>
-    [site.has_background]
-    <div class="site-bg-slot" aria-hidden="true"[not-site.background_hide_mobile] style="height:{site.background_header_offset}px"[/not-site.background_hide_mobile]></div>
-    [/site.has_background]
     <div class="wrap">
         <div class="wrap-center wrap-main">
             {header|raw} {notifications_dropdown|raw}
