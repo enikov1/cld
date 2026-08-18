@@ -42,7 +42,7 @@ class TmdbMapperTest extends TestCase
         $this->assertSame('series', $mapped['content_type']);
         $this->assertSame(2016, $mapped['year']);
         $this->assertSame(2016, $mapped['start_year']);
-        $this->assertNull($mapped['end_year']);
+        $this->assertSame(2025, $mapped['end_year']);
         $this->assertNull($mapped['finale_date']);
         $this->assertSame('2016-07-15', $mapped['premiere_date']);
         $this->assertSame(2142, $mapped['duration_minutes']);
@@ -53,7 +53,7 @@ class TmdbMapperTest extends TestCase
         $this->assertStringContainsString('/abc.jpg', (string)$mapped['poster_source_url']);
     }
 
-    public function test_maps_end_year_only_when_series_completed(): void
+    public function test_maps_end_year_when_last_episode_year_is_later(): void
     {
         $mapped = TmdbMapper::toSeriesAttributes([
             'id' => 1396,
@@ -72,6 +72,22 @@ class TmdbMapperTest extends TestCase
         $this->assertSame('2013-09-29', $mapped['finale_date']);
         $this->assertSame(2914, $mapped['duration_minutes']);
         $this->assertSame('completed', $mapped['broadcast_status']);
+    }
+
+    public function test_skips_end_year_when_last_episode_is_same_year(): void
+    {
+        $mapped = TmdbMapper::toSeriesAttributes([
+            'id' => 99,
+            'name' => 'Мини-сериал',
+            'first_air_date' => '2024-03-01',
+            'last_air_date' => '2024-11-20',
+            'status' => 'Returning Series',
+        ], true);
+
+        $this->assertSame(2024, $mapped['year']);
+        $this->assertSame(2024, $mapped['start_year']);
+        $this->assertNull($mapped['end_year']);
+        $this->assertNull($mapped['finale_date']);
     }
 
     public function test_maps_movie_details(): void
@@ -136,12 +152,12 @@ class TmdbMapperTest extends TestCase
         $this->assertSame(58 + 47 + 55, $stats['total_runtime']);
     }
 
-    public function test_apply_air_metadata_clears_end_year_for_ongoing(): void
+    public function test_apply_air_metadata_sets_end_year_for_ongoing_later_season(): void
     {
         $series = new Series([
             'year' => 2010,
             'start_year' => 2010,
-            'end_year' => 2014,
+            'end_year' => null,
             'duration_minutes' => 43,
         ]);
 
@@ -157,7 +173,7 @@ class TmdbMapperTest extends TestCase
 
         $this->assertSame(2010, $series->year);
         $this->assertSame(2010, $series->start_year);
-        $this->assertNull($series->end_year);
+        $this->assertSame(2026, $series->end_year);
         $this->assertNull($series->finale_date);
         $premiere = $series->premiere_date;
         $this->assertSame(

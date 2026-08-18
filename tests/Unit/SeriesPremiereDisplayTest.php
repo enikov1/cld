@@ -81,6 +81,9 @@ class SeriesPremiereDisplayTest extends TestCase
         $ongoing = new Series(['year' => 2010, 'start_year' => 2010, 'end_year' => null]);
         $this->assertSame('2010', $ongoing->yearFull());
 
+        $stillAiring = new Series(['year' => 2024, 'start_year' => 2024, 'end_year' => 2026]);
+        $this->assertSame('2024-2026', $stillAiring->yearFull());
+
         $sameYear = new Series(['year' => 2014, 'start_year' => 2014, 'end_year' => 2014]);
         $this->assertSame('2014', $sameYear->yearFull());
     }

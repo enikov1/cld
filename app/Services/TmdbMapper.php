@@ -98,15 +98,12 @@ class TmdbMapper
         }
 
         $mappedStatus = TmdbBroadcastStatusMapper::fromDetails($details, $isTv ? 'series' : 'film');
-        if ($mappedStatus === 'completed') {
-            if (array_key_exists('end_year', $attrs)) {
-                $series->end_year = $attrs['end_year'];
-            }
-            if (!empty($attrs['finale_date'])) {
-                $series->finale_date = $attrs['finale_date'];
-            }
-        } elseif ($mappedStatus === 'ongoing') {
-            $series->end_year = null;
+        if (array_key_exists('end_year', $attrs)) {
+            $series->end_year = $attrs['end_year'];
+        }
+        if ($mappedStatus === 'completed' && !empty($attrs['finale_date'])) {
+            $series->finale_date = $attrs['finale_date'];
+        } elseif ($mappedStatus !== 'completed') {
             $series->finale_date = null;
         }
 
@@ -121,15 +118,15 @@ class TmdbMapper
         }
 
         $lastAir = self::dateFromString($episodeStats['last_air_date'] ?? null);
-        if ($mappedStatus === 'completed' && $lastAir !== null) {
-            $endYear = self::yearFromDate($lastAir);
-            if ($endYear !== null) {
-                $series->end_year = $endYear;
+        if ($lastAir !== null) {
+            $endYear = self::laterEndYear(
+                (int) ($series->start_year ?: $series->year ?: 0) ?: null,
+                self::yearFromDate($lastAir),
+            );
+            $series->end_year = $endYear;
+            if ($mappedStatus === 'completed') {
+                $series->finale_date = $lastAir;
             }
-            $series->finale_date = $lastAir;
-        } elseif ($mappedStatus === 'ongoing') {
-            $series->end_year = null;
-            $series->finale_date = null;
         }
 
         $totalRuntime = isset($episodeStats['total_runtime']) ? (int)$episodeStats['total_runtime'] : 0;
@@ -201,7 +198,7 @@ class TmdbMapper
             $lastDate = self::lastEpisodeDate($details);
             $start = self::yearFromDate($firstDate);
             $isCompleted = TmdbBroadcastStatusMapper::fromDetails($details, 'series') === 'completed';
-            $end = $isCompleted ? self::yearFromDate($lastDate) : null;
+            $end = self::laterEndYear($start, self::yearFromDate($lastDate));
 
             return [
                 'year' => $start,
@@ -246,6 +243,15 @@ class TmdbMapper
             : null;
 
         return $fromEpisode ?? self::dateFromString($details['last_air_date'] ?? null);
+    }
+
+    private static function laterEndYear(?int $start, ?int $end): ?int
+    {
+        if ($start === null || $end === null || $end <= $start) {
+            return null;
+        }
+
+        return $end;
     }
 
     /**

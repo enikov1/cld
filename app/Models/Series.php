@@ -255,6 +255,10 @@ class Series extends Model
             return sprintf('%d %s %d', $day, $months[$month] ?? '', $year);
         }
 
+        if ($this->broadcast_status !== 'completed') {
+            return null;
+        }
+
         $year = (int) ($this->end_year ?: 0);
         $start = (int) ($this->start_year ?: $this->year ?: 0);
         if ($year < 1900 || $year === $start) {
