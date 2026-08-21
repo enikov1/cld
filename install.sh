@@ -16,9 +16,14 @@
 #   curl -fsSL https://raw.githubusercontent.com/enikov1/cld/main/install.sh \
 #     | sudo DOMAIN=ваш-сайт.ru bash
 #
+# НЕСКОЛЬКО САЙТОВ НА ОДНОМ СЕРВЕРЕ:
+#   sudo DOMAIN=site1.ru bash install.sh
+#   sudo DOMAIN=site2.ru bash install.sh
+#   # у каждого — своя папка /var/www/<домен>, БД, PHP-FPM, очередь и cron
+#
 # Если код уже скачан:
 #   cd /var/www/lordserialov.net && sudo bash install.sh
-#   cd /var/www/lordserialov.net && sudo DOMAIN=ваш-сайт.ru bash install.sh
+#   cd /var/www/site2.ru && sudo DOMAIN=site2.ru bash install.sh
 #
 # ПЕРЕНОС СО СТАРОГО СЕРВЕРА (с бэкапом):
 #   1. Скачайте ZIP-бэкап из админки (раздел «Бэкапы»)
@@ -43,16 +48,30 @@ set -euo pipefail
 DOMAIN="${DOMAIN:-lordserialov.net}"
 REPO_URL="${REPO_URL:-https://github.com/enikov1/cld.git}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_DIR="${APP_DIR:-/var/www/lordserialov.net}"
-DB_NAME="${DB_NAME:-lordserial}"
-DB_USER="${DB_USER:-lordserial}"
+# Пользовательские переопределения (пустые = выбрать автоматически)
+_USER_APP_DIR="${APP_DIR:-}"
+_USER_DB_NAME="${DB_NAME:-}"
+_USER_DB_USER="${DB_USER:-}"
+_USER_SITE_ID="${SITE_ID:-}"
 DB_PASSWORD="${DB_PASSWORD:-}"
 ADMIN_TOKEN="${ADMIN_TOKEN:-}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
 BACKUP_FILE="${BACKUP_FILE:-}"
 SKIP_BACKUP_RESTORE="${SKIP_BACKUP_RESTORE:-0}"
 PHP_VERSION="8.3"
-CREDENTIALS_FILE="/root/lordserialov-credentials.txt"
+
+# Заполняются после normalize_domain / resolve_site_instance
+APP_DIR=""
+DB_NAME=""
+DB_USER=""
+SITE_ID=""
+QUEUE_UNIT_NAME=""
+QUEUE_UNIT_PATH=""
+CRON_FILE=""
+PHP_POOL_NAME=""
+PHP_POOL_FILE=""
+PHP_FPM_SOCK=""
+CREDENTIALS_FILE=""
 
 STEP_CURRENT=0
 STEP_TOTAL=12
@@ -82,6 +101,7 @@ print_help() {
   • скачивает сайт (если ещё не скачан)
   • настраивает домен и HTTPS (Let's Encrypt)
   • при наличии ZIP-бэкапа — восстанавливает данные
+  • на одном сервере можно поставить несколько сайтов
 
 Минимальный запуск:
   sudo bash install.sh
@@ -89,12 +109,18 @@ print_help() {
 Со своим доменом:
   sudo DOMAIN=example.com bash install.sh
 
+Второй (и следующие) сайты на том же сервере:
+  sudo DOMAIN=site2.ru bash install.sh
+  sudo DOMAIN=site3.ru APP_DIR=/var/www/site3.ru bash install.sh
+
 С восстановлением из бэкапа:
   sudo DOMAIN=example.com BACKUP_FILE=/root/backup.zip bash install.sh
 
 Полезные параметры (перед командой):
   DOMAIN=сайт.ru              домен сайта (без https://)
-  APP_DIR=/var/www/...        папка установки
+  APP_DIR=/var/www/...        папка установки (по умолчанию /var/www/<домен>)
+  SITE_ID=my_site             короткий id инстанса (БД, PHP-FPM, очередь)
+  DB_NAME / DB_USER           имя БД и пользователя (иначе из SITE_ID)
   DB_PASSWORD=секрет          пароль БД (иначе сгенерируется)
   ADMIN_TOKEN=секрет          токен входа в админку
   BACKUP_FILE=/path/file.zip  восстановить этот бэкап
@@ -102,11 +128,12 @@ print_help() {
   SKIP_BUILD=1                только смена домена / без пересборки
 
 Смена домена на уже установленном сервере:
-  cd /var/www/lordserialov.net
+  cd /var/www/example.com
   sudo DOMAIN=новый.ru SKIP_BUILD=1 bash install.sh
 
 После установки пароли и токены лежат в:
-  /root/lordserialov-credentials.txt
+  /root/lordserial-<SITE_ID>-credentials.txt
+  (для первого дефолтного сайта: /root/lordserialov-credentials.txt)
 
 EOF
 }
@@ -118,8 +145,10 @@ print_banner() {
     echo "════════════════════════════════════════════════════════════"
     echo ""
     echo "  Домен:     ${DOMAIN}"
+    echo "  Инстанс:   ${SITE_ID}"
     echo "  Папка:     ${APP_DIR}"
     echo "  База:      ${DB_NAME}"
+    echo "  Очередь:   ${QUEUE_UNIT_NAME}"
     if [[ -n "$BACKUP_FILE" ]]; then
         echo "  Бэкап:     ${BACKUP_FILE}"
     elif [[ "$SKIP_BACKUP_RESTORE" == "1" ]]; then
@@ -368,11 +397,9 @@ ensure_storage_link() {
 }
 
 setup_queue_and_scheduler() {
-    local php_bin queue_unit cron_file cron_line queue_log
+    local php_bin queue_log cron_line
 
     php_bin="$(resolve_php_bin)"
-    queue_unit="/etc/systemd/system/lordserial-queue.service"
-    cron_file="/etc/cron.d/lordserial-scheduler"
     queue_log="${APP_DIR}/storage/logs/queue.log"
 
     log "Включаю фоновые задачи (уведомления, автобэкапы, синхронизации)..."
@@ -381,9 +408,9 @@ setup_queue_and_scheduler() {
     chown www-data:www-data "$queue_log"
     chmod 664 "$queue_log"
 
-    cat > "$queue_unit" <<EOF
+    cat > "$QUEUE_UNIT_PATH" <<EOF
 [Unit]
-Description=LordSerial Laravel Queue Worker
+Description=LordSerial Queue Worker (${DOMAIN} / ${SITE_ID})
 After=network.target mariadb.service php${PHP_VERSION}-fpm.service
 Wants=mariadb.service
 
@@ -403,15 +430,15 @@ WantedBy=multi-user.target
 EOF
 
     systemctl daemon-reload
-    systemctl enable lordserial-queue
-    systemctl restart lordserial-queue
+    systemctl enable "$QUEUE_UNIT_NAME"
+    systemctl restart "$QUEUE_UNIT_NAME"
 
-    if systemctl is-active --quiet lordserial-queue; then
-        log "Фоновая очередь работает"
+    if systemctl is-active --quiet "$QUEUE_UNIT_NAME"; then
+        log "Фоновая очередь работает (${QUEUE_UNIT_NAME})"
     else
         warn "Очередь не запустилась. Диагностика:
-  journalctl -u lordserial-queue -n 50"
-        systemctl status lordserial-queue --no-pager || true
+  journalctl -u ${QUEUE_UNIT_NAME} -n 50"
+        systemctl status "$QUEUE_UNIT_NAME" --no-pager || true
     fi
 
     if ! command -v cron >/dev/null 2>&1 && ! systemctl list-unit-files cron.service &>/dev/null; then
@@ -420,10 +447,10 @@ EOF
     systemctl enable --now cron 2>/dev/null || systemctl enable --now crond 2>/dev/null || true
 
     cron_line="* * * * * www-data cd ${APP_DIR} && ${php_bin} artisan schedule:run >> /dev/null 2>&1"
-    echo "$cron_line" > "$cron_file"
-    chmod 644 "$cron_file"
+    echo "$cron_line" > "$CRON_FILE"
+    chmod 644 "$CRON_FILE"
 
-    log "Планировщик задач настроен (автобэкап, sitemap и т.д.)"
+    log "Планировщик задач настроен (${CRON_FILE})"
 }
 
 read_env_value() {
@@ -438,6 +465,105 @@ normalize_domain() {
     value="${value%%/*}"
     value="${value#www.}"
     echo "$value"
+}
+
+# Короткий id инстанса: example.com → example_com (для имён БД, unit, pool)
+derive_site_id() {
+    local value="$1" id
+    id="$(echo "$value" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g; s/^_+|_+$//g; s/_+/_/g')"
+    [[ -n "$id" ]] || id="site"
+    # запас под префикс ls_ и лимит имени БД MySQL (64)
+    echo "${id:0:48}"
+}
+
+unit_points_to_app_dir() {
+    local unit_file="$1"
+    [[ -f "$unit_file" ]] || return 1
+    grep -qxF "WorkingDirectory=${APP_DIR}" "$unit_file" 2>/dev/null
+}
+
+# Имена PHP-FPM / queue / cron / credentials для этого инстанса
+# Совместимость: если уже есть lordserial-queue с WorkingDirectory=APP_DIR — оставляем старые имена
+resolve_service_names() {
+    local use_legacy=0
+    local legacy_unit="/etc/systemd/system/lordserial-queue.service"
+
+    if unit_points_to_app_dir "$legacy_unit"; then
+        # Этот сайт уже использует старые глобальные имена
+        use_legacy=1
+    elif [[ "$SITE_ID" == "lordserial" ]]; then
+        if [[ ! -f "$legacy_unit" ]]; then
+            # Первая установка дефолтного сайта — как раньше
+            use_legacy=1
+        fi
+        # Если legacy unit есть, но указывает на другой APP_DIR — ниже use_legacy=0
+    fi
+
+    if [[ "$use_legacy" == "1" ]]; then
+        QUEUE_UNIT_NAME="lordserial-queue"
+        CRON_FILE="/etc/cron.d/lordserial-scheduler"
+        PHP_POOL_NAME="lordserial"
+        CREDENTIALS_FILE="/root/lordserialov-credentials.txt"
+    else
+        QUEUE_UNIT_NAME="lordserial-queue-${SITE_ID}"
+        CRON_FILE="/etc/cron.d/lordserial-scheduler-${SITE_ID}"
+        PHP_POOL_NAME="lordserial-${SITE_ID}"
+        CREDENTIALS_FILE="/root/lordserial-${SITE_ID}-credentials.txt"
+    fi
+
+    QUEUE_UNIT_PATH="/etc/systemd/system/${QUEUE_UNIT_NAME}.service"
+    PHP_POOL_FILE="/etc/php/${PHP_VERSION}/fpm/pool.d/${PHP_POOL_NAME}.conf"
+    PHP_FPM_SOCK="/run/php/php${PHP_VERSION}-fpm-${PHP_POOL_NAME}.sock"
+}
+
+resolve_site_instance() {
+    if [[ -n "$_USER_SITE_ID" ]]; then
+        SITE_ID="$(derive_site_id "$_USER_SITE_ID")"
+    elif [[ "$DOMAIN" == "lordserialov.net" ]]; then
+        # Обратная совместимость с первой установкой по умолчанию
+        SITE_ID="lordserial"
+    else
+        SITE_ID="$(derive_site_id "$DOMAIN")"
+    fi
+
+    if [[ -n "$_USER_APP_DIR" ]]; then
+        APP_DIR="$_USER_APP_DIR"
+    elif [[ -f "$SCRIPT_DIR/artisan" ]]; then
+        APP_DIR="$SCRIPT_DIR"
+    else
+        APP_DIR="/var/www/${DOMAIN}"
+    fi
+
+    if [[ -n "$_USER_DB_NAME" ]]; then
+        DB_NAME="$_USER_DB_NAME"
+    elif [[ -f "$APP_DIR/.env" ]]; then
+        DB_NAME="$(read_env_value DB_DATABASE "$APP_DIR/.env")"
+        [[ -n "$DB_NAME" ]] || true
+    fi
+    if [[ -z "$DB_NAME" ]]; then
+        if [[ "$SITE_ID" == "lordserial" ]]; then
+            DB_NAME="lordserial"
+        else
+            DB_NAME="ls_${SITE_ID}"
+        fi
+    fi
+
+    if [[ -n "$_USER_DB_USER" ]]; then
+        DB_USER="$_USER_DB_USER"
+    elif [[ -f "$APP_DIR/.env" ]]; then
+        DB_USER="$(read_env_value DB_USERNAME "$APP_DIR/.env")"
+    fi
+    if [[ -z "$DB_USER" ]]; then
+        if [[ "$SITE_ID" == "lordserial" ]]; then
+            DB_USER="lordserial"
+        else
+            # лимит имени пользователя MariaDB
+            DB_USER="ls_${SITE_ID}"
+            DB_USER="${DB_USER:0:32}"
+        fi
+    fi
+
+    resolve_service_names
 }
 
 detect_previous_domain() {
@@ -501,7 +627,7 @@ ${domain} {
     }
     respond @blocked 404
 
-    php_fastcgi unix//run/php/php${PHP_VERSION}-fpm-lordserial.sock {
+    php_fastcgi unix/${PHP_FPM_SOCK} {
         resolve_root_symlink
     }
 
@@ -559,16 +685,19 @@ ${backup_note}
   • Логи сайта:
       tail -f ${APP_DIR}/storage/logs/laravel.log
   • Статус сервисов:
-      systemctl status caddy lordserial-queue mariadb
+      systemctl status caddy ${QUEUE_UNIT_NAME} mariadb
 
 ────────────────────────────────────────────────────────────
   Полезные команды:
 ────────────────────────────────────────────────────────────
-  sudo bash update.sh
-      обновить сайт после git push
+  cd ${APP_DIR} && sudo bash update.sh
+      обновить этот сайт
+
+  sudo DOMAIN=другой.ru bash install.sh
+      поставить ещё один сайт на этот же сервер
 
   sudo DOMAIN=новый.ru SKIP_BUILD=1 bash install.sh
-      сменить домен
+      сменить домен (из папки сайта)
 
   sudo BACKUP_FILE=/root/backup.zip bash install.sh
       переустановить с восстановлением из бэкапа
@@ -595,6 +724,7 @@ RESTORED_BACKUP=""
 fix_nodesource_apt_conflict || true
 
 DOMAIN="$(normalize_domain "$DOMAIN")"
+resolve_site_instance
 print_banner
 
 # ─── Шаг 1. Код сайта ────────────────────────────────────────────────────────
@@ -602,7 +732,10 @@ print_banner
 step "Подготовка кода сайта"
 
 if [[ -f "$SCRIPT_DIR/artisan" ]]; then
-    APP_DIR="$SCRIPT_DIR"
+    if [[ -z "$_USER_APP_DIR" ]]; then
+        APP_DIR="$SCRIPT_DIR"
+        resolve_service_names
+    fi
     log "Использую уже скачанный проект: ${APP_DIR}"
 elif [[ ! -f "$APP_DIR/artisan" ]]; then
     log "Скачиваю сайт из GitHub → ${APP_DIR}..."
@@ -613,7 +746,21 @@ else
 fi
 
 [[ -f "$APP_DIR/artisan" ]] || die "В папке ${APP_DIR} нет сайта LordSerial.
-Скачайте репозиторий или укажите правильный APP_DIR."
+Скачайте репозиторий или укажите правильный APP_DIR.
+
+Для второго сайта на этом сервере:
+  sudo DOMAIN=другой-сайт.ru bash install.sh"
+
+# Папка могла уточниться — подтянуть БД из .env и имена сервисов
+if [[ -z "$_USER_DB_NAME" && -f "$APP_DIR/.env" ]]; then
+    from_env="$(read_env_value DB_DATABASE "$APP_DIR/.env")"
+    [[ -n "$from_env" ]] && DB_NAME="$from_env"
+fi
+if [[ -z "$_USER_DB_USER" && -f "$APP_DIR/.env" ]]; then
+    from_env="$(read_env_value DB_USERNAME "$APP_DIR/.env")"
+    [[ -n "$from_env" ]] && DB_USER="$from_env"
+fi
+resolve_service_names
 
 ensure_git_safe
 
@@ -718,14 +865,14 @@ log "База данных готова"
 
 step "Настройка PHP"
 
-log "Настраиваю PHP-FPM для сайта..."
+log "Настраиваю PHP-FPM для сайта (${PHP_POOL_NAME})..."
 sed -i 's/^;*cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/' "/etc/php/${PHP_VERSION}/fpm/php.ini" || true
 
-cat > "/etc/php/${PHP_VERSION}/fpm/pool.d/lordserial.conf" <<EOF
-[lordserial]
+cat > "$PHP_POOL_FILE" <<EOF
+[${PHP_POOL_NAME}]
 user = www-data
 group = www-data
-listen = /run/php/php${PHP_VERSION}-fpm-lordserial.sock
+listen = ${PHP_FPM_SOCK}
 listen.owner = www-data
 listen.group = www-data
 listen.mode = 0660
@@ -741,7 +888,7 @@ EOF
 
 systemctl enable "php${PHP_VERSION}-fpm"
 systemctl restart "php${PHP_VERSION}-fpm"
-log "PHP готов"
+log "PHP готов (сокет: ${PHP_FPM_SOCK})"
 
 # ─── Шаг 8. Настройки сайта (.env) ───────────────────────────────────────────
 
@@ -845,7 +992,9 @@ if [[ ! -f "$CADDY_MAIN" ]] || [[ ! -s "$CADDY_MAIN" ]]; then
 
 import sites/*.caddy
 EOF
-elif ! grep -qF "${DOMAIN}" "$CADDY_MAIN" && ! grep -qF "sites/${DOMAIN}.caddy" "$CADDY_MAIN"; then
+elif grep -qE '^\s*import\s+sites/\*\.caddy' "$CADDY_MAIN"; then
+    log "Caddy уже подключает все сайты из sites/*.caddy"
+elif ! grep -qF "sites/${DOMAIN}.caddy" "$CADDY_MAIN"; then
     cp "$CADDY_MAIN" "${CADDY_MAIN}.bak.$(date +%Y%m%d%H%M%S)"
     printf '\nimport sites/%s.caddy\n' "$DOMAIN" >> "$CADDY_MAIN"
 fi
@@ -901,6 +1050,7 @@ LordSerial — данные для входа
 Сайт:        https://${DOMAIN}
 Админка:     https://${DOMAIN}/admin/
 Папка:       ${APP_DIR}
+Инстанс:     ${SITE_ID}
 
 База данных:
   Хост:      127.0.0.1
@@ -918,7 +1068,10 @@ LordSerial — данные для входа
   tail -f ${APP_DIR}/storage/logs/laravel.log
 
 Очередь:
-  journalctl -u lordserial-queue -f
+  journalctl -u ${QUEUE_UNIT_NAME} -f
+
+Планировщик:
+  cat ${CRON_FILE}
 EOF
 chmod 600 "$CREDENTIALS_FILE"
 

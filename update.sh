@@ -4,12 +4,19 @@
 #
 # Запуск из каталога проекта:
 #   cd /var/www/lordserialov.net && sudo bash update.sh
+#   cd /var/www/site2.ru && sudo bash update.sh
 #
 # Или одной командой (скачать свежий скрипт и выполнить):
-#   curl -fsSL https://raw.githubusercontent.com/enikov1/cld/main/update.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/enikov1/cld/main/update.sh \
+#     | sudo APP_DIR=/var/www/site2.ru bash
+#
+# Несколько сайтов на одном сервере — обновляйте каждый отдельно:
+#   sudo APP_DIR=/var/www/site1.ru bash update.sh
+#   sudo APP_DIR=/var/www/site2.ru bash update.sh
 #
 # Опциональные переменные окружения:
 #   APP_DIR=/var/www/lordserialov.net
+#   SITE_ID=my_site     # обычно определяется автоматически
 #   GIT_BRANCH=main
 #   SKIP_BUILD=1        # пропустить composer/npm
 #   SKIP_MIGRATE=1      # пропустить миграции
@@ -21,13 +28,23 @@ set -euo pipefail
 # ─── Конфигурация ─────────────────────────────────────────────────────────────
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_DIR="${APP_DIR:-$SCRIPT_DIR}"
+_USER_APP_DIR="${APP_DIR:-}"
+_USER_SITE_ID="${SITE_ID:-}"
 GIT_BRANCH="${GIT_BRANCH:-main}"
 PHP_VERSION="8.3"
 SKIP_BUILD="${SKIP_BUILD:-0}"
 SKIP_MIGRATE="${SKIP_MIGRATE:-0}"
 SKIP_MAINTENANCE="${SKIP_MAINTENANCE:-1}"
 SKIP_SERVICES="${SKIP_SERVICES:-0}"
+
+APP_DIR=""
+SITE_ID=""
+DOMAIN=""
+QUEUE_UNIT_NAME=""
+QUEUE_UNIT_PATH=""
+CRON_FILE=""
+PHP_POOL_NAME=""
+PHP_FPM_SOCK=""
 
 # ─── Утилиты ──────────────────────────────────────────────────────────────────
 
@@ -37,6 +54,100 @@ die()  { echo -e "\033[1;31m[error]\033[0m $*" >&2; exit 1; }
 
 require_root() {
     [[ "${EUID:-$(id -u)}" -eq 0 ]] || die "Запустите скрипт от root: sudo bash update.sh"
+}
+
+read_env_value() {
+    local key="$1" file="$2"
+    grep -E "^${key}=" "$file" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"' || true
+}
+
+normalize_domain() {
+    local value="$1"
+    value="${value#https://}"
+    value="${value#http://}"
+    value="${value%%/*}"
+    value="${value#www.}"
+    echo "$value"
+}
+
+derive_site_id() {
+    local value="$1" id
+    id="$(echo "$value" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g; s/^_+|_+$//g; s/_+/_/g')"
+    [[ -n "$id" ]] || id="site"
+    echo "${id:0:48}"
+}
+
+unit_points_to_app_dir() {
+    local unit_file="$1"
+    [[ -f "$unit_file" ]] || return 1
+    grep -qxF "WorkingDirectory=${APP_DIR}" "$unit_file" 2>/dev/null
+}
+
+resolve_service_names() {
+    local use_legacy=0
+    local legacy_unit="/etc/systemd/system/lordserial-queue.service"
+
+    if unit_points_to_app_dir "$legacy_unit"; then
+        use_legacy=1
+    elif [[ "$SITE_ID" == "lordserial" ]]; then
+        if [[ ! -f "$legacy_unit" ]]; then
+            use_legacy=1
+        elif unit_points_to_app_dir "$legacy_unit"; then
+            use_legacy=1
+        fi
+    fi
+
+    # По пулу PHP: если для этой папки уже есть старый sock в caddy — legacy
+    if [[ "$use_legacy" != "1" ]] && [[ -f "/etc/php/${PHP_VERSION}/fpm/pool.d/lordserial.conf" ]]; then
+        local snippet
+        shopt -s nullglob
+        for snippet in /etc/caddy/sites/*.caddy; do
+            if grep -qF "${APP_DIR}/public" "$snippet" 2>/dev/null \
+                && grep -qF "php${PHP_VERSION}-fpm-lordserial.sock" "$snippet" 2>/dev/null; then
+                use_legacy=1
+                break
+            fi
+        done
+        shopt -u nullglob
+    fi
+
+    if [[ "$use_legacy" == "1" ]]; then
+        QUEUE_UNIT_NAME="lordserial-queue"
+        CRON_FILE="/etc/cron.d/lordserial-scheduler"
+        PHP_POOL_NAME="lordserial"
+    else
+        QUEUE_UNIT_NAME="lordserial-queue-${SITE_ID}"
+        CRON_FILE="/etc/cron.d/lordserial-scheduler-${SITE_ID}"
+        PHP_POOL_NAME="lordserial-${SITE_ID}"
+    fi
+
+    QUEUE_UNIT_PATH="/etc/systemd/system/${QUEUE_UNIT_NAME}.service"
+    PHP_FPM_SOCK="/run/php/php${PHP_VERSION}-fpm-${PHP_POOL_NAME}.sock"
+}
+
+resolve_site_instance() {
+    if [[ -n "$_USER_APP_DIR" ]]; then
+        APP_DIR="$_USER_APP_DIR"
+    elif [[ -f "$SCRIPT_DIR/artisan" ]]; then
+        APP_DIR="$SCRIPT_DIR"
+    else
+        die "Укажите каталог сайта: sudo APP_DIR=/var/www/example.com bash update.sh"
+    fi
+
+    if [[ -f "$APP_DIR/.env" ]]; then
+        DOMAIN="$(normalize_domain "$(read_env_value APP_URL "$APP_DIR/.env")")"
+    fi
+    [[ -n "$DOMAIN" ]] || DOMAIN="$(basename "$APP_DIR")"
+
+    if [[ -n "$_USER_SITE_ID" ]]; then
+        SITE_ID="$(derive_site_id "$_USER_SITE_ID")"
+    elif [[ "$DOMAIN" == "lordserialov.net" ]]; then
+        SITE_ID="lordserial"
+    else
+        SITE_ID="$(derive_site_id "$DOMAIN")"
+    fi
+
+    resolve_service_names
 }
 
 ensure_git_safe() {
@@ -110,24 +221,22 @@ ensure_storage_link() {
     php artisan storage:link
 }
 
-# Systemd queue worker + Laravel Scheduler (cron)
+# Systemd queue worker + Laravel Scheduler (cron) — только для этого инстанса
 setup_queue_and_scheduler() {
-    local php_bin queue_unit cron_file cron_line queue_log
+    local php_bin queue_log cron_line
 
     php_bin="$(resolve_php_bin)"
-    queue_unit="/etc/systemd/system/lordserial-queue.service"
-    cron_file="/etc/cron.d/lordserial-scheduler"
     queue_log="${APP_DIR}/storage/logs/queue.log"
 
-    log "Systemd-сервис очереди (lordserial-queue)..."
+    log "Systemd-сервис очереди (${QUEUE_UNIT_NAME})..."
     mkdir -p "${APP_DIR}/storage/logs"
     touch "$queue_log"
     chown www-data:www-data "$queue_log"
     chmod 664 "$queue_log"
 
-    cat > "$queue_unit" <<EOF
+    cat > "$QUEUE_UNIT_PATH" <<EOF
 [Unit]
-Description=LordSerial Laravel Queue Worker
+Description=LordSerial Queue Worker (${DOMAIN} / ${SITE_ID})
 After=network.target mariadb.service php${PHP_VERSION}-fpm.service
 Wants=mariadb.service
 
@@ -147,14 +256,14 @@ WantedBy=multi-user.target
 EOF
 
     systemctl daemon-reload
-    systemctl enable lordserial-queue
-    systemctl restart lordserial-queue
+    systemctl enable "$QUEUE_UNIT_NAME"
+    systemctl restart "$QUEUE_UNIT_NAME"
 
-    if systemctl is-active --quiet lordserial-queue; then
-        log "Очередь: lordserial-queue активен (${php_bin})"
+    if systemctl is-active --quiet "$QUEUE_UNIT_NAME"; then
+        log "Очередь: ${QUEUE_UNIT_NAME} активен (${php_bin})"
     else
-        warn "lordserial-queue не запустился — смотрите: journalctl -u lordserial-queue -n 50"
-        systemctl status lordserial-queue --no-pager || true
+        warn "${QUEUE_UNIT_NAME} не запустился — смотрите: journalctl -u ${QUEUE_UNIT_NAME} -n 50"
+        systemctl status "$QUEUE_UNIT_NAME" --no-pager || true
     fi
 
     log "Cron для Laravel Scheduler..."
@@ -164,15 +273,16 @@ EOF
     systemctl enable --now cron 2>/dev/null || systemctl enable --now crond 2>/dev/null || true
 
     cron_line="* * * * * www-data cd ${APP_DIR} && ${php_bin} artisan schedule:run >> /dev/null 2>&1"
-    echo "$cron_line" > "$cron_file"
-    chmod 644 "$cron_file"
+    echo "$cron_line" > "$CRON_FILE"
+    chmod 644 "$CRON_FILE"
 
-    log "Scheduler: ${cron_file}"
+    log "Scheduler: ${CRON_FILE}"
 }
 
 # ─── Подготовка ───────────────────────────────────────────────────────────────
 
 require_root
+resolve_site_instance
 
 [[ -f "$APP_DIR/artisan" ]] || die "Laravel-проект не найден в ${APP_DIR}."
 [[ -d "$APP_DIR/.git" ]]    || die "Каталог ${APP_DIR} не является git-репозиторием. Используйте install.sh."
@@ -181,8 +291,11 @@ cd "$APP_DIR"
 
 ensure_git_safe
 
-log "Каталог: ${APP_DIR}"
-log "Ветка:   ${GIT_BRANCH}"
+log "Каталог:  ${APP_DIR}"
+log "Инстанс:  ${SITE_ID}"
+log "Домен:    ${DOMAIN}"
+log "Очередь:  ${QUEUE_UNIT_NAME}"
+log "Ветка:    ${GIT_BRANCH}"
 
 # ─── Режим обслуживания ───────────────────────────────────────────────────────
 
@@ -280,7 +393,7 @@ if [[ "$SKIP_SERVICES" != "1" ]]; then
         systemctl reload caddy 2>/dev/null || systemctl restart caddy
     fi
 
-    # Создаёт/обновляет unit и cron, если их ещё не было (systemd вариант A)
+    # Создаёт/обновляет unit и cron только для этого инстанса
     setup_queue_and_scheduler
 else
     warn "SKIP_SERVICES=1 — сервисы, очередь и cron не обновлены"
@@ -296,14 +409,13 @@ fi
 
 # ─── Готово ───────────────────────────────────────────────────────────────────
 
-DOMAIN="$(grep -E '^APP_URL=' .env 2>/dev/null | cut -d= -f2- | tr -d '"' | sed 's|https\?://||' || echo 'lordserialov.net')"
-
 echo ""
 echo "════════════════════════════════════════════════════════════"
 echo "  Обновление завершено!"
 echo "════════════════════════════════════════════════════════════"
 echo ""
 echo "  Версия:   ${NEW_REV:0:8}"
+echo "  Инстанс:  ${SITE_ID}"
 echo "  Сайт:     https://${DOMAIN}"
 echo "  Проверка: curl -sI https://${DOMAIN}/up"
 echo ""
@@ -313,6 +425,6 @@ echo "  Обход:    https://${DOMAIN}/lordserial-update"
 echo ""
 fi
 echo "  Логи:     tail -f ${APP_DIR}/storage/logs/laravel.log"
-echo "  Очередь:  systemctl status lordserial-queue"
-echo "  Cron:     cat /etc/cron.d/lordserial-scheduler"
+echo "  Очередь:  systemctl status ${QUEUE_UNIT_NAME}"
+echo "  Cron:     cat ${CRON_FILE}"
 echo "════════════════════════════════════════════════════════════"

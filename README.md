@@ -2,7 +2,120 @@
 
 Сайт на **Laravel 12** (PHP 8.2+) с шаблонной системой (`resources/tpl`) и React-админкой (`admin-ui`).
 
-## Требования
+---
+
+## Установка на сервер (VPS)
+
+Скрипт `install.sh` сам ставит PHP, MariaDB, Caddy (HTTPS), Node.js, клонирует код, настраивает домен, очередь и cron.
+
+**Нужно заранее:**
+1. VPS с **Ubuntu 24.04**
+2. Домен с A-записью на IP сервера
+3. SSH от root (или `sudo`)
+
+### Быстрая установка
+
+```bash
+# Чистый сервер, домен по умолчанию
+curl -fsSL https://raw.githubusercontent.com/enikov1/cld/main/install.sh | sudo bash
+
+# Со своим доменом
+curl -fsSL https://raw.githubusercontent.com/enikov1/cld/main/install.sh \
+  | sudo DOMAIN=ваш-сайт.ru bash
+```
+
+Если код уже скачан:
+
+```bash
+cd /var/www/ваш-сайт.ru
+sudo DOMAIN=ваш-сайт.ru bash install.sh
+```
+
+После установки пароли и токен админки сохраняются в:
+- `/root/lordserialov-credentials.txt` — дефолтный сайт
+- `/root/lordserial-<SITE_ID>-credentials.txt` — остальные сайты
+
+Откройте: `https://ваш-сайт.ru` и админку `https://ваш-сайт.ru/admin/`
+
+Справка по параметрам: `sudo bash install.sh --help`
+
+### Несколько сайтов на одном сервере
+
+У каждого сайта — своя папка, БД, PHP-FPM pool, очередь и cron:
+
+```bash
+sudo DOMAIN=site1.ru bash install.sh
+sudo DOMAIN=site2.ru bash install.sh
+```
+
+По умолчанию:
+| | Пример для `site2.ru` |
+|--|--|
+| Папка | `/var/www/site2.ru` |
+| БД / пользователь | `ls_site2_ru` |
+| Очередь | `lordserial-queue-site2_ru` |
+| Cron | `/etc/cron.d/lordserial-scheduler-site2_ru` |
+
+При необходимости явно: `APP_DIR=...` `SITE_ID=...` `DB_NAME=...` `DB_USER=...`
+
+### Обновление сайта
+
+```bash
+# Из папки сайта
+cd /var/www/ваш-сайт.ru
+sudo bash update.sh
+
+# Или одной командой
+curl -fsSL https://raw.githubusercontent.com/enikov1/cld/main/update.sh \
+  | sudo APP_DIR=/var/www/ваш-сайт.ru bash
+```
+
+Несколько сайтов — обновляйте каждый отдельно:
+
+```bash
+sudo APP_DIR=/var/www/site1.ru bash update.sh
+sudo APP_DIR=/var/www/site2.ru bash update.sh
+```
+
+Полезные флаги: `SKIP_BUILD=1`, `SKIP_MIGRATE=1`, `SKIP_SERVICES=1`, `GIT_BRANCH=main`
+
+### Смена домена
+
+```bash
+cd /var/www/ваш-сайт.ru
+sudo DOMAIN=новый-домен.ru SKIP_BUILD=1 bash install.sh
+```
+
+### Перенос со старого сервера (из бэкапа)
+
+1. Скачайте ZIP из админки → «Бэкапы»
+2. Загрузите на новый сервер, например в `/root/backup.zip`
+3. Установите с восстановлением:
+
+```bash
+sudo DOMAIN=ваш-сайт.ru BACKUP_FILE=/root/backup.zip bash install.sh
+```
+
+Или положите ZIP в `storage/app/backups/` — скрипт возьмёт самый новый.
+
+### Полезные команды на сервере
+
+```bash
+# Логи
+tail -f /var/www/ваш-сайт.ru/storage/logs/laravel.log
+
+# Очередь и сервисы
+systemctl status caddy lordserial-queue
+# для второго сайта:
+systemctl status lordserial-queue-site2_ru
+
+# Проверка
+curl -sI https://ваш-сайт.ru/up
+```
+
+---
+
+## Требования (локальная разработка)
 
 | Компонент | Версия |
 |-----------|--------|
@@ -13,7 +126,7 @@
 
 ---
 
-## Первичная установка
+## Локальная установка
 
 ```bash
 # 1. Зависимости PHP
@@ -105,7 +218,9 @@ npm run dev          # Vite для resources/js (если используетс
 
 ---
 
-## Продакшен
+## Продакшен (ручная настройка)
+
+> Для Ubuntu VPS предпочтителен `install.sh` (см. сверху). Ниже — если настраиваете сервер сами.
 
 ### 1. Настройка `.env`
 
@@ -131,7 +246,7 @@ ADMIN_TOKEN=длинный-случайный-токен
 
 > **Важно:** при `APP_DEBUG=false` сайт автоматически отдаёт **минифицированные** ассеты темы (`site.min.js`, `site.min.css`). Если обновили `site.js`, но не пересобрали `.min` — часть JS на сайте работать не будет.
 
-### 2. Установка на сервере
+### 2. Сборка на сервере
 
 ```bash
 composer install --no-dev --optimize-autoloader
@@ -193,10 +308,6 @@ chown -R www-data:www-data storage bootstrap/cache
 На Windows/OSPanel обычно достаточно прав записи для пользователя веб-сервера.
 
 ### 5. Планировщик (cron)
-
-В проекте настроены фоновые задачи: синхронизация Alloha, бейджи популярности, sitemap.
-
-Добавьте в crontab:
 
 ```cron
 * * * * * cd /path/to/site && php artisan schedule:run >> /dev/null 2>&1
