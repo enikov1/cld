@@ -1,0 +1,2 @@
+<span class="contact_title">Наши контакты</span>
+<span class="feedback_info">По вопросам о нарушении <span style="color: red">авторских прав</span>, а также с предложениями о <span style="color: red">сотрудничестве</span>, обращайтесь на электронную почту: <a class="about_accent" href="mailto:abuse@russerialov.net">abuse@russerialov.net</a></span>

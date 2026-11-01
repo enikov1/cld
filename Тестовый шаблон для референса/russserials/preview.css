@@ -1,0 +1,71 @@
+
+html,body,div,span,object,iframe,frame,h1,h2,h3,h4,h5,h6,p,blockquote,pre,abbr,address,cite,code,del,dfn,em,img,ins,kbd,q,samp,small,strong,sub,sup,var,a,b,i,dl,dt,dd,ol,ul,li,fieldset,textarea,select,legend,table,caption,tbody,tfoot,thead,tr,th,td,article,aside,canvas,details,figcaption,figure,footer,header,hgroup,menu,nav,section,summary,time,mark,audio,video,input {
+	background: transparent;margin:0;padding:0;outline:none;border: 0;
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+   box-sizing: border-box;
+}
+input, label, button, form {background: transparent;margin:0;padding:0;outline:none;border: 0;}
+   
+ol, ul {list-style:none;}
+blockquote, q {quotes:none;}
+table {border-collapse:collapse;border-spacing:0;}
+input, select {vertical-align:middle;}
+
+article, aside, figure, figure img, hgroup, footer, header, nav, section {display: block;}
+
+body { font: 12px Arial, Helvetica, sans-serif; line-height:normal; padding:0; margin:0;        
+color: #444; background-color:#f5f5f5; height:100%; width:100%;}
+   
+img {max-width:100%;}
+.clr {clear: both;}
+.clearfix:after {content: ""; display: table; clear: both;}
+
+a {color: #4a84c4; text-decoration: none;}
+a:hover, a:focus {color:#4a84c4; text-decoration: none;}
+
+h1,h2,h3,h4,h5,h6 {font-weight: normal;}
+h1 {font-size:24px;}
+h2 {font-size:24px;}
+h3 {font-size:21px;}
+
+legend {display:block; font-size:16px; padding:15px; background-color:#0297dc; color:#FFF; width:100%;}
+legend span {display:block; font-size:16px !important;}
+
+.prev {margin:0 auto; background-color:#fff; padding:20px;}
+.prev-title {font-size:24px; margin-bottom:15px;}
+
+.full-text embed, .full-text object, .full-text video, .full-text iframe, .full-text frame {width: 100% !important; height:400px;}
+.full-text {font:14px Arial, Helvetica, sans-serif; line-height:24px; margin-bottom:20px;}
+.full-text img {margin:0 10px 10px 0; max-width:100%; border:5px solid #f0f0f0;}
+.full-text a {text-decoration:underline; color:#06c;}
+.full-text a:hover {text-decoration:underline; color:#C9070A;}
+.full-text a:visited {text-decoration:underline; color:#06c;}
+.full-text h2, .full-text h3 {font-size:24px;}
+.full-text h4, .full-text h5 {font-size:18px;}
+.full-text p {margin-bottom:15px;}
+.full-text ul, .full-text ol, .full-text h2, .full-text h3, .full-text h4, .full-text h5 {margin:15px 0;}
+.full-text ul li {list-style:disc; margin-left:40px;}
+.full-text ol {counter-reset:li; padding:0;  list-style:none; margin-left:25px; }
+.full-text ol li {position:relative; margin:0 0 5px 0; padding-left:30px; min-height:20px;}
+.full-text  ol li:before {content:counter(li); counter-increment:li; font-size:11px;
+position:absolute; top:0px; left:0; width:20px; height:20px; line-height:20px; text-align:center; 
+color:#fff; background:#0297dc; font-weight:bold; border-radius:50%;}
+.full-text table {width:100%; text-align:left;}
+.full-text table tr td {padding:10px; border:1px solid #ccc; font-size:12px; }
+.full-text table tr:nth-child(1) {background-color:#0297dc !important; color:#FFF; font-size:14px !important;}
+.full-text table tr:nth-child(2n+1) {background-color:#f9f9f9;} 
+ 
+.scriptcode, .title_spoiler, .text_spoiler { padding: 3px 5px; background: #f0f0f0; border: 1px solid #e3e3e3; }
+.title_quote { margin-top: 2px; font-weight: bold; }
+.quote { margin: 5px 0 5px 10px; padding: 15px; border-left: 4px solid #4e8ccc;
+ font-family: Georgia, serif; font-style: italic; color: #000; background-color:#f0f0f0 }
+.title_spoiler { margin-top: 2px; }
+.text_spoiler { margin-bottom: 2px; }
+.title_spoiler img { vertical-align: middle !important; position:relative; top:5px;}
+.scriptcode { color: #4c6d0f; text-align: left; font-family: "Courier New" }
+.title_spoiler { font-weight: normal; }
+.text_spoiler { border-top: 0; text-align: justify; }
+.hide { background-color: #f0f0f0; padding: 5px; color: #000; margin: 0 0 1em 0 }
+.hide a { text-decoration: underline; } .hide a:hover { text-decoration: none }
+.inhide { border: 1px solid #d1e3ef; padding: 5px; background-color: #fff; margin-bottom: 5px }
