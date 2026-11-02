@@ -1,4 +1,4 @@
-<article class="comment-item[item.is_reply] comment-item--reply[/item.is_reply][item.is_pinned] comment-item--pinned[/item.is_pinned]" data-comment-id="{item.id}">
+<article class="comm-item comment-item[item.is_reply] comment-item--reply[/item.is_reply][item.is_pinned] comment-item--pinned[/item.is_pinned]" data-comment-id="{item.id}">
     <div class="comment-item__inner">
         <div class="comment-avatar" aria-hidden="true" style="--avatar-hue: {item.avatar_hue}">{item.avatar_initial}</div>
         <div class="comment-content">

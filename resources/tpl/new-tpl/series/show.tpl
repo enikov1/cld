@@ -131,9 +131,13 @@
             [has_coming_soon]{anticipation_widget|raw}[/has_coming_soon]
         </div>
 
-        <div class="fplayer-title">
-            <h2>смотреть {series.title} {series.year_full} онлайн бесплатно в хорошем качестве HD 1080</h2>
+        <h2 class="fplayer-title">смотреть {series.title} {series.year_full} онлайн бесплатно в хорошем качестве HD 1080</h2>
+
+        [series_share_widget_code]
+        <div class="ft-share">
+            <div class="left">{series_share_widget_code|raw}</div>
         </div>
+        [/series_share_widget_code]
 
         [has_notifications]
         <div class="series-subscribe-box[notification_subscribed] is-subscribed[/notification_subscribed]" id="seriesSubscribeBox" data-subscribed="{notification_subscribed}">
@@ -187,9 +191,6 @@
                 [/not-has_players]
             </div>
 
-            [series_share_widget_code]
-            <div style="padding:10px">{series_share_widget_code|raw}</div>
-            [/series_share_widget_code]
         </div>
 
         [ad_below_player_code]
@@ -198,6 +199,21 @@
 
         [has_reactions]{reactions_widget|raw}[/has_reactions]
         [has_schedule]{episodes_modal|raw}[/has_schedule]
+
+        [has_schedule]
+        <div class="fpseries">
+            <table>
+                <tr><th>Номер серии</th><th>Дата выхода</th><th>Статус</th><th></th></tr>
+                [loop schedule][loop item.episodes]<tr>
+                    <td>{item.episode_number} серия</td>
+                    <td>{item.release_at}</td>
+                    <td>[item.is_released]Вышла[/item.is_released][not-item.is_released]Ожидается[/not-item.is_released]</td>
+                    <td>[item.is_released]<a class="button" href="{series.url|raw}"><span class="fa fa-play"></span></a>[/item.is_released]</td>
+                </tr>[/loop][/loop]
+            </table>
+        </div>
+        <button type="button" class="button dontusebuttonclass" data-episodes-open>Все серии</button>
+        [/has_schedule]
 
         [has_related]
         <div class="rels">
