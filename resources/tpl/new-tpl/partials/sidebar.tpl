@@ -22,7 +22,7 @@
     [/nav_desktop_items]
 
     [popular_list]
-    <div class="side-box tabs-box">
+    <div class="side-box">
         <div class="side-bt">{home_popular_title}</div>
         <div class="side-bc flex-row">
             [loop popular_list]

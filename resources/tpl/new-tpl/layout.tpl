@@ -6,9 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#f2f6f8">
 
-    [site.has_favicon]
-    <link rel="shortcut icon" href="{site.favicon|raw}" />
-    [/site.has_favicon]
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
 
     <title>{meta.title}</title>
     <meta name="description" content="{meta.description}">
@@ -33,9 +32,6 @@
     <meta name="yandex-verification" content="{seo_yandex_verification}">
     [/seo_yandex_verification]
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css?family=Exo+2:300,300i,500,500i&amp;subset=cyrillic" rel="stylesheet">
     <style>
         @font-face {
             font-family: 'FontAwesome';
@@ -45,6 +41,14 @@
             src: url('{THEME|raw}/assets/fonts/fontawesome-webfont.woff2') format('woff2');
         }
     </style>
+    <link rel="preload" href="{THEME|raw}/assets/fonts/inter-400.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="{THEME|raw}/assets/fonts/inter-500.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="{THEME|raw}/assets/fonts/inter-600.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="{THEME|raw}/assets/fonts/inter-700.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="{THEME|raw}/assets/styles.css?v=1" as="style">
+    <link rel="preload" href="{THEME|raw}/assets/engine.css?v=1" as="style">
+    <link rel="stylesheet" href="{THEME|raw}/assets/styles.css?v=1">
+    <link rel="stylesheet" href="{THEME|raw}/assets/engine.css?v=1">
     [theme.stylesheets]
     [loop theme.stylesheets]
     <link rel="stylesheet" href="{item|raw}">
@@ -88,7 +92,7 @@
     <div class="wrap">
         <div class="block center fx-col">
             {header|raw}
-            {notifications_dropdown|raw}
+            <div class="notify-slot">{notifications_dropdown|raw}</div>
             [ad_header_code]
             <div class="ad-header">{ad_header_code|raw}</div>
             [/ad_header_code]
@@ -99,6 +103,7 @@
                     [loop popular_list]
                     <a class="top-carou img-box" href="{item.url|raw}" title="{item.title}">
                         <img src="{item.poster_url|raw}" alt="{item.title}" loading="lazy">
+                        [item.episode_badge]<div class="badge_tr">{item.episode_badge}</div>[/item.episode_badge]
                         <div class="tc-title">{item.title}</div>
                     </a>
                     [/loop]
