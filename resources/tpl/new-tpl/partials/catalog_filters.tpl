@@ -2,7 +2,7 @@
     <div class="catalog-filters__head fx-row fx-middle">
         <strong>Фильтры</strong>
         [has_active]
-            <button type="button" class="catalog-filters__reset" data-catalog-reset>Сбросить</button>
+            <button type="button" class="catalog-filters__reset dontusebuttonclass" data-catalog-reset>Сбросить</button>
         [/has_active]
     </div>
 

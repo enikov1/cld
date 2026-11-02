@@ -1,6 +1,6 @@
 <div class="sect" data-home-content-type="{content_type|raw}">
-    <div class="sect-header fx-row fx-middle fx-start">
-        <span class="sect-title">{title}</span>
+    <div class="shorts-header flex-row">
+        <h2 class="sect-title">{title}</h2>
         [show_tabs]
         <div class="sect-tabs" data-section-tabs>
             <span class="sect-tab[tab_latest_active] is-active[/tab_latest_active]" data-sort="latest" role="button" tabindex="0">Последние</span>
@@ -9,7 +9,7 @@
         </div>
         [/show_tabs]
     </div>
-    <div class="sect-cont sect-items clearfix" data-section-cards>
+    <div class="items clearfix" data-section-cards>
         {cards_html|raw}
     </div>
 </div>

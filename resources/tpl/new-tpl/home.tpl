@@ -20,19 +20,35 @@
         <h1>{page.heading}</h1>
     </div>
 
+    [nav_desktop_items]
+    <div class="catalog-links">
+        <ul class="catalog-links__list">
+            [loop nav_desktop_items]
+            [item.has_mega]
+            [loop item.mega_sections]
+            [loop item.links]
+            <li><a href="{item.url|raw}">{item.label}</a></li>
+            [/loop]
+            [/loop]
+            [/item.has_mega]
+            [/loop]
+        </ul>
+    </div>
+    [/nav_desktop_items]
+
     {new_episodes_block|raw}
 
     [has_watch_history]
     <div class="sect" id="watchHistorySection" data-watch-history-root hidden>
-        <div class="sect-header"><span class="sect-title">{watch_history_ui_title}</span></div>
+        <div class="shorts-header flex-row"><h2 class="sect-title">{watch_history_ui_title}</h2></div>
         <div class="items clearfix" data-watch-history-cards></div>
     </div>
     [/has_watch_history]
 
     [promo_collections]
     <div class="sect">
-        <div class="sect-header"><span class="sect-title">Подборки</span></div>
-        <div class="side-bc flex-row">
+        <div class="shorts-header flex-row"><h2>Подборки</h2></div>
+        <div class="items clearfix">
             [loop promo_collections]
             <a href="{item.url|raw}" class="side-item1">
                 [item.banner_url]
