@@ -40,20 +40,20 @@
 
             <form action="/logout" method="post" class="profile-logout">
                 <input type="hidden" name="_token" value="{csrf_token|raw}">
-                <button type="submit" class="profile-btn profile-btn--ghost">Выйти</button>
+                <button type="submit" class="profile-btn profile-btn--ghost dontusebuttonclass">Выйти</button>
             </form>
         </aside>
 
         <div class="profile-main">
             <nav class="profile-tabs" role="tablist">
-                <button type="button" class="profile-tabs__btn is-active" data-profile-tab="account">Аккаунт</button>
-                <button type="button" class="profile-tabs__btn" data-profile-tab="lists">Мои списки</button>
+                <button type="button" class="profile-tabs__btn is-active dontusebuttonclass" data-profile-tab="account">Аккаунт</button>
+                <button type="button" class="profile-tabs__btn dontusebuttonclass" data-profile-tab="lists">Мои списки</button>
                 [has_notifications]
-                    <button type="button" class="profile-tabs__btn" data-profile-tab="notifications">Уведомления</button>
+                    <button type="button" class="profile-tabs__btn dontusebuttonclass" data-profile-tab="notifications">Уведомления</button>
                 [/has_notifications]
-                <button type="button" class="profile-tabs__btn" data-profile-tab="comments">Комментарии</button>
+                <button type="button" class="profile-tabs__btn dontusebuttonclass" data-profile-tab="comments">Комментарии</button>
                 [has_profile_reviews]
-                <button type="button" class="profile-tabs__btn" data-profile-tab="reviews">
+                <button type="button" class="profile-tabs__btn dontusebuttonclass" data-profile-tab="reviews">
                     Рецензии
                     [has_reviews_pending]<span class="profile-tabs__badge">{profile_stats.reviews_pending}</span>[/has_reviews_pending]
                 </button>
@@ -74,7 +74,7 @@
                                 <span>Email</span>
                                 <input type="email" name="email" value="{profile.email|raw}" required>
                             </label>
-                            <button type="submit" class="profile-btn">Сохранить</button>
+                            <button type="submit" class="profile-btn dontusebuttonclass">Сохранить</button>
                         </form>
                     </div>
 
@@ -102,7 +102,7 @@
                                 <span>Повтор пароля</span>
                                 <input type="password" name="password_confirmation" required>
                             </label>
-                            <button type="submit" class="profile-btn">Обновить пароль</button>
+                            <button type="submit" class="profile-btn dontusebuttonclass">Обновить пароль</button>
                         </form>
                     </div>
                 </div>
@@ -115,7 +115,7 @@
                         <form class="profile-new-list" action="/profile/lists" method="post">
                             <input type="hidden" name="_token" value="{csrf_token|raw}">
                             <input type="text" name="name" placeholder="Название нового списка" required maxlength="120">
-                            <button type="submit" class="profile-btn profile-btn--sm">Создать</button>
+                            <button type="submit" class="profile-btn profile-btn--sm dontusebuttonclass">Создать</button>
                         </form>
                     </div>
 
@@ -129,11 +129,11 @@
                                     <form class="profile-rename-list" action="/profile/lists/{item.id}" method="post">
                                         <input type="hidden" name="_token" value="{csrf_token|raw}">
                                         <input type="text" name="name" value="{item.name}" required maxlength="120">
-                                        <button type="submit" class="profile-btn profile-btn--sm profile-btn--ghost">Сохранить</button>
+                                        <button type="submit" class="profile-btn profile-btn--sm profile-btn--ghost dontusebuttonclass">Сохранить</button>
                                     </form>
                                     <form action="/profile/lists/{item.id}/delete" method="post" class="profile-delete-list">
                                         <input type="hidden" name="_token" value="{csrf_token|raw}">
-                                        <button type="submit" class="profile-btn profile-btn--sm profile-btn--danger">Удалить</button>
+                                        <button type="submit" class="profile-btn profile-btn--sm profile-btn--danger dontusebuttonclass">Удалить</button>
                                     </form>
                                 [/not-item.is_system]
                                 <span class="profile-watchlist-count" data-watchlist-count>{item.items_count}</span>
@@ -183,7 +183,7 @@
                                 <input type="checkbox" name="notify_via_push" value="1" [profile.notify_via_push]checked[/profile.notify_via_push]>
                                 <span>{notifications_ui_push_label}</span>
                             </label>
-                            <button type="submit" class="profile-btn">Сохранить</button>
+                            <button type="submit" class="profile-btn dontusebuttonclass">Сохранить</button>
                         </form>
                     </div>
 
@@ -203,7 +203,7 @@
                                             <span class="series-notification-badge series-notification-badge--voice">{item.voices_text}</span>
                                         </div>
                                     </div>
-                                    <button type="button" class="series-notification-delete" data-unsubscribe-series="{item.series_id}">Отключить</button>
+                                    <button type="button" class="series-notification-delete dontusebuttonclass" data-unsubscribe-series="{item.series_id}">Отключить</button>
                                 </article>
                             [/loop]
                             [not-notification_subscriptions]

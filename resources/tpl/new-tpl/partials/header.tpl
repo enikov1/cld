@@ -7,7 +7,7 @@
         <form class="js-quick-search" id="quicksearch" action="/search" method="get" autocomplete="off">
             <div class="search-box">
                 <input id="story" class="dontuseinputclass" type="text" name="q" placeholder="{search_placeholder_desktop}" value="{search_query}" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="rsQuickSearchPanel" aria-autocomplete="list">
-                <button type="submit" title="Найти"><span class="fa fa-search"></span></button>
+                <button class="dontusebuttonclass" type="submit" title="Найти"><span class="fa fa-search"></span></button>
                 <div class="ls-search__panel" id="rsQuickSearchPanel" hidden></div>
             </div>
         </form>

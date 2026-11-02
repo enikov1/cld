@@ -124,6 +124,13 @@
     <div class="bookmark-toast" id="bookmarkToast" hidden role="status" aria-live="polite"></div>
     <script type="application/json" id="site-config">{site_config_json|raw}</script>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script>
+        // The ported reference libs.js is a DLE-era build that calls jQuery.fn.andSelf,
+        // removed in jQuery 3.0. Restore the alias before the deferred theme scripts run.
+        if (window.jQuery && !jQuery.fn.andSelf) {
+            jQuery.fn.andSelf = jQuery.fn.addBack;
+        }
+    </script>
     [theme.scripts]
     [loop theme.scripts]
     <script src="{item|raw}" defer></script>
