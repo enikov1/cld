@@ -14,6 +14,7 @@
     </div>
 
     <div class="login-btns icon-l">
+        <button class="dontusebuttonclass" type="button" id="theme-toggle" title="Переключить тему">🌙</button>
         [auth.logged_in]
             [auth_profile_enabled]
             <a href="/profile/" title="{auth_ui_header_profile}"><span class="fa fa-user"></span><span>{auth_ui_header_profile}</span></a>
@@ -36,7 +37,7 @@
             <a href="/?auth=register">Регистрация</a>
             [/auth_register_enabled]
             [auth_login_enabled]
-            <div class="button show-login js-login-open" role="button" tabindex="0"><span class="fa fa-user"></span><span>Войти</span></div>
+            <div class="button js-login-open" role="button" tabindex="0"><span class="fa fa-user"></span><span>Войти</span></div>
             [/auth_login_enabled]
         [/not-auth.logged_in]
     </div>
