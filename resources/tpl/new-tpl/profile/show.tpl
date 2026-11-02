@@ -2,7 +2,7 @@
 [meta-description]{seo.description}[/meta-description]
 [meta-robots]noindex, nofollow[/meta-robots]
 
-<main class="profile-page">
+<main class="main clearfix fx-col profile-page" id="grid">
     [speedbar_block]
     <div class="speedbar nowrap">{speedbar_block|raw}</div>
     [/speedbar_block]

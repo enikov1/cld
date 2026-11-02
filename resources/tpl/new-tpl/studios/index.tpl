@@ -2,13 +2,13 @@
 [meta-description]{seo.description}[/meta-description]
 [meta-canonical]{seo.canonical|raw}[/meta-canonical]
 
-<main class="main clearfix fx-col">
+<main class="main clearfix fx-col grid-list" id="grid">
     [speedbar_block]
     <div class="speedbar nowrap">{speedbar_block|raw}</div>
     [/speedbar_block]
     <div class="sect" data-catalog-results>
-        <div class="sect-header fx-row fx-middle fx-start">
-            <span class="sect-title">{page.heading}<span class="fa fa-chevron-right"></span></span>
+        <div class="shorts-header flex-row">
+            <h1>{page.heading}</h1>
             [studios_total]
                 <span class="catalog-results-count" aria-live="polite">
                     <span class="catalog-results-count__num">{studios_total}</span>
@@ -17,36 +17,26 @@
             [/studios_total]
         </div>
 
-        <div class="sect-cont studios-grid clearfix">
+        <div class="items clearfix short-grid-items">
             [loop studios_list]
-                <a class="studio-card" href="/studios/{item.slug}/">
-                    [item.logo_url]
-                        <div class="studio-card__logo">
+                <div class="short-grid with-mask">
+                    <div class="short-img img-box">
+                        [item.logo_url]
                             <img src="{item.logo_url|raw}" alt="{item.title}" loading="lazy">
-                        </div>
-                    [/item.logo_url]
-                    [not-item.logo_url]
-                        <div class="studio-card__logo studio-card__logo--placeholder">
+                        [/item.logo_url]
+                        <a class="mask flex-col ps-link" href="/studios/{item.slug}/">
                             <span class="fa fa-building"></span>
-                        </div>
-                    [/not-item.logo_url]
+                        </a>
+                    </div>
+                    <div class="short-text">
+                        <a class="short-title" href="/studios/{item.slug}/">{item.title}</a>
+                    </div>
                     [item.items_count]
-                        <div class="studio-card__count" aria-label="{item.items_count} {item.items_count_word}">
-                            <span class="studio-card__count-num">{item.items_count}</span>
-                            <span class="studio-card__count-text">{item.items_count_word}</span>
+                        <div class="short-bottom flex-row">
+                            <span>{item.items_count} {item.items_count_word}</span>
                         </div>
                     [/item.items_count]
-                    [studios_card_show_title]
-                        <div class="studio-card__body">
-                            <div class="studio-card__title">{item.title}</div>
-                            [studios_card_show_description]
-                                [item.description]
-                                    <div class="studio-card__desc">{item.description}</div>
-                                [/item.description]
-                            [/studios_card_show_description]
-                        </div>
-                    [/studios_card_show_title]
-                </a>
+                </div>
             [/loop]
             [not-studios_list]
                 <p class="desc-text">Студий пока нет.</p>

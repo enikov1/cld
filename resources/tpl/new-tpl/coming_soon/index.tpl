@@ -5,35 +5,35 @@
 [meta-next]{seo.next|raw}[/meta-next]
 [meta-robots]{seo.robots|raw}[/meta-robots]
 
-<main class="main expected-page" id="comingSoonRoot" data-sort="{sort|raw}">
+<main class="main clearfix fx-col grid-list" id="grid" data-sort="{sort|raw}">
     [speedbar_block]
     <div class="speedbar nowrap">{speedbar_block|raw}</div>
     [/speedbar_block]
-    <div class="expected-hero">
-        <div class="expected-hero__eyebrow"><span class="fa fa-clock-o"></span> Скоро</div>
-        <h1>Самые ожидаемые премьеры</h1>
-        <p>Рейтинг формируется голосами пользователей. Отметьте сериалы, которые планируете смотреть — так вы поможете сформировать топ ожиданий.</p>
+
+    <div class="shorts-header flex-row">
+        <h1>{page.heading}</h1>
+        [coming_soon_total]
+            <span class="catalog-results-count" aria-live="polite">
+                <span class="catalog-results-count__num">{coming_soon_total}</span>
+                <span class="catalog-results-count__text">премьер</span>
+            </span>
+        [/coming_soon_total]
     </div>
 
-    <div class="expected-toolbar">
-        <div class="expected-toolbar__title"><span class="fa fa-sort-amount-desc"></span> Сортировка</div>
-        <div class="expected-sort" data-coming-soon-sort>
-            <a href="{sort_most_url|raw}" class="[sort_most_active]is-active[/sort_most_active]">Сначала самые ожидаемые</a>
-            <a href="{sort_least_url|raw}" class="[sort_least_active]is-active[/sort_least_active]">Сначала менее ожидаемые</a>
-            <a href="{sort_release_url|raw}" class="[sort_release_active]is-active[/sort_release_active]">По дате выхода</a>
-        </div>
+    <div class="sect-tabs" data-coming-soon-sort>
+        <span class="[sort_most_active]is-active[/sort_most_active]"><a href="{sort_most_url|raw}">Сначала самые ожидаемые</a></span>
+        <span class="[sort_least_active]is-active[/sort_least_active]"><a href="{sort_least_url|raw}">Сначала менее ожидаемые</a></span>
+        <span class="[sort_release_active]is-active[/sort_release_active]"><a href="{sort_release_url|raw}">По дате выхода</a></span>
     </div>
 
     [coming_soon_items]
-        <div class="expected-list" data-coming-soon-list>
+        <div class="items clearfix" data-coming-soon-list>
             {coming_soon_cards_html|raw}
         </div>
         {pagination_block|raw}
     [/coming_soon_items]
 
     [not-coming_soon_items]
-        <div class="expected-list">
-            <p class="desc-text">Пока нет сериалов в разделе «Скоро». Отметьте сериал в админке или добавьте премьеры.</p>
-        </div>
+        <p class="desc-text">Пока нет сериалов в разделе «Скоро». Отметьте сериал в админке или добавьте премьеры.</p>
     [/not-coming_soon_items]
 </main>
