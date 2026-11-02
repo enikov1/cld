@@ -3,18 +3,30 @@
 [meta-canonical]{seo.canonical|raw}[/meta-canonical]
 [meta-robots]{seo.robots|raw}[/meta-robots]
 
-<main class="main expected-page calendar-page">
-    <div class="expected-hero">
-        <div class="expected-hero__eyebrow"><span class="fa fa-calendar"></span> Календарь</div>
+<main class="main clearfix fx-col grid-list" id="grid">
+    [speedbar_block]
+    <div class="speedbar nowrap">{speedbar_block|raw}</div>
+    [/speedbar_block]
+
+    <div class="shorts-header flex-row">
         <h1>{page.heading}</h1>
-        [page.lead]
-            <p>{page.lead}</p>
-        [/page.lead]
+        [schedule_episode_count]
+            <span class="catalog-results-count" aria-live="polite">
+                <span class="catalog-results-count__num">{schedule_episode_count}</span>
+                <span class="catalog-results-count__text">серий в этом месяце</span>
+            </span>
+        [/schedule_episode_count]
     </div>
+
+    [page.lead]
+        <div class="desc-text">
+            <p>{page.lead}</p>
+        </div>
+    [/page.lead]
 
     {schedule_calendar_block|raw}
 
-    <section class="schedule-timeline" aria-label="Серии по дням">
+    <section class="sect schedule-timeline" aria-label="Серии по дням">
         <div class="schedule-timeline__toolbar">
             <div class="schedule-timeline__toolbar-title">
                 <span class="fa fa-list"></span> Серии за {schedule_calendar.month_label}
@@ -29,6 +41,6 @@
     </section>
 
     [calendar_seo_html]
-        <div class="desc-text clearfix home-seo">{calendar_seo_html|raw}</div>
+        <div class="site-desc clearfix fx-last">{calendar_seo_html|raw}</div>
     [/calendar_seo_html]
 </main>

@@ -4,14 +4,11 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
-    <meta name="theme-color" content="#111">
+    <meta name="theme-color" content="#1b1b1f">
     <title>{maintenance_title} — {site_name}</title>
     [has_favicon]
     <link rel="shortcut icon" href="{site_favicon_url|raw}" />
     [/has_favicon]
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Oswald:wght@600;700&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; }
         html, body { height: 100%; margin: 0; }
@@ -21,18 +18,17 @@
             align-items: center;
             justify-content: center;
             padding: 24px 16px;
-            font-family: "Open Sans", Arial, sans-serif;
-            color: #1f2937;
-            background: #111 url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"><rect fill="%23181818" width="4" height="4"/></svg>') center top repeat;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: #2b2b31;
+            background: #1b1b1f;
         }
         .maintenance {
             width: min(100%, 520px);
             padding: 40px 32px 36px;
             text-align: center;
             background: #fff;
-            border: 1px solid #e8ebf0;
             border-radius: 12px;
-            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+            box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
         }
         .maintenance__logo {
             display: block;
@@ -42,12 +38,12 @@
             object-fit: contain;
         }
         .maintenance__site {
-            margin: 0 0 8px;
-            font-family: Oswald, sans-serif;
-            font-size: 14px;
+            margin: 0 0 20px;
+            font-size: 13px;
+            font-weight: 600;
             letter-spacing: 0.08em;
             text-transform: uppercase;
-            color: #79c142;
+            color: #6f7af4;
         }
         .maintenance__icon {
             width: 64px;
@@ -57,30 +53,30 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #f0f9e8;
-            color: #79c142;
+            background: rgba(111, 122, 244, 0.12);
+            color: #6f7af4;
             font-size: 28px;
             line-height: 1;
         }
         .maintenance__title {
             margin: 0 0 12px;
-            font-family: Oswald, sans-serif;
-            font-size: 28px;
+            font-size: 27px;
+            font-weight: 700;
             line-height: 1.2;
-            color: #1f2937;
+            color: #1f1f25;
         }
         .maintenance__text {
             margin: 0;
-            color: #6b7280;
+            color: #63636e;
             font-size: 16px;
             line-height: 1.6;
         }
         .maintenance__footer {
             margin-top: 28px;
             padding-top: 20px;
-            border-top: 1px solid #eef0f4;
+            border-top: 1px solid #ececf1;
             font-size: 13px;
-            color: #9ca3af;
+            color: #9a9aa5;
         }
     </style>
 </head>
