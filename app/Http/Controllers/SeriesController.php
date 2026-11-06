@@ -66,7 +66,7 @@ class SeriesController extends TplController
         SeriesViewService::record($series, request());
         UserLibraryService::recordWatchHistory($series->id, Auth::user(), request());
 
-        if ($cached = $this->tryCachedTplPage('series/show.tpl', $series->id)) {
+        if ($cached = $this->tryCachedTplPage('pages/series/show.tpl', $series->id)) {
             return $cached;
         }
 
@@ -392,7 +392,7 @@ class SeriesController extends TplController
             $vars['_site_background_override'] = $brandUrl;
         }
 
-        return $this->renderTplPage('series/show.tpl', $vars, $meta);
+        return $this->renderTplPage('pages/series/show.tpl', $vars, $meta);
     }
 
     /**

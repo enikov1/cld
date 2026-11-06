@@ -61,7 +61,7 @@ class ComingSoonController extends TplController
             'robots' => PaginationHelper::robotsMeta($page),
         ];
 
-        return $this->renderTplPage('coming_soon/index.tpl', $vars, $meta);
+        return $this->renderTplPage('pages/coming_soon/index.tpl', $vars, $meta);
     }
 
     public function browse(Request $request)

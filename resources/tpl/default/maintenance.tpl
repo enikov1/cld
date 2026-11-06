@@ -47,7 +47,7 @@
             font-size: 14px;
             letter-spacing: 0.08em;
             text-transform: uppercase;
-            color: #79c142;
+            color: var(--ls-green, #63bd37);
         }
         .maintenance__icon {
             width: 64px;
@@ -58,7 +58,7 @@
             align-items: center;
             justify-content: center;
             background: #f0f9e8;
-            color: #79c142;
+            color: var(--ls-green, #63bd37);
             font-size: 28px;
             line-height: 1;
         }

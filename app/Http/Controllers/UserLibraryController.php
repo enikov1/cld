@@ -51,7 +51,7 @@ class UserLibraryController extends TplController
             'robots' => 'noindex, follow',
         ];
 
-        return $this->renderTplPage('favourites/index.tpl', $vars, $meta);
+        return $this->renderTplPage('pages/favourites/index.tpl', $vars, $meta);
     }
 
     public function favourites(Request $request)

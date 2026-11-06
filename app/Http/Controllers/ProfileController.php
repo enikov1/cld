@@ -195,7 +195,7 @@ class ProfileController extends TplController
             'description' => 'Личный кабинет пользователя',
         ];
 
-        return $this->renderTplPage('profile/show.tpl', $vars, $meta);
+        return $this->renderTplPage('pages/profile/show.tpl', $vars, $meta);
     }
 
     public function update(Request $request)

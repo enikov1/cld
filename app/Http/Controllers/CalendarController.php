@@ -59,6 +59,6 @@ class CalendarController extends TplController
             'robots' => $hasCustomMonth ? 'noindex,follow' : '',
         ];
 
-        return $this->renderTplPage('calendar/index.tpl', $vars, $meta);
+        return $this->renderTplPage('pages/calendar/index.tpl', $vars, $meta);
     }
 }

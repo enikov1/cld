@@ -45,7 +45,7 @@ class CollectionsController extends TplController
             'description' => 'Подборки материалов по тематикам — смотреть онлайн бесплатно.',
         ];
 
-        return $this->renderTplPage('collections/index.tpl', $vars, $meta);
+        return $this->renderTplPage('pages/collections/index.tpl', $vars, $meta);
     }
 
     public function show(string $slug, int $page = 1)
@@ -119,6 +119,6 @@ class CollectionsController extends TplController
             'robots' => ($collection->noindex || $page > 1) ? 'noindex,follow' : '',
         ];
 
-        return $this->renderTplPage('collections/show.tpl', $vars, $meta);
+        return $this->renderTplPage('pages/collections/show.tpl', $vars, $meta);
     }
 }

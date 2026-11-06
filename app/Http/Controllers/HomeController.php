@@ -34,7 +34,7 @@ class HomeController extends TplController
 
     private function renderFirstPage()
     {
-        if ($cached = $this->tryCachedTplPage('home.tpl')) {
+        if ($cached = $this->tryCachedTplPage('pages/home.tpl')) {
             return $cached;
         }
 
@@ -229,7 +229,7 @@ class HomeController extends TplController
             'canonical' => url('/'),
         ];
 
-        return $this->renderTplPage('home.tpl', $vars, $meta);
+        return $this->renderTplPage('pages/home.tpl', $vars, $meta);
     }
 
     /**
@@ -304,7 +304,7 @@ class HomeController extends TplController
 
     private function renderCatalogPage(int $page)
     {
-        if ($cached = $this->tryCachedTplPage('catalog.tpl')) {
+        if ($cached = $this->tryCachedTplPage('pages/catalog.tpl')) {
             return $cached;
         }
 
@@ -350,7 +350,7 @@ class HomeController extends TplController
             'robots' => PaginationHelper::robotsMeta($page),
         ];
 
-        return $this->renderTplPage('catalog.tpl', $vars, $meta);
+        return $this->renderTplPage('pages/catalog.tpl', $vars, $meta);
     }
 
     private function defaultSeoHtml(): string

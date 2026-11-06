@@ -75,7 +75,7 @@ a {
 
 a:hover,
 a:focus {
-    color: #79c142;
+    color: var(--ls-green, #63bd37);
     text-decoration: none;
 }
 
@@ -120,7 +120,7 @@ input[type="submit"],
     text-transform: uppercase;
     box-shadow: inset 0 -3px #66aa33;
     color: #fff;
-    background-color: #79c142;
+    background-color: var(--ls-green, #63bd37);
     font-size: 14px;
     font-weight: 600;
 }
@@ -187,7 +187,7 @@ select {
 input[type="text"]:not(.dontuseinputclass):focus,
 input[type="password"]:focus,
 textarea:focus {
-    box-shadow: inset 0 0 0 1px #79c142, inset 1px 2px 5px rgba(0, 0, 0, 0.1);
+    box-shadow: inset 0 0 0 1px var(--ls-green, #63bd37), inset 1px 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 input::placeholder,
@@ -490,7 +490,7 @@ body.has-site-bg .wrap-center.wrap-main {
     z-index: 10;
     padding: 0 !important;
     background: transparent !important;
-    color: #79c142 !important;
+    color: var(--ls-green, #63bd37) !important;
     font-size: 16px !important;
     width: 40px;
     box-shadow: none !important;
@@ -522,8 +522,8 @@ body.has-site-bg .wrap-center.wrap-main {
 .hmenu>li:hover>a,
 .hmenu>li>a.is-active {
     opacity: 1;
-    box-shadow: inset 0 -3px #79c142;
-    color: #79c142;
+    box-shadow: inset 0 -3px var(--ls-green, #63bd37);
+    color: var(--ls-green, #63bd37);
 }
 
 .hidden-menu {
@@ -535,7 +535,7 @@ body.has-site-bg .wrap-center.wrap-main {
     top: 95%;
     width: 600px;
     padding: 10px;
-    border-top: 3px solid #79c142;
+    border-top: 3px solid var(--ls-green, #63bd37);
     pointer-events: none;
     opacity: 0;
     transform: translateY(30px);
@@ -567,7 +567,7 @@ body.has-site-bg .wrap-center.wrap-main {
 }
 
 .hm-col a:hover {
-    background-color: #79c142;
+    background-color: var(--ls-green, #63bd37);
     color: #fff;
     opacity: 1;
 }
@@ -615,7 +615,7 @@ body.has-site-bg .wrap-center.wrap-main {
 }
 
 .sect-title {
-    background-color: #79c142;
+    background-color: var(--ls-green, #63bd37);
     color: #fff !important;
     margin-right: 20px;
 }
@@ -724,7 +724,7 @@ a.sect-title:hover {
     top: 4px;
     padding: 2px 4px;
     border-radius: 2px;
-    background-color: #79c142de;
+    background-color: var(--ls-green, #63bd37)de;
     color: #fff;
     font-weight: 600;
     font-size: 12px;
@@ -790,7 +790,7 @@ a.sect-title:hover {
 
 .desc-text a {
     text-decoration: underline;
-    color: #79c142;
+    color: var(--ls-green, #63bd37);
 }
 
 .desc-text ul li {
@@ -917,7 +917,7 @@ a.sect-title:hover {
 
 .navigation span,
 .pagi-nav a:hover {
-    background-color: #79c142;
+    background-color: var(--ls-green, #63bd37);
     color: #fff;
 }
 
@@ -1183,7 +1183,7 @@ a.sect-title:hover {
 }
 
 .fplayer .tabs-sel span.current {
-    background-color: #79c142;
+    background-color: var(--ls-green, #63bd37);
     color: #fff;
 }
 
@@ -1267,7 +1267,7 @@ a.sect-title:hover {
 
 .light-off .flight:after {
     left: 21px;
-    background-color: #79c142;
+    background-color: var(--ls-green, #63bd37);
 }
 
 .light-off .light-overlay {
@@ -1527,7 +1527,7 @@ a.sect-title:hover {
 .comm-one>span.comm-author,
 .comm-one>span.comm-author a {
     font-weight: 600;
-    color: #79c142;
+    color: var(--ls-green, #63bd37);
     opacity: 1;
 }
 
@@ -1614,7 +1614,7 @@ a.sect-title:hover {
     transform: translate(-50%, -50%);
     background-color: #fff;
     padding: 30px 60px 40px 60px;
-    border-top: 5px solid #79c142;
+    border-top: 5px solid var(--ls-green, #63bd37);
     width: 400px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     display: none;
@@ -1893,7 +1893,7 @@ body.opened-menu {
     pointer-events: auto;
     transform: none;
     box-shadow: none;
-    border-bottom: 3px solid #79c142;
+    border-bottom: 3px solid var(--ls-green, #63bd37);
 }
 
 .side-panel .hm-col {
@@ -2426,7 +2426,7 @@ a.knopka:active {
     margin-top: -20px;
     text-align: center;
     line-height: 40px;
-    color: #79c142;
+    color: var(--ls-green, #63bd37);
     font-size: 16px;
     background-color: #fff;
 }
@@ -3803,8 +3803,8 @@ a.knopka:active {
 .comm__group.adm,
 .comm__group.adm * {
     color: #fff !important;
-    background-color: #79c142;
-    border-color: #79c142;
+    background-color: var(--ls-green, #63bd37);
+    border-color: var(--ls-green, #63bd37);
 }
 
 .comm__img {
@@ -3845,7 +3845,7 @@ a.knopka:active {
 
 .comm__author,
 .comm__author a {
-    color: #79c142;
+    color: var(--ls-green, #63bd37);
     font-weight: 500;
     font-size: 14px;
 }
@@ -4835,7 +4835,7 @@ a.knopka:active {
     border: 0;
     width: 3.5em;
     height: 3.5em;
-    background: #79c142;
+    background: var(--ls-green, #63bd37);
     border-radius: 50%;
     z-index: 10002;
     top: 2.5em;
@@ -4934,7 +4934,7 @@ a.knopka:active {
 }
 
 #ps-report-issues-comment .report-item--submit {
-    background-color: #79c142;
+    background-color: var(--ls-green, #63bd37);
     font-weight: 700;
     text-align: center;
     cursor: pointer;
@@ -4955,7 +4955,7 @@ a.knopka:active {
     margin-top: 8px;
     font-size: 14px;
     font-weight: 600;
-    color: #79c142;
+    color: var(--ls-green, #63bd37);
 }
 
 .player-report-feedback.is-error {
@@ -4963,7 +4963,7 @@ a.knopka:active {
 }
 
 .player-report-feedback.is-success {
-    color: #79c142;
+    color: var(--ls-green, #63bd37);
 }
 
 #ps-report-issues textarea,
@@ -5542,7 +5542,7 @@ a.knopka:active {
 }
 
 .btnheaderinline:hover {
-    background: #79c142;
+    background: var(--ls-green, #63bd37);
     color: #fff !important;
     border-radius: 3px;
 }
@@ -5756,7 +5756,7 @@ a.knopka:active {
 }
 
 .dt .series-subscribe-box__icon {
-    background: #79c142;
+    background: var(--ls-green, #63bd37);
     color: #fff;
     box-shadow: 0 4px 14px rgba(69, 187, 56, 0.18);
 }
@@ -5775,8 +5775,8 @@ a.knopka:active {
 }
 
 .dt .series-subscribe-box__button {
-    border-color: #79c142;
-    background: #79c142;
+    border-color: var(--ls-green, #63bd37);
+    background: var(--ls-green, #63bd37);
     color: #fff;
     box-shadow: 0 2px 8px rgba(69, 187, 56, 0.16);
 }
@@ -15289,7 +15289,7 @@ input#sec_code::placeholder {
 .th-info-btn.is-hover,
 .th-item.is-info-active .th-info-btn,
 .th-info-btn.is-active {
-    background: #79c142;
+    background: var(--ls-green, #63bd37);
     border-color: rgba(255, 255, 255, .95);
 }
 

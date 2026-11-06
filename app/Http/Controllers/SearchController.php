@@ -111,7 +111,7 @@ class SearchController extends TplController
             'robots' => 'noindex,follow',
         ];
 
-        return $this->renderTplPage('search.tpl', $vars, $meta);
+        return $this->renderTplPage('pages/search.tpl', $vars, $meta);
     }
 
     /**

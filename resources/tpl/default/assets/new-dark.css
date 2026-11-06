@@ -54,7 +54,7 @@
 }
 
 .dt a:not(.is-active):hover {
-    color: #79c142;
+    color: var(--ls-green, #63bd37);
 }
 
 
@@ -105,7 +105,7 @@
 .dt input[type="text"]:focus,
 .dt input[type="password"]:focus,
 .dt textarea:focus {
-    box-shadow: inset 0 0 0 1px #79c142, inset 1px 2px 5px rgba(0, 0, 0, 0.3);
+    box-shadow: inset 0 0 0 1px var(--ls-green, #63bd37), inset 1px 2px 5px rgba(0, 0, 0, 0.3);
 }
 
 .dt input::placeholder,
@@ -131,7 +131,7 @@
 
 .dt .hmenu>li:hover>a,
 .dt .hmenu>li>a.is-active {
-    color: #79c142;
+    color: var(--ls-green, #63bd37);
     opacity: 1;
 }
 
@@ -145,7 +145,7 @@
 }
 
 .dt .hm-col a:hover {
-    background-color: #79c142;
+    background-color: var(--ls-green, #63bd37);
     color: #fff;
 }
 
@@ -384,12 +384,12 @@
 
 .dt .navigation a:hover,
 .dt .pagi-nav a:hover {
-    background-color: #79c142;
+    background-color: var(--ls-green, #63bd37);
     color: #fff;
 }
 
 .dt .navigation span {
-    background-color: #79c142;
+    background-color: var(--ls-green, #63bd37);
     color: #fff;
 }
 
@@ -772,7 +772,7 @@
 }
 
 .dt .desc-text a {
-    color: #79c142;
+    color: var(--ls-green, #63bd37);
 }
 
 .dt .home-seo {
@@ -858,7 +858,7 @@
 .dt .owl-prev,
 .dt .owl-next {
     background-color: #2a2a2a;
-    color: #79c142;
+    color: var(--ls-green, #63bd37);
 }
 
 .dt .owl-prev:hover,
@@ -1069,7 +1069,7 @@
 }
 
 .dt .fplayer .tabs-sel span.current {
-    background-color: #79c142;
+    background-color: var(--ls-green, #63bd37);
     color: #fff;
 }
 

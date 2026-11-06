@@ -82,7 +82,7 @@ class StudiosController extends TplController
             'description' => 'Материалы по студиям — смотреть онлайн бесплатно.',
         ];
 
-        return $this->renderTplPage('studios/index.tpl', $vars, $meta);
+        return $this->renderTplPage('pages/studios/index.tpl', $vars, $meta);
     }
 
     public function show(string $slug, int $page = 1)
@@ -156,6 +156,6 @@ class StudiosController extends TplController
             'robots' => ($studio->noindex || $page > 1) ? 'noindex,follow' : '',
         ];
 
-        return $this->renderTplPage('studios/show.tpl', $vars, $meta);
+        return $this->renderTplPage('pages/studios/show.tpl', $vars, $meta);
     }
 }

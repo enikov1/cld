@@ -24,39 +24,39 @@ class TplSampleValues
         $values = self::globalValues();
         $source = 'Общие настройки сайта';
 
-        if ($path === 'home.tpl') {
+        if ($path === 'pages/home.tpl') {
             $values = array_merge($values, self::homeValues());
             $source = 'Главная страница (текущие настройки)';
-        } elseif ($path === 'calendar/index.tpl' || $path === 'partials/schedule_calendar_timeline.tpl') {
+        } elseif ($path === 'pages/calendar/index.tpl' || $path === 'partials/schedule_calendar_timeline.tpl') {
             $values = array_merge($values, self::calendarValues());
             $source = 'Страница календаря выхода серий';
-        } elseif ($path === 'catalog.tpl') {
+        } elseif ($path === 'pages/catalog.tpl') {
             $values = array_merge($values, self::catalogValues());
             $source = 'Каталог / таксономия (пример)';
         } elseif (in_array($path, ['partials/series_cards.tpl', 'partials/catalog_series_grid.tpl', 'partials/series_card_overlays.tpl'], true)) {
             $values = array_merge($values, self::seriesCardItemSampleValues());
             $source = 'Пример карточки материала в сетке';
-        } elseif ($path === 'search.tpl') {
+        } elseif ($path === 'pages/search.tpl') {
             $values = array_merge($values, self::searchValues());
             $source = 'Страница поиска (пример без запроса)';
-        } elseif (str_starts_with($path, 'series/') || $path === 'partials/reactions_widget.tpl') {
+        } elseif (str_starts_with($path, 'pages/series/') || $path === 'partials/reactions_widget.tpl') {
             $seriesValues = self::seriesValues();
             $values = array_merge($values, $seriesValues['values']);
             $source = $seriesValues['source'];
             if ($path === 'partials/reactions_widget.tpl') {
                 $values = array_merge($values, self::reactionsValues($seriesValues['series_id'] ?? null));
             }
-        } elseif (str_starts_with($path, 'collections/')) {
+        } elseif (str_starts_with($path, 'pages/collections/')) {
             $values = array_merge($values, self::collectionsValues($path));
-            $source = $path === 'collections/index.tpl'
+            $source = $path === 'pages/collections/index.tpl'
                 ? 'Список подборок'
                 : 'Пример подборки из каталога';
-        } elseif (str_starts_with($path, 'studios/')) {
+        } elseif (str_starts_with($path, 'pages/studios/')) {
             $values = array_merge($values, self::studiosValues($path));
-            $source = $path === 'studios/index.tpl'
+            $source = $path === 'pages/studios/index.tpl'
                 ? 'Список студий'
                 : 'Пример студии из каталога';
-        } elseif (str_starts_with($path, 'profile/')) {
+        } elseif (str_starts_with($path, 'pages/profile/')) {
             $values = array_merge($values, self::profileValues());
             $source = 'Профиль текущего администратора';
         } elseif (str_starts_with($path, 'errors/')) {
@@ -328,7 +328,7 @@ class TplSampleValues
             'seo.title' => $collection->title,
         ];
 
-        if ($path !== 'collections/index.tpl') {
+        if ($path !== 'pages/collections/index.tpl') {
             $item = $collection->items()
                 ->with(['series'])
                 ->whereHas('series', fn ($q) => $q->where('is_active', true))
@@ -386,7 +386,7 @@ class TplSampleValues
             'seo.canonical' => url('/studios/'),
         ];
 
-        if ($path !== 'studios/index.tpl') {
+        if ($path !== 'pages/studios/index.tpl') {
             $values['studio.title'] = $studio->title;
             $values['studio.slug'] = $studio->slug;
             $values['studio.description'] = $studio->description ?? '';

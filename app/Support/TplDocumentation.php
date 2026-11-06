@@ -219,7 +219,7 @@ class TplDocumentation
                 ],
             ),
             'home' => self::context(
-                'home.tpl',
+                'pages/home.tpl',
                 'Главная страница (первая страница).',
                 array_merge(self::globalVariables(), [
                     self::docVar('page.heading', 'Заголовок страницы'),
@@ -265,7 +265,7 @@ class TplDocumentation
                 ['home', 'global'],
             ),
             'catalog' => self::context(
-                'catalog.tpl',
+                'pages/catalog.tpl',
                 'Каталог, пагинация главной и страницы таксономий.',
                 array_merge(self::globalVariables(), [
                     self::docVar('page.heading', 'Заголовок страницы'),
@@ -297,7 +297,7 @@ class TplDocumentation
                 ['catalog', 'global'],
             ),
             'calendar' => self::context(
-                'calendar/index.tpl',
+                'pages/calendar/index.tpl',
                 'Страница календаря выхода серий.',
                 array_merge(self::globalVariables(), [
                     self::docVar('page.heading', 'H1 из настроек (calendar_heading)'),
@@ -323,7 +323,7 @@ class TplDocumentation
                 ['calendar', 'global'],
             ),
             'series' => self::context(
-                'series/show.tpl',
+                'pages/series/show.tpl',
                 'Страница материала с плеером.',
                 array_merge(self::globalVariables(), [
                     self::docVar('series.title', 'Название'),
@@ -395,7 +395,7 @@ class TplDocumentation
                 ['series', 'global'],
             ),
             'search' => self::context(
-                'search.tpl',
+                'pages/search.tpl',
                 'Страница поиска.',
                 array_merge(self::globalVariables(), [
                     self::docVar('query', 'Поисковый запрос'),
@@ -412,7 +412,7 @@ class TplDocumentation
                 ['search', 'global'],
             ),
             'collections' => self::context(
-                'collections/*.tpl',
+                'pages/collections/*.tpl',
                 'Подборки материалов.',
                 array_merge(self::globalVariables(), [
                     self::docVar('collection.title', 'Название подборки'),
@@ -430,7 +430,7 @@ class TplDocumentation
                 ['collections', 'global'],
             ),
             'studios' => self::context(
-                'studios/*.tpl',
+                'pages/studios/*.tpl',
                 'Студии и их каталог материалов.',
                 array_merge(self::globalVariables(), [
                     self::docVar('page.heading', 'Заголовок страницы списка (index)'),
@@ -467,7 +467,7 @@ class TplDocumentation
                 ['studios', 'global'],
             ),
             'profile' => self::context(
-                'profile/show.tpl',
+                'pages/profile/show.tpl',
                 'Личный кабинет (только авторизованные).',
                 array_merge(self::globalVariables(), [
                     self::docVar('profile.name', 'Имя пользователя'),
@@ -778,19 +778,19 @@ class TplDocumentation
 
         $map = [
             'layout.tpl' => ['layout', 'global'],
-            'home.tpl' => ['home', 'global'],
-            'catalog.tpl' => ['catalog', 'global'],
+            'pages/home.tpl' => ['home', 'global'],
+            'pages/catalog.tpl' => ['catalog', 'global'],
             'partials/home_new_episodes.tpl' => ['home', 'global'],
             'partials/home_schedule_calendar.tpl' => ['home', 'calendar', 'global'],
             'partials/schedule_calendar_timeline.tpl' => ['calendar', 'global'],
-            'calendar/index.tpl' => ['calendar', 'global'],
-            'search.tpl' => ['search', 'global'],
-            'series/show.tpl' => ['series', 'global'],
-            'collections/index.tpl' => ['collections', 'global'],
-            'collections/show.tpl' => ['collections', 'global'],
-            'studios/index.tpl' => ['studios', 'global'],
-            'studios/show.tpl' => ['studios', 'global'],
-            'profile/show.tpl' => ['profile', 'global'],
+            'pages/calendar/index.tpl' => ['calendar', 'global'],
+            'pages/search.tpl' => ['search', 'global'],
+            'pages/series/show.tpl' => ['series', 'global'],
+            'pages/collections/index.tpl' => ['collections', 'global'],
+            'pages/collections/show.tpl' => ['collections', 'global'],
+            'pages/studios/index.tpl' => ['studios', 'global'],
+            'pages/studios/show.tpl' => ['studios', 'global'],
+            'pages/profile/show.tpl' => ['profile', 'global'],
             'partials/reactions_widget.tpl' => ['reactions', 'series', 'global'],
             'partials/series_cards.tpl' => ['partials', 'home', 'catalog', 'global'],
             'partials/catalog_series_grid.tpl' => ['partials', 'catalog', 'global'],
@@ -801,28 +801,28 @@ class TplDocumentation
             return $map[$path];
         }
 
+        if (str_starts_with($path, 'pages/series/')) {
+            return ['series', 'global'];
+        }
+
+        if (str_starts_with($path, 'pages/collections/')) {
+            return ['collections', 'global'];
+        }
+
+        if (str_starts_with($path, 'pages/studios/')) {
+            return ['studios', 'global'];
+        }
+
+        if (str_starts_with($path, 'pages/calendar/')) {
+            return ['calendar', 'global'];
+        }
+
         if (str_starts_with($path, 'errors/')) {
             return ['errors', 'global'];
         }
 
         if (str_starts_with($path, 'partials/')) {
             return ['partials', 'global'];
-        }
-
-        if (str_starts_with($path, 'series/')) {
-            return ['series', 'global'];
-        }
-
-        if (str_starts_with($path, 'collections/')) {
-            return ['collections', 'global'];
-        }
-
-        if (str_starts_with($path, 'studios/')) {
-            return ['studios', 'global'];
-        }
-
-        if (str_starts_with($path, 'calendar/')) {
-            return ['calendar', 'global'];
         }
 
         return ['global'];
