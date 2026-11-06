@@ -12,7 +12,7 @@ export type TplToken = {
   kind: 'variable' | 'tag'
 }
 
-const tplVarTokenRe = /\{[A-Za-z0-9_.]+(?:\|raw)?\}/g
+const tplVarTokenRe = /\{[A-Za-z0-9_.]+(?:\|raw|\|date(?::[^}]+)?)?\}/g
 const tplTagTokenRe = /\[(?:meta-[a-z-]+|not-[A-Za-z0-9_.]+|loop\s+[A-Za-z0-9_.]+|\/[A-Za-z0-9_.-]+|[A-Za-z0-9_.]+)\]/g
 
 export function findTplTokenAt(doc: { lineAt: (pos: number) => { from: number; text: string } }, pos: number): TplToken | null {

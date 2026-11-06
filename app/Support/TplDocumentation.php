@@ -126,14 +126,24 @@ class TplDocumentation
                 'examples' => [
                     ['code' => '{series.title}', 'note' => 'Экранированный HTML-текст'],
                     ['code' => '{active_player_url|raw}', 'note' => 'Без экранирования — для URL, HTML, JSON'],
+                    ['code' => "{series.premiere_date|date:'d.m.Y'}", 'note' => 'Формат даты как в PHP date() (new в v2.0)'],
+                ],
+            ],
+            [
+                'id' => 'includes',
+                'title' => 'Подключения (new в v2.0)',
+                'description' => 'Подключение партиала темы в месте вызова; рендерится в контексте текущих переменных, вложенность до 5 уровней.',
+                'examples' => [
+                    ['code' => '{include file="partials/series_card.tpl"}'],
+                    ['code' => "[loop series_list]\n  {include file=\"partials/series_card.tpl\"}\n[/loop]", 'note' => 'Внутри цикла видны {item.*}'],
                 ],
             ],
             [
                 'id' => 'blocks',
                 'title' => 'Условные блоки',
-                'description' => 'Блок показывается, если переменная не пустая (не null, не false, не "", не пустой массив).',
+                'description' => 'Блок показывается, если переменная не пустая (не null, не false, не "", не пустой массив). Поддерживает [else] (new в v2.0): часть после верхнеуровневого [else] выводится, когда значение пустое.',
                 'examples' => [
-                    ['code' => "[series.description]\n  <p>{series.description}</p>\n[/series.description]"],
+                    ['code' => "[series.description]\n  <p>{series.description}</p>\n[else]\n  <p>Описание скоро появится</p>\n[/series.description]"],
                     ['code' => "[auth.logged_in]\n  ...\n[/auth.logged_in]"],
                     ['code' => "[not-series.description]\n  <p>Описание скоро появится</p>\n[/not-series.description]", 'note' => 'Инверсия — когда переменная пустая'],
                     ['code' => "[type-1]фильм[/type-1][type-4]мультсериал[/type-4]", 'note' => 'На странице материала — текст по типу контента. На главной [type-N] — если есть секция с карточками этого типа'],
@@ -164,7 +174,7 @@ class TplDocumentation
             [
                 'id' => 'order',
                 'title' => 'Порядок обработки',
-                'description' => 'Сначала циклы → блоки [not-] → блоки [] → переменные { }.',
+                'description' => 'Сначала {include} → циклы → блоки [not-] → блоки [] → переменные { }.',
                 'examples' => [],
             ],
         ];
@@ -629,6 +639,11 @@ class TplDocumentation
                 'contexts' => $contexts,
             ];
         };
+
+        // Синтаксис v2.0: include, else, date (глобальные подсказки).
+        $add('{include file="partials/…tpl"}', '{include file="…"}', 'snippet', 'Подключение партиала темы в месте вызова (new в v2.0)', []);
+        $add('[else]', '[else]', 'snippet', 'Ветка «иначе» внутри блока [ключ]…[else]…[/ключ] (new в v2.0)', []);
+        $add('{var|date:\'d.m.Y\'}', '{…|date:…}', 'snippet', 'Формат даты как в PHP date(); без формата — d.m.Y (new в v2.0)', []);
 
         foreach (self::metaTags() as $tag => $desc) {
             $add("[{$tag}]", "[{$tag}]", 'meta', $desc, []);

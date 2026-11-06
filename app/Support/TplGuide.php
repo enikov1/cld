@@ -8,7 +8,7 @@ namespace App\Support;
  */
 class TplGuide
 {
-    public const VERSION = '1.0';
+    public const VERSION = '2.0';
 
     /**
      * @return array<string, mixed>
@@ -342,12 +342,37 @@ TPL),
 
             self::article('syntax-order', 'Синтаксис', 'Порядок обработки', 'Как движок разбирает шаблон.', [
                 self::ol([
-                    'Сначала циклы `[loop …]`.',
+                    'Сначала `{include file="…"}` — партиалы разворачиваются в месте вызова.',
+                    'Затем циклы `[loop …]`.',
                     'Затем инверсии `[not-…]`.',
                     'Затем обычные блоки `[…]`.',
-                    'В конце переменные `{…}` / `{…|raw}`.',
+                    'В конце переменные `{…}`, `{…|raw}`, `{…|date:…}`.',
                 ]),
                 self::note('Из-за порядка можно писать условия внутри циклов и переменные внутри условий — это штатный сценарий.'),
+            ]),
+
+            self::article('syntax-new-tags', 'Синтаксис', 'Подключения и ветвления (new в v2.0)', 'Теги DLE-стиля: include, else, date.', [
+                self::h2('{include}', 'include'),
+                self::code(<<<'TPL'
+{include file="partials/header.tpl"}
+{include file="partials/series_card.tpl"}
+TPL),
+                self::p('Подключает файл темы в месте вызова и рендерит его в контексте текущих переменных (внутри `[loop]` — переменные текущего элемента). Глубина вложенности — до 5 уровней. Несуществующий файл выводится пусто, без ошибки.'),
+                self::h2('[else]', 'else'),
+                self::code(<<<'TPL'
+[series.description]
+  {series.description}
+[else]
+  <p>Описание появится позже.</p>
+[/series.description]
+TPL),
+                self::p('Работает в блоках `[key]…[/key]` и `[not-key]…[/not-key]`. Учитывается только верхнеуровневый `[else]` блока — `[else]` внутри вложенных блоков принадлежит им.'),
+                self::h2('{var|date:…}', 'date'),
+                self::code(<<<'TPL'
+{series.premiere_date|date:'d.m.Y'}
+{item.created_at|date}
+TPL),
+                self::p('Формат — как в PHP `date()`. Без формата — `d.m.Y`. Не-дата выводится как есть (в экранированном виде).'),
             ]),
 
             self::article('file-layout', 'Файлы шаблона', 'layout.tpl', 'Основа темы: head, шапка, контент, подвал.', [
@@ -375,7 +400,7 @@ TPL),
                 ]),
             ]),
 
-            self::article('file-home', 'Файлы шаблона', 'home.tpl', 'Главная страница.', [
+            self::article('file-home', 'Файлы шаблона', 'pages/home.tpl', 'Главная страница.', [
                 self::p('Контент первой страницы сайта. Карусели, секции по типам контента, календарь выхода, SEO-текст.'),
                 self::h2('Типичные блоки', 'blocks'),
                 self::ul([
@@ -404,7 +429,7 @@ TPL),
 TPL),
             ]),
 
-            self::article('file-catalog', 'Файлы шаблона', 'catalog.tpl', 'Каталог, таксономии и пагинация главной.', [
+            self::article('file-catalog', 'Файлы шаблона', 'pages/catalog.tpl', 'Каталог, таксономии и пагинация главной.', [
                 self::p('Используется для `/catalog`, страниц жанров/стран/годов/персон и продолжения главной со 2-й страницы.'),
                 self::code(<<<'TPL'
 <h1>{page.heading}</h1>
@@ -426,7 +451,7 @@ TPL),
                 self::note('Фильтры и сетка часто уже собраны PHP в `*_block` / `*_grid`. Можно вместо этого крутить `[loop series_list]` и `[loop filter_fields]` вручную.'),
             ]),
 
-            self::article('file-series', 'Файлы шаблона', 'series/show.tpl', 'Страница материала/фильма с плеером.', [
+            self::article('file-series', 'Файлы шаблона', 'pages/series/show.tpl', 'Страница материала/фильма с плеером.', [
                 self::p('Полная карточка тайтла: метаданные, таксономии, плеер, реакции, комментарии, похожие.'),
                 self::h2('Плеер', 'player'),
                 self::code(<<<'TPL'
@@ -456,7 +481,7 @@ TPL),
             ]),
 
             self::article('file-partials', 'Файлы шаблона', 'partials/*.tpl', 'Частичные шаблоны: шапка, карточки, фильтры.', [
-                self::p('Partials не подключаются тегом include. Контроллер рендерит их и передаёт HTML в родительский шаблон.'),
+                self::p('Partials подключаются тегом `{include file="…"}` в любом месте шаблона (new в v2.0). Часть партиалов (header, footer, auth_overlay, notifications_dropdown) дополнительно рендерится PHP и передаётся готовым HTML в layout — так собран стандартный шаблон; include доступен для любого партиала.'),
                 self::table(
                     ['Файл', 'Роль'],
                     [
@@ -492,14 +517,14 @@ TPL),
 
             self::article('themes-assets', 'Интеграция', 'Темы и assets', 'Где лежат файлы и как подключать статику.', [
                 self::h2('Структура темы', 'structure'),
-                self::code("resources/tpl/имя-темы/\n  layout.tpl          ← обязательно\n  home.tpl\n  catalog.tpl\n  series/show.tpl\n  partials/…\n  assets/\n    site.css\n    site.js\n    logo.svg\n    …"),
+                self::code("resources/tpl/имя-темы/\n  layout.tpl          ← обязательно\n  maintenance.tpl     ← standalone-страница техработ\n  pages/              ← все страницы: home, catalog, search, series/show, ...\n  partials/           ← партиалы (header, карточки, фильтры...)\n  errors/             ← фрагменты страниц ошибок\n  assets/             ← css/js/шрифты/логотип темы\n  modules/            ← исходники JS-модулей темы"),
                 self::ul([
                     'Активная тема задаётся в настройках сайта.',
                     '`{THEME}` — URL-префикс файлов темы.',
                     'Редактирование — раздел «Шаблоны» в админке.',
                 ]),
                 self::h2('CSS и JS', 'css-js'),
-                self::p('Предпочтительно класть стили/скрипты в `assets/` темы — движок сам соберёт `theme.stylesheets` и `theme.scripts`. Либо подключайте вручную:'),
+                self::p('Предпочтительно класть стили/скрипты в `assets/` темы — движок сам соберёт `theme.stylesheets` и `theme.scripts`. Функциональный слой движка (`public/omrotpl/omrotpl.js` + `omrotpl.css`) подключается автоматически в каждой теме. Либо подключайте вручную:'),
                 self::code('<link rel="stylesheet" href="{THEME}/assets/my.css">\n<script src="{THEME}/assets/my.js"></script>'),
             ]),
 
@@ -514,6 +539,94 @@ TPL),
                 ]),
             ]),
 
+            self::article('omrotpl-contract', 'Интеграция', 'Контракт omrotpl (data-omro-*)', 'Тема-независимые хуки функциональных модулей движка.', [
+                self::p('Функциональный JS движка — `public/omrotpl/omrotpl.js` — подключается автоматически в каждой теме. Он завязан не на классы темы, а на контракт `data-omro-*`-атрибутов: движок по атрибуту находит элемент и навешивает свой служебный хук. Внешний вид — только ваш CSS; базовая структура — `public/omrotpl/omrotpl.css` (подключается первым, тема переопределяет).'),
+                self::h2('Модалка авторизации', 'auth'),
+                self::table(
+                    ['Атрибут', 'Куда вешается хук', 'Роль'],
+                    [
+                        ['[data-omro-modal="auth"]', 'id=loginOverlay', 'корень модалки'],
+                        ['[data-omro-modal-open]', 'класс js-login-open', 'кнопка открытия'],
+                        ['[data-omro-modal-close]', 'класс js-login-close', 'кнопка закрытия'],
+                        ['[data-omro-form="login"]', 'класс login-form', 'форма входа'],
+                        ['[data-omro-form-switch]', 'класс js-auth-switch', 'переключение вход/регистрация/восстановление'],
+                        ['[data-omro-reset-email]', 'id=resetEmailField', 'поле email при восстановлении'],
+                        ['[data-omro-reset-token]', 'id=resetTokenField', 'поле токена при восстановлении'],
+                    ]
+                ),
+                self::h2('Поиск', 'search'),
+                self::table(
+                    ['Атрибут', 'Хук', 'Роль'],
+                    [
+                        ['[data-omro-search]', 'класс ls-search', 'корень поиска с выпадающей панелью'],
+                        ['[data-omro-search-panel]', 'класс ls-search__panel', 'панель результатов'],
+                        ['[data-omro-search-loading]', 'класс ls-search__loading', 'индикатор загрузки'],
+                        ['[data-omro-search-open]', 'класс js-header-search-open', 'кнопка раскрытия'],
+                        ['[data-omro-search-close]', 'класс js-header-search-close', 'кнопка закрытия'],
+                        ['[data-omro-search-input]', 'класс js-quick-search', 'поле ввода'],
+                    ]
+                ),
+                self::h2('Мобильное меню и тема', 'menu'),
+                self::table(
+                    ['Атрибут', 'Хук', 'Роль'],
+                    [
+                        ['[data-omro-menu]', 'id=lsMobileMenu + класс ls-mobile-overlay', 'панель мобильного меню'],
+                        ['[data-omro-menu-open]', 'класс js-mobile-menu-open', 'кнопка-«бургер»'],
+                        ['[data-omro-menu-close]', 'класс js-mobile-menu-close', 'кнопка закрытия'],
+                        ['[data-omro-theme-toggle]', 'класс js-theme-toggle', 'переключение тёмной темы'],
+                    ]
+                ),
+                self::h2('Тексты и спойлеры', 'text'),
+                self::table(
+                    ['Атрибут', 'Хук', 'Роль'],
+                    [
+                        ['[data-omro-slice]', 'класс slice-this', 'обрезка длинного описания'],
+                        ['[data-omro-details-toggle]', 'класс serial-details__toggle', 'раскрытие блока деталей'],
+                        ['[data-omro-spoiler]', 'класс comment-spoiler__text', 'спойлер в комментариях'],
+                    ]
+                ),
+                self::h2('Подписки на серии и уведомления', 'notify'),
+                self::p('Один атрибут `data-omro-notify="…"` со значением-вариантом, каждое значение маппится на id элемента:'),
+                self::table(
+                    ['Значение', 'id элемента'],
+                    [
+                        ['modal', 'notifyOverlay'],
+                        ['open', 'notifyOpenBtn'],
+                        ['form', 'notifyForm'],
+                        ['feedback', 'notifyFeedback'],
+                        ['badge', 'notifySubscribedBadge'],
+                        ['unsubscribe', 'notifyUnsubscribeBtn'],
+                        ['subscribed', 'notifySubscribeFeedback'],
+                        ['box', 'seriesSubscribeBox'],
+                        ['bell', 'headerNotifyBtn'],
+                        ['count', 'headerNotifyCount'],
+                        ['clear', 'clearAllNotifi'],
+                    ]
+                ),
+                self::p('Колокольчик в шапке: `<button data-omro-notify="bell" data-omro-notify-item>…</button>`, элементы списка — `[data-omro-notify-item]` (класс series-item).'),
+                self::note('Остальные модули (фильтры каталога, комментарии, отзывы, реакции, календарь, плеер, избранное, похoжие) и так завязаны на data-атрибуты (`data-filter`, `data-comment-*`, `data-cal-*`, `data-player-*`, `data-favourites-*` и т.п.) — они уже тема-независимы. Полный перечень — в справочнике. Легаси-хуки стандартной темы (классы .js-*, .ls-*) продолжают работать.'),
+            ]),
+
+            self::article('dle-mapping', 'Интеграция', 'Переход с DLE', 'Таблица соответствий DLE → Omro.', [
+                self::p('Для верстальщиков с опытом DataLife Engine — аналоги самых частых конструкций:'),
+                self::table(
+                    ['DLE', 'Omro (TPL)'],
+                    [
+                        ['{title}', '{series.title} / {page.heading}'],
+                        ['{content}', '{content|raw}'],
+                        ['[aviable=main]', '[is_home_first]…[/is_home_first]'],
+                        ['[group=5]', '[auth.logged_in]…[/auth.logged_in] + [not-auth.logged_in]…[/not-auth.logged_in]'],
+                        ['{include file="…"}', '{include file="partials/…tpl"} — то же самое'],
+                        ['{custom}...', '[loop популярные/подборки] или {*_cards_html|raw}'],
+                        ['{THEME}', '{THEME}'],
+                        ['[xfvalue_*]', 'переменные движка: {series.*}, {collection.*} и т.п.'],
+                        ['{link-category}', '[loop series.genres] {item.url} {item.name} [/loop]'],
+                        ['[page-count=…]', '[pagination_block] / {pagination.total}'],
+                    ]
+                ),
+                self::note('Синтаксис блока [else] совпадает с привычным смыслом: [ключ]если-есть[else]если-нет[/ключ].'),
+            ]),
+
             self::article('cheatsheet', 'Интеграция', 'Шпаргалка', 'Самые нужные теги на одной странице.', [
                 self::table(
                     ['Задача', 'Тег'],
@@ -524,6 +637,8 @@ TPL),
                         ['Поиск (значение)', '{search_query}'],
                         ['Авторизован?', '[auth.logged_in]…[/auth.logged_in]'],
                         ['Карточка в списке', '[loop series_list] {item.title} {item.url} [/loop]'],
+                        ['Подключение партиала', '{include file="partials/…tpl"}'],
+                        ['Если/иначе', '[ключ]…[else]…[/ключ]'],
                         ['Плеер', '{active_player_url|raw}'],
                         ['Пагинация', '{pagination_block|raw}'],
                         ['Тема / CSS', '{THEME}/assets/…'],
