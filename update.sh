@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Обновление LordSerial на VPS (Ubuntu 24.04)
+# Обновление движка Omro на VPS (Ubuntu 24.04)
 #
 # Запуск из каталога проекта:
 #   cd /var/www/lordserialov.net && sudo bash update.sh
@@ -21,7 +21,7 @@
 #   SKIP_BUILD=1        # пропустить composer/npm
 #   SKIP_MIGRATE=1      # пропустить миграции
 #   SKIP_MAINTENANCE=0  # включить режим обслуживания на время update
-#   SKIP_SERVICES=1     # не трогать php-fpm/caddy/queue/cron
+#   SKIP_SERVICES=1     # не трогать php-fpm/queue/cron
 #
 set -euo pipefail
 
@@ -86,29 +86,12 @@ unit_points_to_app_dir() {
 resolve_service_names() {
     local use_legacy=0
     local legacy_unit="/etc/systemd/system/lordserial-queue.service"
+    local omro_unit="/etc/systemd/system/omro-queue-${SITE_ID}.service"
 
     if unit_points_to_app_dir "$legacy_unit"; then
         use_legacy=1
-    elif [[ "$SITE_ID" == "lordserial" ]]; then
-        if [[ ! -f "$legacy_unit" ]]; then
-            use_legacy=1
-        elif unit_points_to_app_dir "$legacy_unit"; then
-            use_legacy=1
-        fi
-    fi
-
-    # По пулу PHP: если для этой папки уже есть старый sock в caddy — legacy
-    if [[ "$use_legacy" != "1" ]] && [[ -f "/etc/php/${PHP_VERSION}/fpm/pool.d/lordserial.conf" ]]; then
-        local snippet
-        shopt -s nullglob
-        for snippet in /etc/caddy/sites/*.caddy; do
-            if grep -qF "${APP_DIR}/public" "$snippet" 2>/dev/null \
-                && grep -qF "php${PHP_VERSION}-fpm-lordserial.sock" "$snippet" 2>/dev/null; then
-                use_legacy=1
-                break
-            fi
-        done
-        shopt -u nullglob
+    elif [[ "$SITE_ID" == "lordserial" && ! -f "$legacy_unit" && ! -f "$omro_unit" ]]; then
+        use_legacy=1
     fi
 
     if [[ "$use_legacy" == "1" ]]; then
@@ -116,9 +99,9 @@ resolve_service_names() {
         CRON_FILE="/etc/cron.d/lordserial-scheduler"
         PHP_POOL_NAME="lordserial"
     else
-        QUEUE_UNIT_NAME="lordserial-queue-${SITE_ID}"
-        CRON_FILE="/etc/cron.d/lordserial-scheduler-${SITE_ID}"
-        PHP_POOL_NAME="lordserial-${SITE_ID}"
+        QUEUE_UNIT_NAME="omro-queue-${SITE_ID}"
+        CRON_FILE="/etc/cron.d/omro-scheduler-${SITE_ID}"
+        PHP_POOL_NAME="omro-${SITE_ID}"
     fi
 
     QUEUE_UNIT_PATH="/etc/systemd/system/${QUEUE_UNIT_NAME}.service"
@@ -236,7 +219,7 @@ setup_queue_and_scheduler() {
 
     cat > "$QUEUE_UNIT_PATH" <<EOF
 [Unit]
-Description=LordSerial Queue Worker (${DOMAIN} / ${SITE_ID})
+Description=Omro Queue Worker (${DOMAIN} / ${SITE_ID})
 After=network.target mariadb.service php${PHP_VERSION}-fpm.service
 Wants=mariadb.service
 
@@ -307,7 +290,7 @@ maintenance_up() {
 
 if [[ "$SKIP_MAINTENANCE" != "1" ]]; then
     log "Включение режима обслуживания..."
-    php artisan down --retry=60 --secret="lordserial-update" || true
+    php artisan down --retry=60 --secret="omro-update" || true
     trap maintenance_up EXIT
 fi
 
@@ -389,10 +372,6 @@ if [[ "$SKIP_SERVICES" != "1" ]]; then
         systemctl reload "php${PHP_VERSION}-fpm" || systemctl restart "php${PHP_VERSION}-fpm"
     fi
 
-    if systemctl is-active --quiet caddy 2>/dev/null; then
-        systemctl reload caddy 2>/dev/null || systemctl restart caddy
-    fi
-
     # Создаёт/обновляет unit и cron только для этого инстанса
     setup_queue_and_scheduler
 else
@@ -421,7 +400,7 @@ echo "  Проверка: curl -sI https://${DOMAIN}/up"
 echo ""
 if [[ "$SKIP_MAINTENANCE" != "1" ]]; then
 echo "  Во время обновления сайт был в maintenance."
-echo "  Обход:    https://${DOMAIN}/lordserial-update"
+echo "  Обход:    https://${DOMAIN}/omro-update"
 echo ""
 fi
 echo "  Логи:     tail -f ${APP_DIR}/storage/logs/laravel.log"

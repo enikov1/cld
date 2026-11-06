@@ -1,54 +1,29 @@
 #!/usr/bin/env bash
 #
 # ═══════════════════════════════════════════════════════════════════════════
-#  Установка сайта LordSerial на VPS (Ubuntu)
+#  Установка движка Omro на VPS (Ubuntu)
 # ═══════════════════════════════════════════════════════════════════════════
 #
-# ДЛЯ НОВИЧКА — что нужно заранее:
-#   1. VPS с Ubuntu 24.04
-#   2. Домен, у которого A-запись указывает на IP этого сервера
-#   3. Вход по SSH от root (или через sudo)
+# Скрипт ставит PHP-FPM, MariaDB, Node.js, Composer, cron, скачивает движок
+# из git, создаёт БД, применяет миграции, собирает интерфейсы, при наличии
+# ZIP-бэкапа восстанавливает данные.
 #
-# САМЫЙ ПРОСТОЙ СПОСОБ (чистый сервер, одной командой):
-#   curl -fsSL https://raw.githubusercontent.com/enikov1/cld/main/install.sh | sudo bash
+# ВЕБ-СЕРВЕР НЕ СТАВИТСЯ: движку всё равно, что стоит перед ним
+# (nginx / Apache / Caddy / OpenLiteSpeed). Требование одно — docroot = папка
+# public/ + PHP-FPM-сокет конкретного сайта. Панель управления сервером или
+# администратор настраивает веб-сервер после установки.
 #
-# Или со своим доменом:
-#   curl -fsSL https://raw.githubusercontent.com/enikov1/cld/main/install.sh \
-#     | sudo DOMAIN=ваш-сайт.ru bash
-#
-# НЕСКОЛЬКО САЙТОВ НА ОДНОМ СЕРВЕРЕ:
-#   sudo DOMAIN=site1.ru bash install.sh
-#   sudo DOMAIN=site2.ru bash install.sh
-#   # у каждого — своя папка /var/www/<домен>, БД, PHP-FPM, очередь и cron
-#
-# Если код уже скачан:
-#   cd /var/www/lordserialov.net && sudo bash install.sh
-#   cd /var/www/site2.ru && sudo DOMAIN=site2.ru bash install.sh
-#
-# ПЕРЕНОС СО СТАРОГО СЕРВЕРА (с бэкапом):
-#   1. Скачайте ZIP-бэкап из админки (раздел «Бэкапы»)
-#   2. Загрузите его на новый сервер, например в /root/backup.zip
-#   3. Запустите:
-#        sudo BACKUP_FILE=/root/backup.zip DOMAIN=ваш-сайт.ru bash install.sh
-#   Или положите файл в папку проекта:
-#        storage/app/backups/backup_....zip
-#        (скрипт сам найдёт самый новый)
-#
-# СМЕНА ДОМЕНА на уже установленном сайте:
-#   cd /var/www/lordserialov.net
-#   sudo DOMAIN=новый-домен.ru SKIP_BUILD=1 bash install.sh
-#
-# СПРАВКА ПО ПАРАМЕТРАМ:
+# Установка выполняется одной командой без параметров — см. README.md.
+# Справка по параметрам (для автоматизации из панелей управления):
 #   sudo bash install.sh --help
 #
 set -euo pipefail
 
 # ─── Параметры (можно задать перед запуском) ─────────────────────────────────
 
-DOMAIN="${DOMAIN:-lordserialov.net}"
+DOMAIN="${DOMAIN:-example.com}"
 REPO_URL="${REPO_URL:-https://github.com/enikov1/cld.git}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Пользовательские переопределения (пустые = выбрать автоматически)
 _USER_APP_DIR="${APP_DIR:-}"
 _USER_DB_NAME="${DB_NAME:-}"
 _USER_DB_USER="${DB_USER:-}"
@@ -60,7 +35,6 @@ BACKUP_FILE="${BACKUP_FILE:-}"
 SKIP_BACKUP_RESTORE="${SKIP_BACKUP_RESTORE:-0}"
 PHP_VERSION="8.3"
 
-# Заполняются после normalize_domain / resolve_site_instance
 APP_DIR=""
 DB_NAME=""
 DB_USER=""
@@ -74,9 +48,7 @@ PHP_FPM_SOCK=""
 CREDENTIALS_FILE=""
 
 STEP_CURRENT=0
-STEP_TOTAL=12
-
-# ─── Вывод для пользователя ──────────────────────────────────────────────────
+STEP_TOTAL=10
 
 log()  { echo -e "\n\033[1;32m✔\033[0m $*"; }
 warn() { echo -e "\033[1;33m!\033[0m $*" >&2; }
@@ -93,18 +65,28 @@ step() {
 print_help() {
     cat <<'EOF'
 
-Установка LordSerial на Ubuntu VPS
-══════════════════════════════════
+Установка движка Omro на Ubuntu VPS
+════════════════════════════════════
 
 Что делает скрипт автоматически:
-  • ставит PHP, базу данных, веб-сервер Caddy, Node.js
-  • скачивает сайт (если ещё не скачан)
-  • настраивает домен и HTTPS (Let's Encrypt)
+  • ставит PHP-FPM, базу данных MariaDB, Node.js, Composer, cron
+  • скачивает движок (если ещё не скачан)
+  • создаёт БД, ставит зависимости, применяет миграции, собирает интерфейсы
   • при наличии ZIP-бэкапа — восстанавливает данные
   • на одном сервере можно поставить несколько сайтов
 
+Чего скрипт НЕ делает:
+  • не ставит веб-сервер (nginx / Apache / Caddy / …) — движку всё равно,
+    какой перед ним стоит. Требование: docroot → папка public/ + PHP-FPM.
+    Панель управления сервером или администратор настраивает веб-сервер
+    после установки (скрипт печатает docroot и PHP-FPM-сокет сайта).
+
 Минимальный запуск:
   sudo bash install.sh
+
+Все параметры (домен, папка, БД, токен, бэкап) передаются переменными
+окружения — это позволяет автоматизировать установку из панелей
+управления сервером. Полный список ниже.
 
 Со своим доменом:
   sudo DOMAIN=example.com bash install.sh
@@ -132,8 +114,7 @@ print_help() {
   sudo DOMAIN=новый.ru SKIP_BUILD=1 bash install.sh
 
 После установки пароли и токены лежат в:
-  /root/lordserial-<SITE_ID>-credentials.txt
-  (для первого дефолтного сайта: /root/lordserialov-credentials.txt)
+  /root/omro-<SITE_ID>-credentials.txt
 
 EOF
 }
@@ -141,7 +122,7 @@ EOF
 print_banner() {
     echo ""
     echo "════════════════════════════════════════════════════════════"
-    echo "  Установка LordSerial"
+    echo "  Установка движка Omro"
     echo "════════════════════════════════════════════════════════════"
     echo ""
     echo "  Домен:     ${DOMAIN}"
@@ -163,8 +144,6 @@ print_banner() {
     echo "  Это займёт несколько минут. Не закрывайте окно."
     echo "════════════════════════════════════════════════════════════"
 }
-
-# ─── Вспомогательные функции ─────────────────────────────────────────────────
 
 rand_secret() {
     openssl rand -base64 32 | tr -d '/+=' | head -c 32
@@ -215,17 +194,17 @@ fix_nodesource_apt_conflict() {
 }
 
 apt_get_update() {
-    if apt-get update -qq 2>/tmp/lordserial-apt-update.err; then
+    if apt-get update -qq 2>/tmp/omro-apt-update.err; then
         return 0
     fi
 
-    if grep -q 'Conflicting values set for option Signed-By' /tmp/lordserial-apt-update.err; then
+    if grep -q 'Conflicting values set for option Signed-By' /tmp/omro-apt-update.err; then
         fix_nodesource_apt_conflict 1
         apt-get update -qq
         return 0
     fi
 
-    cat /tmp/lordserial-apt-update.err >&2
+    cat /tmp/omro-apt-update.err >&2
     die "Не удалось обновить список пакетов (apt-get update).
 Проверьте интернет на сервере и повторите."
 }
@@ -353,7 +332,7 @@ restore_backup_if_present() {
         die "Не удалось восстановить бэкап:
   ${archive}
 
-Проверьте, что архив создан в админке LordSerial (раздел «Бэкапы»).
+Проверьте, что архив создан в админке Omro (раздел «Бэкапы»).
 Или запустите установку без бэкапа:
   sudo SKIP_BACKUP_RESTORE=1 bash install.sh"
     fi
@@ -410,7 +389,7 @@ setup_queue_and_scheduler() {
 
     cat > "$QUEUE_UNIT_PATH" <<EOF
 [Unit]
-Description=LordSerial Queue Worker (${DOMAIN} / ${SITE_ID})
+Description=Omro Queue Worker (${DOMAIN} / ${SITE_ID})
 After=network.target mariadb.service php${PHP_VERSION}-fpm.service
 Wants=mariadb.service
 
@@ -472,7 +451,6 @@ derive_site_id() {
     local value="$1" id
     id="$(echo "$value" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g; s/^_+|_+$//g; s/_+/_/g')"
     [[ -n "$id" ]] || id="site"
-    # запас под префикс ls_ и лимит имени БД MySQL (64)
     echo "${id:0:48}"
 }
 
@@ -482,21 +460,16 @@ unit_points_to_app_dir() {
     grep -qxF "WorkingDirectory=${APP_DIR}" "$unit_file" 2>/dev/null
 }
 
-# Имена PHP-FPM / queue / cron / credentials для этого инстанса
-# Совместимость: если уже есть lordserial-queue с WorkingDirectory=APP_DIR — оставляем старые имена
+# Имена PHP-FPM / queue / cron / credentials для этого инстанса.
+# Совместимость: если сайт уже обслуживается старыми lordserial-* именами — оставляем их.
 resolve_service_names() {
     local use_legacy=0
     local legacy_unit="/etc/systemd/system/lordserial-queue.service"
 
     if unit_points_to_app_dir "$legacy_unit"; then
-        # Этот сайт уже использует старые глобальные имена
         use_legacy=1
-    elif [[ "$SITE_ID" == "lordserial" ]]; then
-        if [[ ! -f "$legacy_unit" ]]; then
-            # Первая установка дефолтного сайта — как раньше
-            use_legacy=1
-        fi
-        # Если legacy unit есть, но указывает на другой APP_DIR — ниже use_legacy=0
+    elif [[ "$SITE_ID" == "lordserial" && ! -f "/etc/systemd/system/omro-queue-lordserial.service" ]]; then
+        use_legacy=1
     fi
 
     if [[ "$use_legacy" == "1" ]]; then
@@ -505,10 +478,10 @@ resolve_service_names() {
         PHP_POOL_NAME="lordserial"
         CREDENTIALS_FILE="/root/lordserialov-credentials.txt"
     else
-        QUEUE_UNIT_NAME="lordserial-queue-${SITE_ID}"
-        CRON_FILE="/etc/cron.d/lordserial-scheduler-${SITE_ID}"
-        PHP_POOL_NAME="lordserial-${SITE_ID}"
-        CREDENTIALS_FILE="/root/lordserial-${SITE_ID}-credentials.txt"
+        QUEUE_UNIT_NAME="omro-queue-${SITE_ID}"
+        CRON_FILE="/etc/cron.d/omro-scheduler-${SITE_ID}"
+        PHP_POOL_NAME="omro-${SITE_ID}"
+        CREDENTIALS_FILE="/root/omro-${SITE_ID}-credentials.txt"
     fi
 
     QUEUE_UNIT_PATH="/etc/systemd/system/${QUEUE_UNIT_NAME}.service"
@@ -519,9 +492,6 @@ resolve_service_names() {
 resolve_site_instance() {
     if [[ -n "$_USER_SITE_ID" ]]; then
         SITE_ID="$(derive_site_id "$_USER_SITE_ID")"
-    elif [[ "$DOMAIN" == "lordserialov.net" ]]; then
-        # Обратная совместимость с первой установкой по умолчанию
-        SITE_ID="lordserial"
     else
         SITE_ID="$(derive_site_id "$DOMAIN")"
     fi
@@ -538,14 +508,9 @@ resolve_site_instance() {
         DB_NAME="$_USER_DB_NAME"
     elif [[ -f "$APP_DIR/.env" ]]; then
         DB_NAME="$(read_env_value DB_DATABASE "$APP_DIR/.env")"
-        [[ -n "$DB_NAME" ]] || true
     fi
     if [[ -z "$DB_NAME" ]]; then
-        if [[ "$SITE_ID" == "lordserial" ]]; then
-            DB_NAME="lordserial"
-        else
-            DB_NAME="ls_${SITE_ID}"
-        fi
+        DB_NAME="omro_${SITE_ID}"
     fi
 
     if [[ -n "$_USER_DB_USER" ]]; then
@@ -554,92 +519,16 @@ resolve_site_instance() {
         DB_USER="$(read_env_value DB_USERNAME "$APP_DIR/.env")"
     fi
     if [[ -z "$DB_USER" ]]; then
-        if [[ "$SITE_ID" == "lordserial" ]]; then
-            DB_USER="lordserial"
-        else
-            # лимит имени пользователя MariaDB
-            DB_USER="ls_${SITE_ID}"
-            DB_USER="${DB_USER:0:32}"
-        fi
+        DB_USER="omro_${SITE_ID:0:24}"
     fi
 
     resolve_service_names
 }
 
 detect_previous_domain() {
-    local from_env=""
     if [[ -f "$APP_DIR/.env" ]]; then
-        from_env="$(normalize_domain "$(read_env_value APP_URL "$APP_DIR/.env")")"
+        normalize_domain "$(read_env_value APP_URL "$APP_DIR/.env")"
     fi
-    if [[ -n "$from_env" ]]; then
-        echo "$from_env"
-        return
-    fi
-
-    local snippet base
-    shopt -s nullglob
-    for snippet in /etc/caddy/sites/*.caddy; do
-        [[ -f "$snippet" ]] || continue
-        if grep -qF "${APP_DIR}/public" "$snippet" 2>/dev/null; then
-            base="$(basename "$snippet" .caddy)"
-            echo "$base"
-            return
-        fi
-    done
-    shopt -u nullglob
-}
-
-cleanup_stale_caddy_configs() {
-    local keep_domain="$1"
-    local caddy_main="${2:-/etc/caddy/Caddyfile}"
-    local caddy_sites_dir="${3:-/etc/caddy/sites}"
-    local snippet base
-
-    shopt -s nullglob
-    for snippet in "${caddy_sites_dir}"/*.caddy; do
-        [[ -f "$snippet" ]] || continue
-        base="$(basename "$snippet" .caddy)"
-        if [[ "$base" == "$keep_domain" ]]; then
-            continue
-        fi
-        if grep -qF "${APP_DIR}/public" "$snippet" 2>/dev/null; then
-            log "Удаляю старый конфиг домена: ${base}"
-            rm -f "$snippet"
-            if [[ -f "$caddy_main" ]]; then
-                sed -i "/sites\/${base}\\.caddy/d" "$caddy_main" || true
-            fi
-        fi
-    done
-    shopt -u nullglob
-}
-
-write_caddy_vhost() {
-    local domain="$1"
-    local snippet="$2"
-
-    cat > "$snippet" <<EOF
-${domain} {
-    root * ${APP_DIR}/public
-    encode gzip zstd
-
-    @blocked {
-        path /.env* /.git* /vendor/*
-    }
-    respond @blocked 404
-
-    php_fastcgi unix/${PHP_FPM_SOCK} {
-        resolve_root_symlink
-    }
-
-    try_files {path} {path}/ /index.php?{query}
-    file_server
-}
-
-# www → основной домен без www
-www.${domain} {
-    redir https://${domain}{uri} permanent
-}
-EOF
 }
 
 print_success() {
@@ -654,7 +543,7 @@ print_success() {
     cat <<EOF
 
 ════════════════════════════════════════════════════════════
-  Готово! Сайт установлен.
+  Готово! Движок Omro установлен.
 ════════════════════════════════════════════════════════════
 
   Откройте в браузере:
@@ -672,10 +561,12 @@ ${backup_note}
 ────────────────────────────────────────────────────────────
   1. В панели регистратора домена укажите A-запись
      домена ${DOMAIN} на IP этого VPS.
-  2. Подождите 5–30 минут (DNS) и откройте сайт по HTTPS.
-     SSL-сертификат Caddy получит сам.
-  3. Войдите в админку и задайте настройки сайта.
-  4. В разделе «Бэкапы» включите автобэкап (S3 / FTP / SFTP).
+  2. Настройте веб-сервер: docroot = ${APP_DIR}/public,
+     PHP-FPM-сокет ${PHP_FPM_SOCK}
+     (это делает панель управления сервером или администратор).
+  3. Подождите DNS (5–30 минут) и откройте сайт по HTTPS.
+  4. Войдите в админку и задайте настройки сайта.
+  5. В разделе «Бэкапы» включите автобэкап (S3 / FTP / SFTP).
 
 ────────────────────────────────────────────────────────────
   Если что-то не открывается:
@@ -685,7 +576,7 @@ ${backup_note}
   • Логи сайта:
       tail -f ${APP_DIR}/storage/logs/laravel.log
   • Статус сервисов:
-      systemctl status caddy ${QUEUE_UNIT_NAME} mariadb
+      systemctl status ${QUEUE_UNIT_NAME} mariadb
 
 ────────────────────────────────────────────────────────────
   Полезные команды:
@@ -727,9 +618,9 @@ DOMAIN="$(normalize_domain "$DOMAIN")"
 resolve_site_instance
 print_banner
 
-# ─── Шаг 1. Код сайта ────────────────────────────────────────────────────────
+# ─── Шаг 1. Код движка ───────────────────────────────────────────────────────
 
-step "Подготовка кода сайта"
+step "Подготовка кода движка"
 
 if [[ -f "$SCRIPT_DIR/artisan" ]]; then
     if [[ -z "$_USER_APP_DIR" ]]; then
@@ -738,20 +629,19 @@ if [[ -f "$SCRIPT_DIR/artisan" ]]; then
     fi
     log "Использую уже скачанный проект: ${APP_DIR}"
 elif [[ ! -f "$APP_DIR/artisan" ]]; then
-    log "Скачиваю сайт из GitHub → ${APP_DIR}..."
+    log "Скачиваю движок из GitHub → ${APP_DIR}..."
     mkdir -p "$(dirname "$APP_DIR")"
     git clone --depth 1 "$REPO_URL" "$APP_DIR"
 else
     log "Проект уже есть в ${APP_DIR}"
 fi
 
-[[ -f "$APP_DIR/artisan" ]] || die "В папке ${APP_DIR} нет сайта LordSerial.
+[[ -f "$APP_DIR/artisan" ]] || die "В папке ${APP_DIR} нет движка Omro.
 Скачайте репозиторий или укажите правильный APP_DIR.
 
 Для второго сайта на этом сервере:
   sudo DOMAIN=другой-сайт.ru bash install.sh"
 
-# Папка могла уточниться — подтянуть БД из .env и имена сервисов
 if [[ -z "$_USER_DB_NAME" && -f "$APP_DIR/.env" ]]; then
     from_env="$(read_env_value DB_DATABASE "$APP_DIR/.env")"
     [[ -n "$from_env" ]] && DB_NAME="$from_env"
@@ -770,12 +660,12 @@ step "Подготовка паролей и токена админки"
 
 if [[ -f "$APP_DIR/.env" ]]; then
     if [[ -z "$DB_PASSWORD" ]]; then
-        existing_db_password="$(read_env_value DB_PASSWORD "$APP_DIR/.env")"
-        [[ -n "$existing_db_password" ]] && DB_PASSWORD="$existing_db_password"
+        from_env="$(read_env_value DB_PASSWORD "$APP_DIR/.env")"
+        [[ -n "$from_env" ]] && DB_PASSWORD="$from_env"
     fi
     if [[ -z "$ADMIN_TOKEN" ]]; then
-        existing_admin_token="$(read_env_value ADMIN_TOKEN "$APP_DIR/.env")"
-        [[ -n "$existing_admin_token" ]] && ADMIN_TOKEN="$existing_admin_token"
+        from_env="$(read_env_value ADMIN_TOKEN "$APP_DIR/.env")"
+        [[ -n "$from_env" ]] && ADMIN_TOKEN="$from_env"
     fi
 fi
 
@@ -816,23 +706,7 @@ apt-get install -y -qq \
     ufw
 log "Системные пакеты установлены"
 
-# ─── Шаг 4. Веб-сервер Caddy ─────────────────────────────────────────────────
-
-step "Веб-сервер Caddy (сайт + HTTPS)"
-
-if ! command -v caddy &>/dev/null; then
-    log "Устанавливаю Caddy..."
-    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' \
-        | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' \
-        | tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null
-    apt_get_update
-    apt-get install -y -qq caddy
-else
-    log "Caddy уже установлен"
-fi
-
-# ─── Шаг 5. Node.js и Composer ───────────────────────────────────────────────
+# ─── Шаг 4. Node.js и Composer ───────────────────────────────────────────────
 
 step "Инструменты сборки (Node.js и Composer)"
 
@@ -845,7 +719,7 @@ else
     log "Composer уже установлен"
 fi
 
-# ─── Шаг 6. База данных ──────────────────────────────────────────────────────
+# ─── Шаг 5. База данных ──────────────────────────────────────────────────────
 
 step "База данных MariaDB"
 
@@ -861,7 +735,7 @@ FLUSH PRIVILEGES;
 SQL
 log "База данных готова"
 
-# ─── Шаг 7. PHP-FPM ──────────────────────────────────────────────────────────
+# ─── Шаг 6. PHP-FPM ──────────────────────────────────────────────────────────
 
 step "Настройка PHP"
 
@@ -890,7 +764,7 @@ systemctl enable "php${PHP_VERSION}-fpm"
 systemctl restart "php${PHP_VERSION}-fpm"
 log "PHP готов (сокет: ${PHP_FPM_SOCK})"
 
-# ─── Шаг 8. Настройки сайта (.env) ───────────────────────────────────────────
+# ─── Шаг 7. .env + composer ──────────────────────────────────────────────────
 
 step "Настройки сайта (.env) и PHP-зависимости"
 
@@ -901,7 +775,7 @@ if [[ ! -f .env ]]; then
     cp .env.example .env
 fi
 
-env_set APP_NAME        "LordSerial"              .env
+env_set APP_NAME        "Omro"                    .env
 env_set APP_ENV         "production"              .env
 env_set APP_DEBUG       "false"                   .env
 env_set APP_URL         "https://${DOMAIN}"       .env
@@ -929,9 +803,9 @@ if ! grep -q '^APP_KEY=base64:' .env 2>/dev/null; then
     log "Сгенерирован секретный ключ приложения"
 fi
 
-# ─── Шаг 9. База + бэкап + сборка ────────────────────────────────────────────
+# ─── Шаг 8. Миграции + бэкап + сборка ────────────────────────────────────────
 
-step "База данных сайта, бэкап и сборка интерфейса"
+step "Миграции, бэкап и сборка интерфейсов"
 
 if [[ "$SKIP_BUILD" != "1" ]]; then
     log "Создаю таблицы базы данных..."
@@ -963,70 +837,26 @@ else
     fi
 fi
 
-# ─── Шаг 10. Права и sitemap ─────────────────────────────────────────────────
+# ─── Шаг 9. Права, sitemap, веб-сервер ───────────────────────────────────────
 
-step "Права доступа и карта сайта"
+step "Права доступа, карта сайта, веб-сервер"
 
 log "Настраиваю права на файлы..."
 set_app_permissions
 generate_sitemap_if_possible
 
-# ─── Шаг 11. Домен в Caddy ───────────────────────────────────────────────────
-
-step "Подключение домена ${DOMAIN}"
-
-log "Пишу конфиг веб-сервера для ${DOMAIN}..."
-CADDY_SITES_DIR="/etc/caddy/sites"
-CADDY_SNIPPET="${CADDY_SITES_DIR}/${DOMAIN}.caddy"
-CADDY_MAIN="/etc/caddy/Caddyfile"
-mkdir -p "$CADDY_SITES_DIR"
-
-cleanup_stale_caddy_configs "$DOMAIN" "$CADDY_MAIN" "$CADDY_SITES_DIR"
-write_caddy_vhost "$DOMAIN" "$CADDY_SNIPPET"
-
-if [[ ! -f "$CADDY_MAIN" ]] || [[ ! -s "$CADDY_MAIN" ]]; then
-    cat > "$CADDY_MAIN" <<EOF
-{
-    email admin@${DOMAIN}
-}
-
-import sites/*.caddy
-EOF
-elif grep -qE '^\s*import\s+sites/\*\.caddy' "$CADDY_MAIN"; then
-    log "Caddy уже подключает все сайты из sites/*.caddy"
-elif ! grep -qF "sites/${DOMAIN}.caddy" "$CADDY_MAIN"; then
-    cp "$CADDY_MAIN" "${CADDY_MAIN}.bak.$(date +%Y%m%d%H%M%S)"
-    printf '\nimport sites/%s.caddy\n' "$DOMAIN" >> "$CADDY_MAIN"
-fi
-
-if ! caddy validate --config "$CADDY_MAIN" 2>/tmp/lordserial-caddy-validate.err; then
-    warn "Ошибка в конфиге Caddy:"
-    cat /tmp/lordserial-caddy-validate.err >&2
-    die "Исправьте /etc/caddy/Caddyfile и выполните:
-  systemctl restart caddy"
-fi
-
-systemctl enable caddy
-systemctl restart caddy
-sleep 2
-
-if ! curl -fsS -o /dev/null --max-time 10 -H "Host: ${DOMAIN}" http://127.0.0.1/up; then
-    warn "Локальная проверка сайта не прошла.
-Смотрите логи:
-  journalctl -u caddy -u php${PHP_VERSION}-fpm -n 50"
+if command -v caddy &>/dev/null; then
+    log "Обнаружен Caddy — настройте vhost: docroot = ${APP_DIR}/public, PHP-FPM-сокет ${PHP_FPM_SOCK}"
+elif command -v nginx &>/dev/null; then
+    log "Обнаружен nginx — настройте vhost: docroot = ${APP_DIR}/public, PHP-FPM-сокет ${PHP_FPM_SOCK}"
+elif command -v apache2 &>/dev/null; then
+    log "Обнаружен Apache — настройте vhost: docroot = ${APP_DIR}/public, PHP-FPM-сокет ${PHP_FPM_SOCK}"
 else
-    log "Сайт отвечает локально — веб-сервер работает"
+    log "Веб-сервер не обнаружен — панель управления или администратор настроит его после установки.
+  Требуется: docroot = ${APP_DIR}/public, PHP-FPM-сокет ${PHP_FPM_SOCK}"
 fi
 
-if [[ -n "$PREVIOUS_DOMAIN" && "$PREVIOUS_DOMAIN" != "$DOMAIN" ]]; then
-    log "Обновляю кэш после смены домена..."
-    php artisan config:clear
-    php artisan config:cache
-    php artisan route:cache
-    warn "Проверьте DNS для ${DOMAIN} и обновите sitemap в админке"
-fi
-
-# ─── Шаг 12. Очередь, cron, фаервол ──────────────────────────────────────────
+# ─── Шаг 10. Очередь, cron, фаервол ──────────────────────────────────────────
 
 step "Фоновые задачи и безопасность"
 
@@ -1044,7 +874,7 @@ fi
 # ─── Сохранение учётных данных ───────────────────────────────────────────────
 
 cat > "$CREDENTIALS_FILE" <<EOF
-LordSerial — данные для входа
+Omro — данные для входа
 Создано: $(date -Iseconds)
 
 Сайт:        https://${DOMAIN}
@@ -1076,3 +906,4 @@ EOF
 chmod 600 "$CREDENTIALS_FILE"
 
 print_success
+
