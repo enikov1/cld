@@ -53,29 +53,41 @@ class EngineUpdater
             return $result;
         }
 
-        $remoteUrl = trim(self::runCommand('git remote get-url origin'));
-        $result['remote'] = $remoteUrl !== '' ? $remoteUrl : null;
-        $result['installed'] = $remoteUrl !== '';
+        try {
+            $git = self::gitBin();
+            if ($git === null) {
+                $result['error'] = 'git недоступен в окружении веб-сервера (нет в PATH). Обновление через админку не работает — обновляйте через SSH (update.sh).';
 
-        $branch = trim(self::runCommand('git rev-parse --abbrev-ref HEAD'));
-        $result['branch'] = $branch !== '' ? $branch : 'main';
+                return $result;
+            }
 
-        $fetch = Process::timeout(self::FETCH_TIMEOUT)
-            ->path(self::baseDir())
-            ->run('git fetch --quiet origin');
+            $remoteUrl = trim(self::runCommand($git . ' remote get-url origin'));
+            $result['remote'] = $remoteUrl !== '' ? $remoteUrl : null;
+            $result['installed'] = $remoteUrl !== '';
 
-        if (!$fetch->successful()) {
-            $result['error'] = 'Не удалось связаться с git-сервером: ' . trim($fetch->errorOutput() ?: $fetch->output());
+            $branch = trim(self::runCommand($git . ' rev-parse --abbrev-ref HEAD'));
+            $result['branch'] = $branch !== '' ? $branch : 'main';
 
-            return $result;
+            $fetch = Process::timeout(self::FETCH_TIMEOUT)
+                ->path(self::baseDir())
+                ->run($git . ' fetch --quiet origin');
+
+            if (!$fetch->successful()) {
+                $result['error'] = 'Не удалось связаться с git-сервером: ' . self::sanitize($fetch->errorOutput() ?: $fetch->output());
+
+                return $result;
+            }
+
+            $remoteRef = 'origin/' . $result['branch'];
+            $result['behind'] = max(0, (int)trim(self::runCommand($git . ' rev-list --count HEAD..' . $remoteRef)));
+            $result['ahead'] = max(0, (int)trim(self::runCommand($git . ' rev-list --count ' . $remoteRef . '..HEAD')));
+            $result['remote_head'] = trim(self::runCommand($git . ' rev-parse --short ' . $remoteRef)) ?: null;
+            $result['local_changes'] = trim(self::runCommand($git . ' status --porcelain')) !== '';
+            $result['available'] = $result['behind'] > 0;
+        } catch (\Throwable $e) {
+            // Не найден git, нет прав на запуск процессов и т.п. — отдаём ошибку в UI, а не 500.
+            $result['error'] = 'Проверка обновлений недоступна: ' . self::sanitize($e->getMessage());
         }
-
-        $remoteRef = 'origin/' . $result['branch'];
-        $result['behind'] = max(0, (int)trim(self::runCommand('git rev-list --count HEAD..' . $remoteRef)));
-        $result['ahead'] = max(0, (int)trim(self::runCommand('git rev-list --count ' . $remoteRef . '..HEAD')));
-        $result['remote_head'] = trim(self::runCommand('git rev-parse --short ' . $remoteRef)) ?: null;
-        $result['local_changes'] = trim(self::runCommand('git status --porcelain')) !== '';
-        $result['available'] = $result['behind'] > 0;
 
         return $result;
     }
@@ -137,6 +149,21 @@ class EngineUpdater
         return ['ok' => true, 'log' => $log, 'current' => $current, 'previous' => $previous];
     }
 
+    /**
+     * Проверка + запуск обновления целиком под защитой: любые исключения
+     * (нет git/composer, отказ в запуске процессов) возвращаются как текст ошибки.
+     *
+     * @return array<string, mixed>
+     */
+    public static function runSafely(): array
+    {
+        try {
+            return self::run();
+        } catch (\Throwable $e) {
+            return ['ok' => false, 'log' => ['Ошибка обновления: ' . self::sanitize($e->getMessage())], 'current' => self::currentVersion()];
+        }
+    }
+
     private static function step(array &$log, string $command): bool
     {
         $log[] = '$ ' . $command;
@@ -147,7 +174,7 @@ class EngineUpdater
 
         $output = trim($process->output() . ' ' . $process->errorOutput());
         if ($output !== '') {
-            $log[] = $output;
+            $log[] = self::sanitize($output);
         }
 
         if (!$process->successful()) {
@@ -162,7 +189,62 @@ class EngineUpdater
     {
         $process = Process::timeout(30)->path(self::baseDir())->run($command);
 
-        return $process->successful() ? $process->output() : '';
+        return self::sanitize($process->successful() ? $process->output() : '');
+    }
+
+    /**
+     * Путь к git с учётом Windows: веб-процесс может не видеть git в PATH —
+     * проверяем стандартные пути установки Git for Windows.
+     */
+    private static function gitBin(): ?string
+    {
+        if (Process::timeout(15)->run('git --version')->successful()) {
+            return 'git';
+        }
+
+        if (PHP_OS_FAMILY === 'Windows') {
+            $candidates = [
+                'C:\\Program Files\\Git\\cmd\\git.exe',
+                'C:\\Program Files (x86)\\Git\\cmd\\git.exe',
+                'C:\\Program Files\\Git\\bin\\git.exe',
+            ];
+            foreach ($candidates as $candidate) {
+                if (is_file($candidate)) {
+                    return '"' . $candidate . '"';
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Приводит вывод внешних процессов к валидному UTF-8: на Windows вывод
+     * консольных команд приходит в cp866/cp1251 и уронит JsonResponse.
+     */
+    private static function sanitize(string $value): string
+    {
+        if ($value === '') {
+            return '';
+        }
+
+        // Уже валидный UTF-8 — как есть.
+        if (preg_match('//u', $value)) {
+            return $value;
+        }
+
+        // Консоль Windows: сначала cp866, затем cp1251.
+        foreach (['CP866', 'Windows-1251'] as $enc) {
+            $converted = @iconv($enc, 'UTF-8//IGNORE', $value);
+            if (is_string($converted) && $converted !== '' && preg_match('//u', $converted)) {
+                return $converted;
+            }
+        }
+
+        $fallback = function_exists('mb_scrub') ? mb_scrub($value, 'UTF-8') : $value;
+        $clean = @iconv('UTF-8', 'UTF-8//IGNORE', $fallback);
+
+        return is_string($clean) ? $clean : '';
     }
 
     private static function binaryExists(string $binary): bool

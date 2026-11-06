@@ -170,7 +170,7 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
     });
 
     Route::post('/system/update/run', function () {
-        $result = \App\Services\EngineUpdater::run();
+        $result = \App\Services\EngineUpdater::runSafely();
 
         return response()->json(['ok' => (bool)($result['ok'] ?? false)] + $result);
     })->middleware('throttle:admin-destructive');
