@@ -22,6 +22,11 @@
 /storage/pail
 /storage/app/backups
 /vendor
+
+# В git хранится только стандартный шаблон default; свои шаблоны каждый пользователь
+# ведёт локально (resources/tpl/<имя>).
+/resources/tpl/*
+!/resources/tpl/default
 Homestead.json
 Homestead.yaml
 Thumbs.db

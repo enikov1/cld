@@ -19,6 +19,11 @@ class TplRenderer
 
     private string $baseDir;
 
+    /** Текущая глубина вложенности {include} (защита от рекурсии). */
+    private int $includeDepth = 0;
+
+    private const MAX_INCLUDE_DEPTH = 5;
+
     public function __construct(string $baseDir)
     {
         $this->baseDir = rtrim($baseDir, '/\\');
@@ -97,8 +102,21 @@ class TplRenderer
             $tpl .= '.tpl';
         }
 
-        // Support "partials/foo.tpl" directly under baseDir.
-        return $this->baseDir . DIRECTORY_SEPARATOR . $tpl;
+        $relative = str_replace('/', DIRECTORY_SEPARATOR, $tpl);
+
+        // Прямой путь внутри темы (layout.tpl, partials/..., errors/...).
+        $direct = $this->baseDir . DIRECTORY_SEPARATOR . $relative;
+        if (is_file($direct)) {
+            return $direct;
+        }
+
+        // Фолбэк для страниц: pages/<name>.tpl — новая структура стандартной темы.
+        $paged = $this->baseDir . DIRECTORY_SEPARATOR . 'pages' . DIRECTORY_SEPARATOR . $relative;
+        if (is_file($paged)) {
+            return $paged;
+        }
+
+        return $direct;
     }
 
     /**
@@ -115,6 +133,10 @@ class TplRenderer
     {
         $out = $tpl;
 
+        // {include file="..."} — разворачивается первым, чтобы содержимое партиала
+        // прошло весь конвейер в контексте текущих переменных.
+        $out = $this->renderIncludes($out, $vars);
+
         // Loops: [loop items] ... [/loop]
         $out = $this->renderLoops($out, $vars);
 
@@ -124,10 +146,87 @@ class TplRenderer
         // Conditional blocks: [key] ... [/key]
         $out = $this->renderBlocks($out, $vars);
 
-        // Variable interpolation: {var} (escaped), {var|raw} (unescaped)
+        // Variable interpolation: {var} (escaped), {var|raw}, {var|date:'d.m.Y'}
         $out = $this->renderVariables($out, $vars);
 
         return $out;
+    }
+
+    /**
+     * {include file="partials/x.tpl"} — подключение партиала с текущими переменными.
+     * DLE-стиль: файл ищется внутри активной темы; глубина вложенности ограничена.
+     */
+    private function renderIncludes(string $tpl, array $vars): string
+    {
+        if (!str_contains($tpl, '{include')) {
+            return $tpl;
+        }
+
+        return (string)preg_replace_callback(
+            '/\{include\s+file=["\']([^"\']+)["\']\s*\}/',
+            function (array $m) use ($vars) {
+                if ($this->includeDepth >= self::MAX_INCLUDE_DEPTH) {
+                    return '';
+                }
+
+                $file = $this->resolveTemplateFile($m[1]);
+                if (!is_file($file)) {
+                    return '';
+                }
+
+                $content = file_get_contents($file);
+                if ($content === false) {
+                    return '';
+                }
+
+                $this->includeDepth++;
+                try {
+                    return $this->renderString($content, $vars);
+                } finally {
+                    $this->includeDepth--;
+                }
+            },
+            $tpl
+        );
+    }
+
+    /**
+     * Разделение тела блока по верхнеуровневому [else] (учитывая вложенные блоки).
+     *
+     * @return array{0: string, 1: ?string} [часть-если-истина, часть-если-ложь]
+     */
+    private function splitElse(string $body): array
+    {
+        if (!str_contains($body, '[else]')) {
+            return [$body, null];
+        }
+
+        if (preg_match_all('/\[\/?([A-Za-z0-9_.\-]+)\]|\[else\]/', $body, $tokens, PREG_OFFSET_CAPTURE) === false) {
+            return [$body, null];
+        }
+
+        $depth = 0;
+        foreach ($tokens[0] as [$token, $offset]) {
+            if ($token === '[else]') {
+                if ($depth === 0) {
+                    return [
+                        substr($body, 0, $offset),
+                        substr($body, $offset + strlen('[else]')),
+                    ];
+                }
+                // [else] внутри вложенного блока — он принадлежит ему, не текущему.
+                continue;
+            }
+
+            if (str_starts_with($token, '[/')) {
+                $depth = max(0, $depth - 1);
+                continue;
+            }
+
+            $depth++;
+        }
+
+        return [$body, null];
     }
 
     private function renderLoops(string $tpl, array $vars): string
@@ -231,12 +330,12 @@ class TplRenderer
             '/\\[not-([A-Za-z0-9_\\.-]+)\\]([\\s\\S]*?)\\[\\/not-\\1\\]/',
             function (array $m) use ($vars) {
                 $key = $m[1];
-                $inner = $m[2];
+                [$truePart, $falsePart] = $this->splitElse($m[2]);
                 $val = $this->resolvePath($vars, $key);
                 if ($this->isEmptyValue($val)) {
-                    return $this->renderString($inner, $vars);
+                    return $this->renderString($truePart, $vars);
                 }
-                return '';
+                return $falsePart === null ? '' : $this->renderString($falsePart, $vars);
             },
             $tpl
         );
@@ -248,13 +347,13 @@ class TplRenderer
             '/\\[([A-Za-z0-9_\\.-]+)\\]([\\s\\S]*?)\\[\\/\\1\\]/',
             function (array $m) use ($vars) {
                 $key = $m[1];
-                $inner = $m[2];
+                [$truePart, $falsePart] = $this->splitElse($m[2]);
                 $val = $this->resolvePath($vars, $key);
 
                 if ($this->isEmptyValue($val)) {
-                    return '';
+                    return $falsePart === null ? '' : $this->renderString($falsePart, $vars);
                 }
-                return $this->renderString($inner, $vars);
+                return $this->renderString($truePart, $vars);
             },
             $tpl
         );
@@ -263,14 +362,25 @@ class TplRenderer
     private function renderVariables(string $tpl, array $vars): string
     {
         return (string)preg_replace_callback(
-            '/\\{([A-Za-z0-9_\\.\\-]+)(\\|raw)?\\}/',
+            '/\\{([A-Za-z0-9_\\.\\-]+)(\\|raw|\\|date(?::[^}]+)?)?\\}/',
             function (array $m) use ($vars) {
                 $key = $m[1];
-                $isRaw = !empty($m[2]) && $m[2] === '|raw';
+                $modifier = $m[2] ?? '';
+
                 $val = $this->resolvePath($vars, $key);
                 $val = $val === null ? '' : (string)$val;
                 $val = PublicMedia::rewriteInText($val);
-                if ($isRaw) {
+
+                if (str_starts_with($modifier, '|date')) {
+                    $format = trim(substr($modifier, 6), ':\'"') ?: 'd.m.Y';
+                    $ts = strtotime($val);
+                    if ($ts === false) {
+                        return htmlspecialchars($val, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                    }
+                    return htmlspecialchars(date($format, $ts), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                }
+
+                if ($modifier === '|raw') {
                     return $val;
                 }
 
