@@ -33,6 +33,7 @@ ADMIN_TOKEN="${ADMIN_TOKEN:-}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
 BACKUP_FILE="${BACKUP_FILE:-}"
 SKIP_BACKUP_RESTORE="${SKIP_BACKUP_RESTORE:-0}"
+PANEL_MODE="${PANEL_MODE:-0}"
 PHP_VERSION="8.3"
 
 APP_DIR=""
@@ -48,7 +49,11 @@ PHP_FPM_SOCK=""
 CREDENTIALS_FILE=""
 
 STEP_CURRENT=0
-STEP_TOTAL=10
+if [[ "$PANEL_MODE" == "1" ]]; then
+    STEP_TOTAL=8
+else
+    STEP_TOTAL=10
+fi
 
 log()  { echo -e "\n\033[1;32m✔\033[0m $*"; }
 warn() { echo -e "\033[1;33m!\033[0m $*" >&2; }
@@ -108,6 +113,11 @@ print_help() {
   BACKUP_FILE=/path/file.zip  восстановить этот бэкап
   SKIP_BACKUP_RESTORE=1       не восстанавливать бэкап
   SKIP_BUILD=1                только смена домена / без пересборки
+  PANEL_MODE=1                установка в папку сайта, уже управляемого панелью
+                              (HostPanel и др.): пул PHP-FPM, база и веб-сервер
+                              не создаются — панель передаёт APP_DIR, DOMAIN,
+                              DB_NAME, DB_USER, DB_PASSWORD, ADMIN_TOKEN и сама
+                              настраивает vhost (docroot → public/)
 
 Смена домена на уже установленном сервере:
   cd /var/www/example.com
@@ -139,6 +149,9 @@ print_banner() {
     fi
     if [[ "$SKIP_BUILD" == "1" ]]; then
         echo "  Режим:     быстрый (SKIP_BUILD=1) — без полной пересборки"
+    fi
+    if [[ "$PANEL_MODE" == "1" ]]; then
+        echo "  Режим:     PANEL_MODE — сайт под управлением панели (пул и база не создаются)"
     fi
     echo ""
     echo "  Это займёт несколько минут. Не закрывайте окно."
@@ -540,6 +553,16 @@ print_success() {
 "
     fi
 
+    local web_hint=""
+    if [[ "$PANEL_MODE" == "1" ]]; then
+        web_hint="  2. Подключите сайт в панели управления: docroot = ${APP_DIR}/public,
+     PHP ${PHP_VERSION}-FPM (пул панели), затем выпустите SSL."
+    else
+        web_hint="  2. Настройте веб-сервер: docroot = ${APP_DIR}/public,
+     PHP-FPM-сокет ${PHP_FPM_SOCK}
+     (это делает панель управления сервером или администратор)."
+    fi
+
     cat <<EOF
 
 ════════════════════════════════════════════════════════════
@@ -561,9 +584,7 @@ ${backup_note}
 ────────────────────────────────────────────────────────────
   1. В панели регистратора домена укажите A-запись
      домена ${DOMAIN} на IP этого VPS.
-  2. Настройте веб-сервер: docroot = ${APP_DIR}/public,
-     PHP-FPM-сокет ${PHP_FPM_SOCK}
-     (это делает панель управления сервером или администратор).
+${web_hint}
   3. Подождите DNS (5–30 минут) и откройте сайт по HTTPS.
   4. Войдите в админку и задайте настройки сайта.
   5. В разделе «Бэкапы» включите автобэкап (S3 / FTP / SFTP).
@@ -721,28 +742,38 @@ fi
 
 # ─── Шаг 5. База данных ──────────────────────────────────────────────────────
 
-step "База данных MariaDB"
+if [[ "$PANEL_MODE" == "1" ]]; then
+    # База уже создана панелью управления — ждём её креды.
+    if [[ -z "$DB_NAME" || -z "$DB_USER" || -z "$DB_PASSWORD" ]]; then
+        die "PANEL_MODE=1: панель должна передать DB_NAME, DB_USER и DB_PASSWORD
+(у панели уже есть своя база данных для этого сайта)."
+    fi
+    log "База данных панели: ${DB_NAME} (создание пропущено)"
+else
+    step "База данных MariaDB"
 
-log "Создаю базу «${DB_NAME}» и пользователя «${DB_USER}»..."
-systemctl enable --now mariadb
+    log "Создаю базу «${DB_NAME}» и пользователя «${DB_USER}»..."
+    systemctl enable --now mariadb
 
-mysql -u root <<SQL
+    mysql -u root <<SQL
 CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASSWORD}';
 ALTER USER '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASSWORD}';
 GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'localhost';
 FLUSH PRIVILEGES;
 SQL
-log "База данных готова"
+    log "База данных готова"
+fi
 
 # ─── Шаг 6. PHP-FPM ──────────────────────────────────────────────────────────
 
-step "Настройка PHP"
+if [[ "$PANEL_MODE" != "1" ]]; then
+    step "Настройка PHP"
 
-log "Настраиваю PHP-FPM для сайта (${PHP_POOL_NAME})..."
-sed -i 's/^;*cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/' "/etc/php/${PHP_VERSION}/fpm/php.ini" || true
+    log "Настраиваю PHP-FPM для сайта (${PHP_POOL_NAME})..."
+    sed -i 's/^;*cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/' "/etc/php/${PHP_VERSION}/fpm/php.ini" || true
 
-cat > "$PHP_POOL_FILE" <<EOF
+    cat > "$PHP_POOL_FILE" <<EOF
 [${PHP_POOL_NAME}]
 user = www-data
 group = www-data
@@ -760,9 +791,12 @@ php_admin_value[post_max_size] = 64M
 php_admin_value[memory_limit] = 256M
 EOF
 
-systemctl enable "php${PHP_VERSION}-fpm"
-systemctl restart "php${PHP_VERSION}-fpm"
-log "PHP готов (сокет: ${PHP_FPM_SOCK})"
+    systemctl enable "php${PHP_VERSION}-fpm"
+    systemctl restart "php${PHP_VERSION}-fpm"
+    log "PHP готов (сокет: ${PHP_FPM_SOCK})"
+else
+    log "PHP-FPM пул не создаётся — сайт под управлением панели (PANEL_MODE)"
+fi
 
 # ─── Шаг 7. .env + composer ──────────────────────────────────────────────────
 
@@ -845,7 +879,9 @@ log "Настраиваю права на файлы..."
 set_app_permissions
 generate_sitemap_if_possible
 
-if command -v caddy &>/dev/null; then
+if [[ "$PANEL_MODE" == "1" ]]; then
+    log "Веб-сервер настраивается панелью управления: docroot = ${APP_DIR}/public, PHP ${PHP_VERSION}-FPM"
+elif command -v caddy &>/dev/null; then
     log "Обнаружен Caddy — настройте vhost: docroot = ${APP_DIR}/public, PHP-FPM-сокет ${PHP_FPM_SOCK}"
 elif command -v nginx &>/dev/null; then
     log "Обнаружен nginx — настройте vhost: docroot = ${APP_DIR}/public, PHP-FPM-сокет ${PHP_FPM_SOCK}"
@@ -862,7 +898,7 @@ step "Фоновые задачи и безопасность"
 
 setup_queue_and_scheduler
 
-if command -v ufw &>/dev/null; then
+if [[ "$PANEL_MODE" != "1" ]] && command -v ufw &>/dev/null; then
     log "Открываю порты SSH (22), HTTP (80) и HTTPS (443)..."
     ufw allow 22/tcp comment 'SSH' || true
     ufw allow 80/tcp comment 'HTTP' || true
