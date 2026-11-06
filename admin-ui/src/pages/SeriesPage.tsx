@@ -411,8 +411,8 @@ export default function SeriesPage() {
   useDocumentTitle(
     drawerOpen
       ? editing
-        ? `Редактируем сериал — ${editing.title}`
-        : 'Новый сериал / фильм'
+        ? `Редактируем материал — ${editing.title}`
+        : 'Новый материал / фильм'
       : null,
   )
   useBusyFavicon(
@@ -887,14 +887,14 @@ export default function SeriesPage() {
       if (routeKey) {
         const playersSaved = await playersEditorRef.current?.save({ silent: true, kpId: routeKey })
         if (playersSaved === false) {
-          message.error('Сериал сохранён, но не удалось сохранить плееры')
+          message.error('Материал сохранён, но не удалось сохранить плееры')
           await loadSeries()
           return
         }
 
         const scheduleSaved = await scheduleEditorRef.current?.save({ silent: true, kpId: routeKey })
         if (scheduleSaved === false) {
-          message.error('Сериал сохранён, но не удалось сохранить расписание')
+          message.error('Материал сохранён, но не удалось сохранить расписание')
           await loadSeries()
           return
         }
@@ -1754,7 +1754,7 @@ export default function SeriesPage() {
               <Button size="small" icon={<UndoOutlined />} onClick={() => restore(row)} aria-label="Восстановить" />
             </Tooltip>
           ) : (
-            <Popconfirm title="Удалить сериал?" onConfirm={() => remove(row)}>
+            <Popconfirm title="Удалить материал?" onConfirm={() => remove(row)}>
               <Tooltip title="Удалить">
                 <Button size="small" danger icon={<DeleteOutlined />} aria-label="Удалить" />
               </Tooltip>
@@ -1789,7 +1789,7 @@ export default function SeriesPage() {
             <Row gutter={16}>
               <Col xs={24} md={12} lg={8}>
                 <Form.Item label="Поиск" name="q" extra="Название, KP/IMDb/TMDB ID, slug">
-                  <Input allowClear placeholder="Поиск по всем сериалам..." onPressEnter={() => filterForm.submit()} />
+                  <Input allowClear placeholder="Поиск по всем материалам..." onPressEnter={() => filterForm.submit()} />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12} lg={8}>
@@ -1810,7 +1810,7 @@ export default function SeriesPage() {
                 </Form.Item>
               </Col>
               <Col xs={24} md={8} lg={6}>
-                <Form.Item label="Статус сериала" name="broadcast_status">
+                <Form.Item label="Статус материала" name="broadcast_status">
                   <Select allowClear placeholder="Все" options={BROADCAST_STATUSES.map((x) => ({ value: x.value, label: x.label }))} />
                 </Form.Item>
               </Col>
@@ -1970,7 +1970,7 @@ export default function SeriesPage() {
       />
 
       <Drawer
-        title={editing ? `Редактирование: ${editing.title}` : 'Новый сериал / фильм'}
+        title={editing ? `Редактирование: ${editing.title}` : 'Новый материал / фильм'}
         open={drawerOpen}
         onClose={closeDrawer}
         width={820}
@@ -2022,7 +2022,7 @@ export default function SeriesPage() {
                             { validator: validateIdentifierRequired },
                             { validator: validateKpIdUnique },
                           ]}
-                          extra={editing ? 'Можно заменить, если добавили не тот сериал' : undefined}
+                          extra={editing ? 'Можно заменить, если добавили не тот материал' : undefined}
                         >
                           <Input
                             placeholder="915196"
@@ -2096,7 +2096,7 @@ export default function SeriesPage() {
                     <Form.Item
                       label="Студии"
                       name="studio_ids"
-                      extra="Можно выбрать несколько — сериал появится в каталоге каждой студии"
+                      extra="Можно выбрать несколько — материал появится в каталоге каждой студии"
                     >
                       <Select
                         mode="multiple"
@@ -2113,7 +2113,7 @@ export default function SeriesPage() {
                       extra={
                         autoCollectionTitles.length
                           ? `Также в подборках автоматически: ${autoCollectionTitles.join(', ')}`
-                          : 'Можно выбрать несколько — сериал появится в каждой подборке'
+                          : 'Можно выбрать несколько — материал появится в каждой подборке'
                       }
                     >
                       <Select
@@ -2137,7 +2137,7 @@ export default function SeriesPage() {
                         </Form.Item>
                       </Col>
                       <Col span={8}>
-                        <Form.Item label="Статус сериала" name="broadcast_status">
+                        <Form.Item label="Статус материала" name="broadcast_status">
                           <Select allowClear options={BROADCAST_STATUSES.map((x) => ({ value: x.value, label: x.label }))} />
                         </Form.Item>
                       </Col>
@@ -2264,7 +2264,7 @@ export default function SeriesPage() {
                       <Input.TextArea rows={2} />
                     </Form.Item>
                     <SeriesSeoAiControls form={form} seriesKey={editorRouteKey} />
-                    <Form.Item label="SEO-блок (HTML)" name="seo_html" extra="Выводится внизу страницы сериала">
+                    <Form.Item label="SEO-блок (HTML)" name="seo_html" extra="Выводится внизу страницы материала">
                       <TemplateCodeEditor filePath="series-seo.html" isDark={isDark} height="220px" />
                     </Form.Item>
                     <Form.Item label="Ссылка KinoPoisk" name="kp_web_url"><Input /></Form.Item>

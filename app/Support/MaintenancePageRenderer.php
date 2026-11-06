@@ -17,7 +17,7 @@ class MaintenancePageRenderer
             return self::fallbackResponse();
         }
 
-        $siteName = SiteSetting::get('site_name', config('app.name', 'LordSerial'));
+        $siteName = SiteSetting::get('site_name', config('app.name', 'Omro'));
         $logoUrl = trim((string)SiteSetting::get('site_logo_url', ''));
         $faviconUrl = trim((string)SiteSetting::get('site_favicon_url', ''));
 

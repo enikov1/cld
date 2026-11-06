@@ -126,7 +126,7 @@
     [/loop] [not-home_sections] [not-popular_list]
     <div class="sect">
         <div class="sect-cont sect-items clearfix">
-            <p class="desc-text">Пока нет сериалов в каталоге.</p>
+            <p class="desc-text">Пока нет материалов в каталоге.</p>
         </div>
     </div>
     [/not-popular_list] [/not-home_sections] [home_seo_html]

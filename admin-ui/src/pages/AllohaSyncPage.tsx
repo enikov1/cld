@@ -411,7 +411,7 @@ export default function AllohaSyncPage() {
 
                   <Divider>Обновление существующих</Divider>
 
-                  <Form.Item label="Обновлять существующие сериалы" name="update_existing" valuePropName="checked">
+                  <Form.Item label="Обновлять существующие материалы" name="update_existing" valuePropName="checked">
                     <Switch />
                   </Form.Item>
 
@@ -445,7 +445,7 @@ export default function AllohaSyncPage() {
                     label="Поднимать по дате"
                     name="bump_date_on_update"
                     valuePropName="checked"
-                    extra="Ставит текущую дату добавления, чтобы сериал поднялся в каталоге. Срабатывает при новой серии, а не каждый час, пока сериал есть в /latest."
+                    extra="Ставит текущую дату добавления, чтобы материал поднялся в каталоге. Срабатывает при новой серии, а не каждый час, пока материал есть в /latest."
                   >
                     <Switch />
                   </Form.Item>
@@ -466,7 +466,7 @@ export default function AllohaSyncPage() {
               label: 'Обновить существующие',
               children: (
                 <Form form={form} layout="vertical" onFinish={runSync} style={{ maxWidth: 520 }}>
-                  <Form.Item label="KP ID (опционально)" name="kp_id" extra="Если пусто — обновятся все сериалы с KP ID">
+                  <Form.Item label="KP ID (опционально)" name="kp_id" extra="Если пусто — обновятся все материалы с KP ID">
                     <InputNumber style={{ width: '100%' }} min={1} placeholder="357" />
                   </Form.Item>
                   <Form.Item label="Режим" name="mode" initialValue="all">
@@ -499,9 +499,9 @@ export default function AllohaSyncPage() {
                   initialValues={{ tab_name: 'Смотреть онлайн', position: 1, sleep: 0.5 }}
                 >
                   <Typography.Paragraph type="secondary">
-                    Добавляет или обновляет вкладку плеера Alloha у сериалов с KP ID. Iframe запрашивается через{' '}
+                    Добавляет или обновляет вкладку плеера Alloha у материалов с KP ID. Iframe запрашивается через{' '}
                     <code>/v2/movies/exists</code> (KP → IMDb → TMDB) и детальные эндпоинты Alloha API. Позиция считается среди всех
-                    вкладок сериала. Пропущенные — нет в каталоге Alloha или нет активных файлов.
+                    вкладок материала. Пропущенные — нет в каталоге Alloha или нет активных файлов.
                   </Typography.Paragraph>
 
                   {showPlayerProgress ? (
@@ -550,7 +550,7 @@ export default function AllohaSyncPage() {
                     <InputNumber min={1} max={20} style={{ width: '100%' }} disabled={playerFormLocked} />
                   </Form.Item>
 
-                  <Form.Item label="KP ID (опционально)" name="kp_id" extra="Если пусто — обработаются все сериалы с KP ID">
+                  <Form.Item label="KP ID (опционально)" name="kp_id" extra="Если пусто — обработаются все материалы с KP ID">
                     <InputNumber style={{ width: '100%' }} min={1} placeholder="357" disabled={playerFormLocked} />
                   </Form.Item>
 
@@ -562,7 +562,7 @@ export default function AllohaSyncPage() {
                     {!playerFormLocked ? (
                       <Popconfirm
                         title="Проставить плеер Alloha?"
-                        description="Будет создана или обновлена вкладка плеера. Существующие вкладки Alloha у сериала будут перезаписаны."
+                        description="Будет создана или обновлена вкладка плеера. Существующие вкладки Alloha у материала будут перезаписаны."
                         okText="Проставить"
                         cancelText="Отмена"
                         onConfirm={() => playerForm.submit()}

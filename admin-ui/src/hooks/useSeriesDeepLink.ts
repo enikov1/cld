@@ -49,7 +49,7 @@ export function useSeriesDeepLink({ searchParams, setSearchParams, openEdit }: U
           ? data.items.find((row) => String(row.id) === seriesId)
           : data.items.find((row) => row.kp_id === kpId)
         if (!item) {
-          message.warning('Сериал не найден')
+          message.warning('Материал не найден')
           return
         }
 

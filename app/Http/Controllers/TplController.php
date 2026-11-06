@@ -149,9 +149,9 @@ abstract class TplController extends Controller
             'THEME' => ThemeManager::webPath(),
             'theme' => ThemeManager::assetVars(),
             'site' => array_merge([
-                'name' => \App\Models\SiteSetting::get('site_name', config('app.name', 'LordSerial')),
-                'tagline' => \App\Models\SiteSetting::get('site_tagline', 'Сериалы онлайн'),
-                'footer_text' => \App\Models\SiteSetting::get('footer_text', 'Сериалы онлайн в HD качестве'),
+                'name' => \App\Models\SiteSetting::get('site_name', config('app.name', 'Omro')),
+                'tagline' => \App\Models\SiteSetting::get('site_tagline', 'Смотреть онлайн'),
+                'footer_text' => \App\Models\SiteSetting::get('footer_text', 'Смотреть онлайн в HD качестве'),
                 'year' => (string)date('Y'),
             ], \App\Support\SiteBranding::siteVars()),
             'has_notifications' => SiteConfig::bool('notifications_enabled'),

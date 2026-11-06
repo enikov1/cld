@@ -219,7 +219,7 @@ export default function RutubeSyncPage() {
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
-          message="Ищет трейлер на Rutube по названию сериала и добавляет вкладку плеера в конец списка. Обработка идёт пакетами, чтобы не повесить сайт на большом каталоге."
+          message="Ищет трейлер на Rutube по названию материала и добавляет вкладку плеера в конец списка. Обработка идёт пакетами, чтобы не повесить сайт на большом каталоге."
         />
 
         {needsClientContinue ? (
@@ -289,11 +289,11 @@ export default function RutubeSyncPage() {
             </Radio.Group>
           </Form.Item>
 
-          <Form.Item label="KP ID (опционально)" name="kp_id" extra="Если пусто — обработаются все сериалы с названием">
+          <Form.Item label="KP ID (опционально)" name="kp_id" extra="Если пусто — обработаются все материалы с названием">
             <InputNumber style={{ width: '100%' }} min={1} placeholder="357" disabled={formLocked} />
           </Form.Item>
 
-          <Form.Item label="Размер пакета" name="batch_size" extra="Сколько сериалов обрабатывать за один запрос">
+          <Form.Item label="Размер пакета" name="batch_size" extra="Сколько материалов обрабатывать за один запрос">
             <InputNumber min={1} max={50} style={{ width: '100%' }} disabled={formLocked} />
           </Form.Item>
 

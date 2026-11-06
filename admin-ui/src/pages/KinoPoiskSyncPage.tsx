@@ -276,7 +276,7 @@ export default function KinoPoiskSyncPage() {
           initialValues={{ limit: 20, download_poster: true, sleep: 0, batch_size: 5 }}
           style={{ maxWidth: 520 }}
         >
-          <Form.Item label="Поисковый запрос" name="keyword" rules={[{ required: true, message: 'Введите название сериала' }]}>
+          <Form.Item label="Поисковый запрос" name="keyword" rules={[{ required: true, message: 'Введите название материала' }]}>
             <Input placeholder="Например: извне, даттон" disabled={formLocked} />
           </Form.Item>
           <Form.Item label="Лимит результатов" name="limit">

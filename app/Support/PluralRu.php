@@ -10,18 +10,18 @@ class PluralRu
         $mod100 = $count % 100;
 
         if ($mod100 >= 11 && $mod100 <= 14) {
-            return 'сериалов';
+            return 'материалов';
         }
 
         if ($mod10 === 1) {
-            return 'сериал';
+            return 'материал';
         }
 
         if ($mod10 >= 2 && $mod10 <= 4) {
-            return 'сериала';
+            return 'материала';
         }
 
-        return 'сериалов';
+        return 'материалов';
     }
 
     public static function studios(int $count): string

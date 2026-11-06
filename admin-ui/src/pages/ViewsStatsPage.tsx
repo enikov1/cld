@@ -143,7 +143,7 @@ export default function ViewsStatsPage() {
         ),
     },
     {
-      title: 'Сериал',
+      title: 'Материал',
       dataIndex: 'title',
       render: (_, row) => (
         <Space direction="vertical" size={0}>
@@ -239,7 +239,7 @@ export default function ViewsStatsPage() {
           showIcon
           style={{ marginBottom: 16 }}
           message="Таблица дневных просмотров ещё не создана"
-          description="Просмотры начнут копиться после миграций и открытия страниц сериалов."
+          description="Просмотры начнут копиться после миграций и открытия страниц материалов."
         />
       ) : null}
 
@@ -272,12 +272,12 @@ export default function ViewsStatsPage() {
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
-            <Statistic title="Сериалов с просмотрами сегодня" value={summary?.series_active_today ?? 0} />
+            <Statistic title="Материалов с просмотрами сегодня" value={summary?.series_active_today ?? 0} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
-            <Statistic title="Сериалов с просмотрами за период" value={summary?.series_active_period ?? 0} />
+            <Statistic title="Материалов с просмотрами за период" value={summary?.series_active_period ?? 0} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
@@ -301,7 +301,7 @@ export default function ViewsStatsPage() {
         <ViewsChart points={data?.timeseries ?? []} loading={loading} />
       </div>
 
-      <Card title="Топ сериалов за период">
+      <Card title="Топ материалов за период">
         <Table
           rowKey="id"
           loading={loading}

@@ -72,7 +72,7 @@ class AdminReviewController extends Controller
                 ->exists();
             if ($exists) {
                 throw ValidationException::withMessages([
-                    'user_id' => 'У этого пользователя уже есть рецензия на этот сериал.',
+                    'user_id' => 'У этого пользователя уже есть рецензия на этот материал.',
                 ]);
             }
         }
@@ -89,7 +89,7 @@ class AdminReviewController extends Controller
             ]);
         } catch (UniqueConstraintViolationException) {
             throw ValidationException::withMessages([
-                'user_id' => 'У этого пользователя уже есть рецензия на этот сериал.',
+                'user_id' => 'У этого пользователя уже есть рецензия на этот материал.',
             ]);
         }
 

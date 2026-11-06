@@ -121,7 +121,7 @@ class PosterStorage
         try {
             $response = Http::timeout(45)
                 ->withHeaders([
-                    'User-Agent' => 'LordSerialBot/1.0',
+                    'User-Agent' => 'OmroBot/1.0',
                     'Accept' => 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
                 ])
                 ->get($url);

@@ -1,9 +1,9 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "omro/omro",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
+    "description": "Omro — универсальный движок онлайн-каталога контента (фильмы, сериалы, мультфильмы и т.д.).",
+    "keywords": ["omro", "cms", "laravel", "video", "catalog"],
     "license": "MIT",
     "require": {
         "php": "^8.2",

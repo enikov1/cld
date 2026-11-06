@@ -89,7 +89,7 @@ class TmdbImageService
 
         $details = $this->client->getTvDetails($tmdbId);
         if ($details === []) {
-            return ['ok' => false, 'error' => 'Не удалось получить данные сериала из TMDB'];
+            return ['ok' => false, 'error' => 'Не удалось получить данные материала из TMDB'];
         }
 
         $seasonNumbers = $this->seasonNumbersFromDetails($details);

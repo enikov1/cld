@@ -271,7 +271,7 @@ function TaxonomyTab({
           if (res.done) {
             message.success(
               res.message
-              || `Готово: озвучек у сериалов ${res.catalog ?? 0}, сериалов с озвучками ${res.synced ?? 0}`,
+              || `Готово: озвучек у материалов ${res.catalog ?? 0}, материалов с озвучками ${res.synced ?? 0}`,
             )
             await load()
             break
@@ -523,7 +523,7 @@ function TaxonomyTab({
       render: (slug) => `/${urlPrefix}/${slug}/`,
     },
     {
-      title: 'Сериалов',
+      title: 'Материалов',
       dataIndex: 'series_count',
       key: 'series_count',
       width: 100,
@@ -608,7 +608,7 @@ function TaxonomyTab({
           {type === 'voices' ? (
             <Popconfirm
               title="Удалить все озвучки?"
-              description="Будут удалены все студии и их привязки к сериалам."
+              description="Будут удалены все студии и их привязки к материалам."
               okText="Удалить все"
               okButtonProps={{ danger: true }}
               cancelText="Отмена"
@@ -631,7 +631,7 @@ function TaxonomyTab({
       {type === 'voices' ? (
         <>
           <Typography.Paragraph type="secondary" style={{ marginTop: -8 }}>
-            В справочник попадают только озвучки, которые реально есть у сериалов. Полный каталог Alloha не загружается.
+            В справочник попадают только озвучки, которые реально есть у материалов. Полный каталог Alloha не загружается.
           </Typography.Paragraph>
           {voiceSyncProgress?.message || allohaSyncing ? (
             <div style={{ marginBottom: 16 }}>
@@ -759,7 +759,7 @@ function TaxonomyTab({
               getFieldValue('show_on_home') ? (
                 <>
                   <Form.Item label="Заголовок секции" name="home_title" extra="Если пусто — название справочника">
-                    <Input placeholder={type === 'years' ? 'Сериалы 2024' : 'Драмы'} />
+                    <Input placeholder={type === 'years' ? 'Материалы 2024' : 'Драмы'} />
                   </Form.Item>
                   <Form.Item label="Карточек в блоке" name="home_item_limit">
                     <InputNumber min={1} max={60} style={{ width: '100%' }} />

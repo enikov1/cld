@@ -108,7 +108,7 @@ class RutubeTrailerService
                 'ok' => false,
                 'error' => $manual !== ''
                     ? 'Некорректный URL или ID видео Rutube'
-                    : 'Трейлер на Rutube не найден по названию сериала',
+                    : 'Трейлер на Rutube не найден по названию материала',
             ];
         }
 
@@ -331,7 +331,7 @@ class RutubeTrailerService
 
         $res = Http::timeout($this->timeout)
             ->withHeaders([
-                'User-Agent' => 'LordSerialBot/1.0',
+                'User-Agent' => 'OmroBot/1.0',
                 'Accept' => 'application/json',
             ])
             ->get('https://rutube.ru/api/search/video/', [

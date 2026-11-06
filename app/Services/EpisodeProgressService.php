@@ -16,7 +16,7 @@ class EpisodeProgressService
     private static array $progressMemo = [];
 
     /**
-     * Обновить season_number / last_episode_number на сериале по последней вышедшей серии.
+     * Обновить season_number / last_episode_number на материале по последней вышедшей серии.
      */
     public static function syncSeries(Series $series): void
     {
@@ -32,7 +32,7 @@ class EpisodeProgressService
     }
 
     /**
-     * Текущий прогресс для вывода: из графика (последняя вышедшая), иначе из полей сериала.
+     * Текущий прогресс для вывода: из графика (последняя вышедшая), иначе из полей материала.
      *
      * @return array{season_number: int|null, last_episode_number: int|null, from_schedule: bool, label: string}
      */
@@ -202,7 +202,7 @@ class EpisodeProgressService
     }
 
     /**
-     * Ближайшая запланированная серия из графика (для напоминания на странице сериала).
+     * Ближайшая запланированная серия из графика (для напоминания на странице материала).
      *
      * @return array{
      *     label: string,

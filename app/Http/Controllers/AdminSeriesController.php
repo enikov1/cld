@@ -105,10 +105,15 @@ class AdminSeriesController extends Controller
         $host = (string)parse_url($url, PHP_URL_HOST);
         $host = Str::lower(preg_replace('/^www\./i', '', $host) ?? '');
 
-        if (!in_array($host, ['lordserials.fan', 'lordserial.net'], true)) {
+        $allowedHosts = array_map(
+            static fn (string $h): string => strtolower(trim($h)),
+            (array)config('importer.kp_parse_hosts', []),
+        );
+
+        if ($allowedHosts !== [] && !in_array($host, $allowedHosts, true)) {
             return response()->json([
                 'ok' => false,
-                'error' => 'Разрешены только ссылки lordserials.fan / lordserial.net',
+                'error' => 'Домен страницы не входит в список разрешённых (config/importer.php → kp_parse_hosts)',
             ], 422);
         }
 
@@ -282,7 +287,7 @@ class AdminSeriesController extends Controller
             if (!$existing) {
                 return response()->json([
                     'ok' => false,
-                    'message' => 'Сериал не найден',
+                    'message' => 'Материал не найден',
                 ], 404);
             }
             $isNew = false;
@@ -291,7 +296,7 @@ class AdminSeriesController extends Controller
             if (!$existing) {
                 return response()->json([
                     'ok' => false,
-                    'message' => 'Исходный сериал с KP ID ' . $originalKpId . ' не найден',
+                    'message' => 'Исходный материал с KP ID ' . $originalKpId . ' не найден',
                 ], 404);
             }
             $isNew = false;
@@ -553,7 +558,7 @@ class AdminSeriesController extends Controller
             $isNew ? 'series.create' : 'series.update',
             'series',
             $fresh->id,
-            ($isNew ? 'Создан' : 'Обновлён') . ' сериал «' . $fresh->title . '»'
+            ($isNew ? 'Создан' : 'Обновлён') . ' материал «' . $fresh->title . '»'
                 . ($fresh->kp_id ? ' (kp:' . $fresh->kp_id . ')' : ''),
             [
                 'title' => $fresh->title,
@@ -1096,7 +1101,7 @@ class AdminSeriesController extends Controller
             'series.delete',
             'series',
             $seriesId,
-            'Удалён сериал «' . $title . '»' . ($kp ? ' (kp:' . $kp . ')' : ''),
+            'Удалён материал «' . $title . '»' . ($kp ? ' (kp:' . $kp . ')' : ''),
             ['title' => $title, 'kp_id' => $kp],
         );
 

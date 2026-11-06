@@ -481,6 +481,23 @@ html[data-admin-theme='dark'] .admin-global-search__preview--logo {
   overflow-y: auto;
 }
 
+.admin-system-update-log {
+  max-height: 180px;
+  margin: 8px 0 0;
+  padding: 8px;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 6px;
+  overflow-y: auto;
+}
+
+html[data-admin-theme='dark'] .admin-system-update-log {
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .admin-cron-popover {
   width: 380px;
   max-height: min(70vh, 560px);

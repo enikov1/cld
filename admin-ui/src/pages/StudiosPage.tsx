@@ -92,7 +92,7 @@ export default function StudiosPage() {
 
   useDocumentTitle(
     addModalOpen
-      ? 'Добавить сериалы в студию'
+      ? 'Добавить материалы в студию'
       : modalOpen
         ? editing
           ? `Редактируем студию — ${editing.title}`
@@ -219,7 +219,7 @@ export default function StudiosPage() {
       if (res.skipped > 0) {
         message.warning(`Добавлено: ${res.added}, пропущено: ${res.skipped}`)
       } else {
-        message.success('Сериалы добавлены в студию')
+        message.success('Материалы добавлены в студию')
       }
       setAddModalOpen(false)
       addForm.resetFields()
@@ -233,7 +233,7 @@ export default function StudiosPage() {
     if (!activeSlug) return
     try {
       await api(`/api/admin/studios/${activeSlug}/items/${encodeURIComponent(seriesKey)}`, { method: 'DELETE' })
-      message.success('Сериал удалён из студии')
+      message.success('Материал удалён из студии')
       await Promise.all([loadItems(activeSlug), loadStudios()])
     } catch (e) {
       message.error(String((e as Error).message))
@@ -350,7 +350,7 @@ export default function StudiosPage() {
           </Tooltip>
           <Popconfirm
             title="Удалить студию?"
-            description={`«${row.title}» и все сериалы в ней будут отвязаны.`}
+            description={`«${row.title}» и все материалы в ней будут отвязаны.`}
             onConfirm={() => void removeStudio(row)}
             okText="Удалить"
             cancelText="Отмена"
@@ -463,7 +463,7 @@ export default function StudiosPage() {
                     </Popconfirm>
                   ) : null}
                   <Button type="primary" onClick={() => setAddModalOpen(true)} disabled={!series.length}>
-                    Добавить сериалы
+                    Добавить материалы
                   </Button>
                 </Space>
               </div>
@@ -608,7 +608,7 @@ export default function StudiosPage() {
       </Modal>
 
       <Modal
-        title="Добавить сериалы в студию"
+        title="Добавить материалы в студию"
         open={addModalOpen}
         onCancel={() => setAddModalOpen(false)}
         onOk={() => addForm.submit()}
@@ -617,7 +617,7 @@ export default function StudiosPage() {
         destroyOnHidden
       >
         <Form form={addForm} layout="vertical" onFinish={addSeries}>
-          <Form.Item label="Сериалы" name="series_ids" rules={[{ required: true, message: 'Выберите сериалы' }]}>
+          <Form.Item label="Материалы" name="series_ids" rules={[{ required: true, message: 'Выберите материалы' }]}>
             <Select mode="multiple" options={seriesOptions} optionFilterProp="label" placeholder="Выберите один или несколько" />
           </Form.Item>
         </Form>

@@ -63,7 +63,7 @@ class TmdbPopularitySyncService
             ->when($onlyMissing, fn ($q) => $q->whereNull('tmdb_popularity'))
             ->count();
 
-        $result['log'][] = 'Сериалов с TMDB ID: ' . $total;
+        $result['log'][] = 'Материалов с TMDB ID: ' . $total;
 
         while (true) {
             $batch = $this->syncBatch(

@@ -101,10 +101,10 @@ class SearchController extends TplController
             : url('/search' . ($queryParams ? '?' . http_build_query($queryParams) : ''));
 
         $meta = [
-            'title' => $q !== '' ? ('Поиск: ' . $q) : 'Поиск по сериалам',
+            'title' => $q !== '' ? ('Поиск: ' . $q) : 'Поиск по сайту',
             'description' => $q !== ''
                 ? ('Результаты поиска по запросу «' . $q . '»')
-                : 'Поиск сериалов и фильмов по названию и описанию',
+                : 'Поиск фильмов, сериалов и других материалов по названию и описанию',
             'canonical' => $canonical,
             'prev' => $pagination['prev_url'] ? url($pagination['prev_url']) : '',
             'next' => $pagination['next_url'] ? url($pagination['next_url']) : '',

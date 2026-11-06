@@ -247,7 +247,7 @@ const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(funct
   }
 
   if (!kpId) {
-    return <p className="admin-empty-hint">Сначала укажите KP ID или TMDB ID и сохраните сериал.</p>
+    return <p className="admin-empty-hint">Сначала укажите KP ID или TMDB ID и сохраните материал.</p>
   }
 
   const canImportTmdb = Boolean(resolvedTmdbId) && tmdbConfigured
@@ -298,7 +298,7 @@ const SeriesScheduleEditor = forwardRef<SeriesScheduleEditorHandle, Props>(funct
 
       {resolvedTmdbId ? (
         <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
-          TMDB ID: {resolvedTmdbId}. Импорт подставляет даты оригинального эфира и статус сериала (идёт /
+          TMDB ID: {resolvedTmdbId}. Импорт подставляет даты оригинального эфира и статус материала (идёт /
           завершён; ручная «пауза» сохраняется). После загрузки проверьте и сохраните расписание.
         </Typography.Paragraph>
       ) : null}

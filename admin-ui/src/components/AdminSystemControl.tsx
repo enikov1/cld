@@ -1,5 +1,5 @@
-import { CloudServerOutlined, ReloadOutlined } from '@ant-design/icons'
-import { Button, Popover, Progress, Space, Spin, Typography, message } from 'antd'
+import { CloudDownloadOutlined, CloudServerOutlined, ReloadOutlined } from '@ant-design/icons'
+import { Alert, Button, Popover, Progress, Space, Spin, Typography, message } from 'antd'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { api } from '../api/client'
 
@@ -8,6 +8,26 @@ type LargestTable = {
   rows: number
   size_bytes: number
   size_human: string
+}
+
+type UpdateInfo = {
+  installed: boolean
+  current: string
+  branch: string | null
+  remote: string | null
+  behind: number
+  ahead: number
+  local_changes: boolean
+  remote_head: string | null
+  available: boolean
+  error: string | null
+}
+
+type UpdateRunResult = {
+  ok: boolean
+  log: string[]
+  current: string
+  previous?: string
 }
 
 type SystemInfo = {
@@ -85,18 +105,25 @@ function usageStatus(percent?: number | null): 'normal' | 'active' | 'success' |
   return 'success'
 }
 
-function buttonLabel(info: SystemInfo | null): string {
-  if (!info) return 'Система'
-  const diskFree = info.disk.free_human
-  const ram = info.memory.used_percent != null ? `${info.memory.used_percent}% RAM` : null
-  const parts = [diskFree !== '—' ? `Диск ${diskFree}` : null, ram].filter(Boolean)
-  return parts.length ? `Система · ${parts.join(' · ')}` : 'Система'
+function buttonLabel(info: SystemInfo | null, update?: UpdateInfo | null): string {
+  const base: string = (() => {
+    if (!info) return 'Система'
+    const diskFree = info.disk.free_human
+    const ram = info.memory.used_percent != null ? `${info.memory.used_percent}% RAM` : null
+    const parts = [diskFree !== '—' ? `Диск ${diskFree}` : null, ram].filter(Boolean)
+    return parts.length ? `Система · ${parts.join(' · ')}` : 'Система'
+  })()
+  return update?.available ? `${base} · Обновление!` : base
 }
 
 export default function AdminSystemControl() {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [info, setInfo] = useState<SystemInfo | null>(null)
+  const [update, setUpdate] = useState<UpdateInfo | null>(null)
+  const [checking, setChecking] = useState(false)
+  const [running, setRunning] = useState(false)
+  const [updateLog, setUpdateLog] = useState<string[]>([])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -110,6 +137,37 @@ export default function AdminSystemControl() {
     }
   }, [])
 
+  const checkUpdate = useCallback(async () => {
+    setChecking(true)
+    try {
+      const data = await api<{ ok: boolean; update: UpdateInfo }>('/api/admin/system/update/check')
+      setUpdate(data.update)
+    } catch (e) {
+      message.error(String((e as Error).message))
+    } finally {
+      setChecking(false)
+    }
+  }, [])
+
+  const runUpdate = useCallback(async () => {
+    setRunning(true)
+    setUpdateLog([])
+    try {
+      const data = await api<UpdateRunResult>('/api/admin/system/update/run', { method: 'POST' })
+      setUpdateLog(data.log ?? [])
+      if (data.ok) {
+        message.success(`Движок обновлён до версии ${data.current}. Страница будет перезагружена…`)
+        setTimeout(() => window.location.reload(), 1800)
+      } else {
+        message.error('Обновление не выполнено — подробности в логе.')
+      }
+    } catch (e) {
+      message.error(String((e as Error).message))
+    } finally {
+      setRunning(false)
+    }
+  }, [])
+
   useEffect(() => {
     void load()
   }, [load])
@@ -117,12 +175,54 @@ export default function AdminSystemControl() {
   useEffect(() => {
     if (open) {
       void load()
+      void checkUpdate()
     }
-  }, [open, load])
+  }, [open, load, checkUpdate])
 
   const content = (
     <div className="admin-system-popover">
       <Spin spinning={loading}>
+        {update ? (
+          <div style={{ marginBottom: 12 }}>
+            <SectionTitle>Версия движка</SectionTitle>
+            <StatRow label="Omro" value={<strong>v{update.current}</strong>} />
+            {update.branch ? <StatRow label="Ветка" value={`${update.branch} · HEAD ${update.remote_head ?? '—'}`} /> : null}
+            {update.available ? (
+              <Alert
+                type="warning"
+                showIcon
+                style={{ marginTop: 8 }}
+                message={`Доступно обновление: позади origin на ${update.behind} комм.`}
+                description={
+                  <Space direction="vertical" size={8} style={{ width: '100%', marginTop: 4 }}>
+                    <Button
+                      type="primary"
+                      size="small"
+                      icon={<CloudDownloadOutlined />}
+                      loading={running}
+                      onClick={() => void runUpdate()}
+                    >
+                      Обновить движок
+                    </Button>
+                    {update.local_changes ? (
+                      <Typography.Text type="warning" style={{ fontSize: 12 }}>
+                        Есть локальные изменения в рабочей копии.
+                      </Typography.Text>
+                    ) : null}
+                  </Space>
+                }
+              />
+            ) : update.error ? (
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>{update.error}</Typography.Text>
+            ) : (
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>Установлена последняя версия.</Typography.Text>
+            )}
+            {updateLog.length > 0 ? (
+              <pre className="admin-system-update-log">{updateLog.join('\n')}</pre>
+            ) : null}
+          </div>
+        ) : null}
+
         {info ? (
           <Space direction="vertical" size={12} style={{ width: '100%' }}>
             <div>
@@ -215,6 +315,9 @@ export default function AdminSystemControl() {
         <Button size="small" icon={<ReloadOutlined />} onClick={() => void load()} disabled={loading}>
           Обновить
         </Button>
+        <Button size="small" onClick={() => void checkUpdate()} loading={checking} disabled={running}>
+          Проверить обновления
+        </Button>
         {info?.collected_at ? (
           <Typography.Text type="secondary" style={{ fontSize: 11 }}>
             {new Date(info.collected_at).toLocaleTimeString('ru-RU')}
@@ -234,7 +337,7 @@ export default function AdminSystemControl() {
       placement="bottomRight"
     >
       <Button icon={<CloudServerOutlined />}>
-        {buttonLabel(info)}
+        {buttonLabel(info, update)}
       </Button>
     </Popover>
   )

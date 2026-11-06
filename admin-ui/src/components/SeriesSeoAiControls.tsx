@@ -37,18 +37,18 @@ export default function SeriesSeoAiControls({ form, seriesKey }: SeriesSeoAiCont
 
   useDocumentTitle(
     importModalOpen
-      ? 'Импорт SEO-статьи сериала из ИИ'
+      ? 'Импорт SEO-статьи материала из ИИ'
       : templateModalOpen
-        ? 'Шаблон промпта для SEO-статьи сериала'
+        ? 'Шаблон промпта для SEO-статьи материала'
         : promptModalOpen
-          ? 'Промпт для ИИ — SEO-статья сериала'
+          ? 'Промпт для ИИ — SEO-статья материала'
           : null,
   )
   useBusyFavicon(promptLoading || templateLoading || templateSaving)
 
   async function openPromptModal() {
     if (!seriesKey) {
-      message.warning('Сначала сохраните сериал')
+      message.warning('Сначала сохраните материал')
       return
     }
 
@@ -179,7 +179,7 @@ export default function SeriesSeoAiControls({ form, seriesKey }: SeriesSeoAiCont
       </Space>
 
       <Modal
-        title="Промпт для ИИ — SEO-статья сериала"
+        title="Промпт для ИИ — SEO-статья материала"
         open={promptModalOpen}
         onCancel={() => setPromptModalOpen(false)}
         footer={[
@@ -213,7 +213,7 @@ export default function SeriesSeoAiControls({ form, seriesKey }: SeriesSeoAiCont
           />
         ) : null}
         {promptLoading ? (
-          <Typography.Text type="secondary">Сбор данных о сериале…</Typography.Text>
+          <Typography.Text type="secondary">Сбор данных о материале…</Typography.Text>
         ) : (
           <Input.TextArea
             value={promptText}
@@ -225,7 +225,7 @@ export default function SeriesSeoAiControls({ form, seriesKey }: SeriesSeoAiCont
       </Modal>
 
       <Modal
-        title="Шаблон промпта для SEO-статьи сериала"
+        title="Шаблон промпта для SEO-статьи материала"
         open={templateModalOpen}
         onCancel={() => setTemplateModalOpen(false)}
         onOk={() => void saveTemplate()}
@@ -263,7 +263,7 @@ export default function SeriesSeoAiControls({ form, seriesKey }: SeriesSeoAiCont
       </Modal>
 
       <Modal
-        title="Импорт SEO-статьи сериала из ИИ"
+        title="Импорт SEO-статьи материала из ИИ"
         open={importModalOpen}
         onCancel={() => setImportModalOpen(false)}
         width={900}

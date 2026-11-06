@@ -35,7 +35,7 @@ class TplSampleValues
             $source = 'Каталог / таксономия (пример)';
         } elseif (in_array($path, ['partials/series_cards.tpl', 'partials/catalog_series_grid.tpl', 'partials/series_card_overlays.tpl'], true)) {
             $values = array_merge($values, self::seriesCardItemSampleValues());
-            $source = 'Пример карточки сериала в сетке';
+            $source = 'Пример карточки материала в сетке';
         } elseif ($path === 'search.tpl') {
             $values = array_merge($values, self::searchValues());
             $source = 'Страница поиска (пример без запроса)';
@@ -64,7 +64,7 @@ class TplSampleValues
             $source = 'Страница ошибки';
         } elseif ($path === 'layout.tpl') {
             $values = array_merge($values, self::layoutValues());
-            $source = 'Layout (meta из примера главной/сериала)';
+            $source = 'Layout (meta из примера главной/материала)';
         }
 
         foreach ($values as $key => $value) {
@@ -83,9 +83,9 @@ class TplSampleValues
     private static function globalValues(): array
     {
         return [
-            'site.name' => SiteSetting::get('site_name', config('app.name', 'LordSerial')),
-            'site.tagline' => SiteSetting::get('site_tagline', 'Сериалы онлайн'),
-            'site.footer_text' => SiteSetting::get('footer_text', 'Сериалы онлайн в HD качестве'),
+            'site.name' => SiteSetting::get('site_name', config('app.name', 'Omro')),
+            'site.tagline' => SiteSetting::get('site_tagline', 'Смотреть онлайн'),
+            'site.footer_text' => SiteSetting::get('footer_text', 'Смотреть онлайн в HD качестве'),
             'site.year' => (string)date('Y'),
             'site.logo' => \App\Support\SiteBranding::logoUrl() ?? '',
             'site.background' => \App\Support\SiteBranding::backgroundUrl() ?? '',
@@ -124,11 +124,11 @@ class TplSampleValues
     {
         return [
             'is_home_first' => '1',
-            'page.heading' => SiteSetting::get('home_heading', 'Сериалы онлайн'),
+            'page.heading' => SiteSetting::get('home_heading', 'Смотреть онлайн'),
             'page.lead' => '',
             'home_seo_html' => mb_substr(strip_tags(SiteSetting::get('home_seo_html', '') ?: ''), 0, 120),
-            'seo.title' => 'Сериалы онлайн, смотреть в хорошем HD качестве бесплатно',
-            'seo.description' => 'Lordserials — смотреть новые серии любимых сериалов в хорошем переводе бесплатно.',
+            'seo.title' => 'Смотреть онлайн в хорошем HD качестве бесплатно',
+            'seo.description' => 'Онлайн-каталог фильмов, материалов, мультфильмов и аниме: смотреть в хорошем качестве бесплатно.',
             'seo.canonical' => url('/'),
             'seo.prev' => '',
             'seo.next' => '',
@@ -148,7 +148,7 @@ class TplSampleValues
         return [
             'is_calendar_page' => '1',
             'has_schedule_calendar' => '1',
-            'page.heading' => SiteSetting::get('calendar_heading', 'График выхода сериалов'),
+            'page.heading' => SiteSetting::get('calendar_heading', 'График выхода материалов'),
             'page.lead' => SiteSetting::get('calendar_lead', 'Следите за датами выхода новых серий.'),
             'schedule_calendar.month_label' => 'Август 2026',
             'schedule_calendar_block' => '',
@@ -156,8 +156,8 @@ class TplSampleValues
             'schedule_timeline_block' => '',
             'schedule_episode_count' => '12',
             'calendar_seo_html' => '',
-            'seo.title' => SiteSetting::get('calendar_meta_title', 'Календарь выхода сериалов — график новых серий'),
-            'seo.description' => SiteSetting::get('calendar_meta_description', 'График выхода новых серий сериалов.'),
+            'seo.title' => SiteSetting::get('calendar_meta_title', 'Календарь выхода материалов — график новых серий'),
+            'seo.description' => SiteSetting::get('calendar_meta_description', 'График выхода новых серий материалов.'),
             'seo.canonical' => url('/kalendar/'),
             'seo.robots' => '',
         ];
@@ -171,7 +171,7 @@ class TplSampleValues
         return [
             'is_home_first' => '',
             'is_taxonomy_page' => '',
-            'page.heading' => SiteSetting::get('catalog_heading', SiteSetting::get('home_heading', 'Сериалы онлайн')),
+            'page.heading' => SiteSetting::get('catalog_heading', SiteSetting::get('home_heading', 'Материалы онлайн')),
             'page.lead' => '',
             'catalog_total' => '0',
             'catalog_filters_block' => '',
@@ -179,7 +179,7 @@ class TplSampleValues
             'browse_api_path' => '/api/catalog/browse',
             'pagination_block' => '',
             'category_seo_html' => '',
-            'seo.title' => SiteSetting::get('catalog_meta_title', 'Каталог сериалов'),
+            'seo.title' => SiteSetting::get('catalog_meta_title', 'Каталог материалов'),
             'seo.description' => SiteSetting::get('catalog_meta_description', ''),
             'seo.canonical' => url('/catalog/'),
             'seo.prev' => '',
@@ -201,8 +201,8 @@ class TplSampleValues
                 ['query' => 'игра престолов', 'url' => '/search?q=' . rawurlencode('игра престолов'), 'hits' => 42],
                 ['query' => 'вайнона райдер', 'url' => '/search?q=' . rawurlencode('вайнона райдер'), 'hits' => 18],
             ],
-            'seo.title' => 'Поиск по сериалам',
-            'seo.description' => 'Поиск сериалов и фильмов по названию и описанию',
+            'seo.title' => 'Поиск по материалам',
+            'seo.description' => 'Поиск материалов и фильмов по названию и описанию',
             'seo.canonical' => url('/search'),
             'seo.robots' => 'noindex,follow',
             'item.title' => $series?->title ?? '',
@@ -228,7 +228,7 @@ class TplSampleValues
                 'values' => [
                     'seo.canonical' => url('/'),
                 ],
-                'source' => 'Нет опубликованных сериалов в базе',
+                'source' => 'Нет опубликованных материалов в базе',
             ];
         }
 
@@ -315,12 +315,12 @@ class TplSampleValues
         $collection = Collection::query()->where('is_active', true)->orderByDesc('id')->first();
         if (!$collection) {
             return [
-                'page.heading' => 'Подборки сериалов',
+                'page.heading' => 'Подборки материалов',
             ];
         }
 
         $values = [
-            'page.heading' => 'Подборки сериалов',
+            'page.heading' => 'Подборки материалов',
             'collection.title' => $collection->title,
             'collection.slug' => $collection->slug,
             'collection.source_updated_at' => $collection->source_updated_at?->format('d.m.Y H:i') ?? '',
@@ -381,8 +381,8 @@ class TplSampleValues
             'item.logo_url' => $studio->logo_url ?? '',
             'item.items_count' => (string)$itemsCount,
             'item.items_count_word' => PluralRu::series($itemsCount),
-            'seo.title' => 'Студии — каталог сериалов по студиям',
-            'seo.description' => 'Сериалы по студиям — смотреть онлайн бесплатно.',
+            'seo.title' => 'Студии — каталог материалов по студиям',
+            'seo.description' => 'Материалы по студиям — смотреть онлайн бесплатно.',
             'seo.canonical' => url('/studios/'),
         ];
 

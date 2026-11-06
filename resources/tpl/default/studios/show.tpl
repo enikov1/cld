@@ -24,7 +24,7 @@
 
     <div class="sect" data-catalog-results>
         <div class="sect-header fx-row fx-middle fx-start">
-            <span class="sect-title">Сериалы студии<span class="fa fa-chevron-right"></span></span>
+            <span class="sect-title">Материалы студии<span class="fa fa-chevron-right"></span></span>
             [studio_has_items]
                 <span class="catalog-results-count" aria-live="polite">
                     <span class="catalog-results-count__num">{studio_total}</span>
@@ -57,7 +57,7 @@
                             <span class="fa fa-play"></span>
                         </div>
                     </a>
-                    <button type="button" class="th-info-btn dontusebuttonclass" data-series-info aria-label="Информация о сериале">
+                    <button type="button" class="th-info-btn dontusebuttonclass" data-series-info aria-label="Информация о материале">
                         <span class="th-info-btn__icon" aria-hidden="true">i</span>
                     </button>
                 </div>

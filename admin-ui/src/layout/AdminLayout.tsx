@@ -116,7 +116,7 @@ function buildMenuItems(stats: AdminStats | null, allowedPages: Set<string>): Me
     {
       key: 'series',
       icon: <VideoCameraOutlined />,
-      label: <MenuLabel text="Сериалы" count={stats?.series_total ?? null} />,
+      label: <MenuLabel text="Контент" count={stats?.series_total ?? null} />,
     },
     { key: 'media', icon: <PictureOutlined />, label: 'Медиатека' },
     { key: 'collections', icon: <FolderOpenOutlined />, label: 'Подборки' },
@@ -304,9 +304,9 @@ export default function AdminLayout({ isDark, onToggleTheme }: AdminLayoutProps)
         theme={isDark ? 'dark' : 'light'}
       >
         <div className="admin-brand">
-          <div className="admin-brand__logo">LS</div>
+          <div className="admin-brand__logo">O</div>
           <div className="admin-brand__text">
-            <strong>LordSerial</strong>
+            <strong>Omro</strong>
             <span>Панель управления</span>
           </div>
         </div>

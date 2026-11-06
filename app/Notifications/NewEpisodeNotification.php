@@ -38,7 +38,7 @@ class NewEpisodeNotification extends Notification
         $mail = (new MailMessage())
             ->subject('Новая серия — ' . $series->title)
             ->greeting('Здравствуйте!')
-            ->line('Вышла новая серия сериала «' . $series->title . '».');
+            ->line('Вышла новая серия материала «' . $series->title . '».');
 
         if ($episodeLabel !== '') {
             $mail->line($episodeLabel);

@@ -22,7 +22,7 @@ export default function SeriesSearchSelect({
   value,
   onChange,
   disabled,
-  placeholder = 'Начните вводить название сериала…',
+  placeholder = 'Начните вводить название материала…',
   initialOption = null,
 }: SeriesSearchSelectProps) {
   const [options, setOptions] = useState<SeriesSearchOption[]>(initialOption ? [initialOption] : [])

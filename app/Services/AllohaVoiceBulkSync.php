@@ -51,7 +51,7 @@ class AllohaVoiceBulkSync
                 'failed' => 0,
                 'catalog' => 0,
                 'current' => '',
-                'message' => 'Синхронизация озвучек по сериалам…',
+                'message' => 'Синхронизация озвучек по материалам…',
                 'started_at' => time(),
                 'finished_at' => null,
             ]);
@@ -90,7 +90,7 @@ class AllohaVoiceBulkSync
             $progress['current'] = '';
             $progress['finished_at'] = time();
             $progress['message'] = sprintf(
-                'Готово: озвучек у сериалов %d, сериалов с озвучками %d, пропущено %d, ошибок %d',
+                'Готово: озвучек у материалов %d, материалов с озвучками %d, пропущено %d, ошибок %d',
                 $progress['catalog'],
                 $progress['synced'],
                 $progress['skipped'],

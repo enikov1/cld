@@ -357,7 +357,7 @@ class ProfileController extends TplController
                 ->whereHas('series', fn ($q) => $q->where('is_active', true))
                 ->count();
 
-            return $this->jsonOk($request, 'Сериал убран из списка.', [
+            return $this->jsonOk($request, 'Материал убран из списка.', [
                 'list_id' => $list->id,
                 'series_id' => (int)$data['series_id'],
                 'items_count' => $listItemsCount,
@@ -367,6 +367,6 @@ class ProfileController extends TplController
             ]);
         }
 
-        return redirect()->route('profile.show')->with('success', 'Сериал убран из списка.');
+        return redirect()->route('profile.show')->with('success', 'Материал убран из списка.');
     }
 }

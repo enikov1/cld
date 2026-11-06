@@ -35,10 +35,10 @@ export default function LoginPage() {
     <div className="admin-login">
       <Card className="admin-login__card">
         <div className="admin-login__brand">
-          <div className="admin-login__logo">LS</div>
+          <div className="admin-login__logo">O</div>
           <div>
             <Typography.Title level={3} style={{ margin: 0 }}>
-              LordSerial Admin
+              Omro Admin
             </Typography.Title>
           </div>
         </div>

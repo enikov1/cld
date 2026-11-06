@@ -9,7 +9,7 @@ use App\Models\Series;
 class EpisodeNotifier
 {
     /**
-     * Уведомление только при росте прогресса сериала (сезон / номер последней серии).
+     * Уведомление только при росте прогресса материала (сезон / номер последней серии).
      * Не срабатывает при добавлении озвучки к уже вышедшей серии.
      */
     public static function fromSeriesProgress(Series $series, ?int $oldSeason, ?int $oldEpisode): void

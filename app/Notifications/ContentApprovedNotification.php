@@ -34,12 +34,12 @@ class ContentApprovedNotification extends Notification
         }
 
         $mail = (new MailMessage())
-            ->subject($title . ' — ' . ($series->title ?? 'сериал'))
+            ->subject($title . ' — ' . ($series->title ?? 'материал'))
             ->greeting('Здравствуйте!')
             ->line($title . '.');
 
         if ($series?->title) {
-            $mail->line('Сериал: «' . $series->title . '».');
+            $mail->line('Материал: «' . $series->title . '».');
         }
 
         if ($preview !== '') {

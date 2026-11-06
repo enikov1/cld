@@ -676,7 +676,7 @@ const SeriesPlayersEditor = forwardRef<SeriesPlayersEditorHandle, Props>(functio
   ]
 
   if (!kpId) {
-    return <p className="admin-empty-hint">Сначала укажите KP ID или TMDB ID и сохраните сериал, затем добавьте плееры.</p>
+    return <p className="admin-empty-hint">Сначала укажите KP ID или TMDB ID и сохраните материал, затем добавьте плееры.</p>
   }
 
   return (

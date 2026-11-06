@@ -76,7 +76,7 @@
                             <span class="fa fa-play"></span>
                         </div>
                     </a>
-                    <button type="button" class="th-info-btn dontusebuttonclass" data-series-info aria-label="Информация о сериале">
+                    <button type="button" class="th-info-btn dontusebuttonclass" data-series-info aria-label="Информация о материале">
                         <span class="th-info-btn__icon" aria-hidden="true">i</span>
                     </button>
                 </div>

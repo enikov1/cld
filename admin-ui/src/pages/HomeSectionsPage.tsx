@@ -326,7 +326,7 @@ export default function HomeSectionsPage() {
       render: (_, row) => (
         <Space direction="vertical" size={0}>
           <span className="admin-empty-hint">{filterSummary(row.filters, contentTypeOptions)}</span>
-          <span>{row.series_count ?? 0} сериалов</span>
+          <span>{row.series_count ?? 0} материалов</span>
         </Space>
       ),
     },
@@ -456,7 +456,7 @@ export default function HomeSectionsPage() {
             items={[
               {
                 key: 'filters',
-                label: 'Критерии отбора сериалов',
+                label: 'Критерии отбора материалов',
                 children: (
                   <>
                     <Row gutter={16}>
@@ -466,7 +466,7 @@ export default function HomeSectionsPage() {
                         </Form.Item>
                       </Col>
                       <Col xs={24} md={8}>
-                        <Form.Item label="Статус сериала" name={['filters', 'broadcast_status']}>
+                        <Form.Item label="Статус материала" name={['filters', 'broadcast_status']}>
                           <Select allowClear placeholder="Все" options={BROADCAST_STATUSES.map((x) => ({ value: x.value, label: x.label }))} />
                         </Form.Item>
                       </Col>

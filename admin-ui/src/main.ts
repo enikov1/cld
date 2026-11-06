@@ -5,7 +5,7 @@ import './admin.css'
 import App from './App'
 import { resolveAdminBase } from './config/adminBase'
 
-const savedTheme = localStorage.getItem('lordserial_admin_theme')
+const savedTheme = localStorage.getItem('omro_admin_theme') ?? localStorage.getItem('lordserial_admin_theme')
 document.documentElement.dataset.adminTheme = savedTheme === 'dark' ? 'dark' : 'light'
 
 const rootEl = document.getElementById('app')

@@ -166,7 +166,7 @@ export default function ReviewsPage() {
     try {
       const values = await createForm.validateFields()
       if (!values.series_id) {
-        message.error('Выберите сериал')
+        message.error('Выберите материал')
         return
       }
       setSaving(true)
@@ -219,7 +219,7 @@ export default function ReviewsPage() {
   const columns: ColumnsType<ReviewItem> = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
     {
-      title: 'Сериал',
+      title: 'Материал',
       key: 'series',
       width: 180,
       ellipsis: true,
@@ -340,7 +340,7 @@ export default function ReviewsPage() {
         destroyOnHidden
       >
         <Form form={createForm} layout="vertical">
-          <Form.Item name="series_id" label="Сериал" rules={[{ required: true, message: 'Выберите сериал' }]}>
+          <Form.Item name="series_id" label="Материал" rules={[{ required: true, message: 'Выберите материал' }]}>
             <SeriesSearchSelect />
           </Form.Item>
           <Form.Item name="rating" label="Оценка (1–10)" rules={[{ required: true, message: 'Укажите оценку' }]}>
@@ -357,7 +357,7 @@ export default function ReviewsPage() {
               { min: 20, message: 'Слишком короткий текст' },
             ]}
           >
-            <Input.TextArea rows={8} placeholder="Развёрнутое мнение о сериале…" />
+            <Input.TextArea rows={8} placeholder="Развёрнутое мнение о материале…" />
           </Form.Item>
         </Form>
       </Modal>

@@ -39,7 +39,7 @@
     [series_list]
         <div class="sect">
             <div class="sect-header fx-row fx-middle fx-start">
-                <span class="sect-title">Сериалы<span class="fa fa-chevron-right"></span></span>
+                <span class="sect-title">Результаты поиска<span class="fa fa-chevron-right"></span></span>
             </div>
             <div class="sect-cont sect-items clearfix">
                 [loop series_list]
@@ -80,7 +80,7 @@
                                 <span class="fa fa-play"></span>
                             </div>
                         </a>
-                        <button type="button" class="th-info-btn dontusebuttonclass" data-series-info aria-label="Информация о сериале">
+                        <button type="button" class="th-info-btn dontusebuttonclass" data-series-info aria-label="Информация о материале">
                             <span class="th-info-btn__icon" aria-hidden="true">i</span>
                         </button>
                     </div>

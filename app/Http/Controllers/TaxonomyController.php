@@ -141,7 +141,7 @@ class TaxonomyController extends TplController
 
         $metaDescription = trim((string)($item->meta_description ?? ''));
         if ($metaDescription === '') {
-            $metaDescription = 'Сериалы: ' . TaxonomyRegistry::displayName($item);
+            $metaDescription = 'Смотреть онлайн: ' . TaxonomyRegistry::displayName($item);
         }
 
         $meta = [

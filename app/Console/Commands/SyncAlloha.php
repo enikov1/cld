@@ -11,7 +11,7 @@ use Illuminate\Console\Command;
 class SyncAlloha extends Command
 {
     protected $signature = 'alloha:sync
-        {--kp-id= : Синхронизировать один сериал по KP ID}
+        {--kp-id= : Синхронизировать один материал по KP ID}
         {--ratings-only : Обновить только рейтинги}
         {--players-only : Обновить только плееры}
         {--sleep=0 : Пауза (сек) между запросами}
@@ -48,7 +48,7 @@ class SyncAlloha extends Command
 
         $seriesList = $query->orderBy('id')->get();
         if ($seriesList->isEmpty()) {
-            $this->warn('Нет сериалов с KP ID для синхронизации.');
+            $this->warn('Нет материалов с KP ID для синхронизации.');
 
             return self::SUCCESS;
         }

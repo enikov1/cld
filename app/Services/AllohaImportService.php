@@ -88,7 +88,7 @@ class AllohaImportService
 
         $persistKpId = trim((string) ($mapped['kp_id'] ?? $existing?->kp_id ?? $lookupKpId ?? ''));
         if ($persistKpId === '') {
-            return ['ok' => false, 'error' => 'Не удалось определить KP ID для сохранения сериала'];
+            return ['ok' => false, 'error' => 'Не удалось определить KP ID для сохранения материала'];
         }
 
         $isNew = !$existing;

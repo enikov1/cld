@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 
-const APP_SUFFIX = 'LordSerial Admin'
+const APP_SUFFIX = 'Omro Admin'
 
 const BUSY_FAVICON_HREF =
   'data:image/svg+xml,' +

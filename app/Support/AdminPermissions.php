@@ -19,7 +19,7 @@ class AdminPermissions
     public static function catalog(): array
     {
         return [
-            ['key' => 'content.series', 'label' => 'Сериалы', 'group' => 'Контент', 'pages' => ['series']],
+            ['key' => 'content.series', 'label' => 'Контент', 'group' => 'Контент', 'pages' => ['series']],
             ['key' => 'content.collections', 'label' => 'Подборки', 'group' => 'Контент', 'pages' => ['collections']],
             ['key' => 'content.studios', 'label' => 'Студии', 'group' => 'Контент', 'pages' => ['studios']],
             ['key' => 'content.taxonomy', 'label' => 'Справочники', 'group' => 'Контент', 'pages' => ['taxonomy']],

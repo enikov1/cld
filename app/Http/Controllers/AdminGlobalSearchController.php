@@ -21,8 +21,8 @@ class AdminGlobalSearchController extends Controller
     /** @var list<array{key: string, path: string, title: string, subtitle: string, keywords: string}> */
     private const PAGES = [
         ['key' => 'dashboard', 'path' => '/', 'title' => 'Обзор', 'subtitle' => 'Статистика и быстрые действия', 'keywords' => 'dashboard главная панель'],
-        ['key' => 'series', 'path' => '/series', 'title' => 'Сериалы', 'subtitle' => 'Карточки контента и плеер', 'keywords' => 'фильмы контент каталог'],
-        ['key' => 'collections', 'path' => '/collections', 'title' => 'Подборки', 'subtitle' => 'Тематические списки сериалов', 'keywords' => 'коллекции'],
+        ['key' => 'series', 'path' => '/series', 'title' => 'Контент', 'subtitle' => 'Карточки материалов и плеер', 'keywords' => 'фильмы сериалы контент каталог'],
+        ['key' => 'collections', 'path' => '/collections', 'title' => 'Подборки', 'subtitle' => 'Тематические списки материалов', 'keywords' => 'коллекции'],
         ['key' => 'studios', 'path' => '/studios', 'title' => 'Студии', 'subtitle' => 'Студии и их каталоги', 'keywords' => 'каналы'],
         ['key' => 'taxonomy', 'path' => '/taxonomy', 'title' => 'Справочники', 'subtitle' => 'Жанры, страны, актёры, годы, озвучки', 'keywords' => 'жанры страны актёры годы озвучки taxonomy'],
         ['key' => 'nav-menu', 'path' => '/nav-menu', 'title' => 'Меню', 'subtitle' => 'Навигация и mega-menu', 'keywords' => 'навигация'],
@@ -31,10 +31,10 @@ class AdminGlobalSearchController extends Controller
         ['key' => 'templates', 'path' => '/templates', 'title' => 'Шаблоны', 'subtitle' => 'Редактор .tpl', 'keywords' => 'tpl тема код'],
         ['key' => 'tpl-docs', 'path' => '/tpl-docs', 'title' => 'TPL-DOC', 'subtitle' => 'Справка по шаблонам для верстальщика', 'keywords' => 'документация tpl теги layout верстка'],
         ['key' => 'comments', 'path' => '/comments', 'title' => 'Комментарии', 'subtitle' => 'Модерация отзывов', 'keywords' => 'модерация'],
-        ['key' => 'player-reports', 'path' => '/player-reports', 'title' => 'Жалобы на плеер', 'subtitle' => 'Проблемы со страницы сериала', 'keywords' => 'багрепорты'],
+        ['key' => 'player-reports', 'path' => '/player-reports', 'title' => 'Жалобы на плеер', 'subtitle' => 'Проблемы со страницы материала', 'keywords' => 'багрепорты'],
         ['key' => 'users', 'path' => '/users', 'title' => 'Пользователи', 'subtitle' => 'Аккаунты и роли', 'keywords' => 'юзеры аккаунты'],
         ['key' => 'search-stats', 'path' => '/search-stats', 'title' => 'Поиск (статистика)', 'subtitle' => 'Поисковые запросы сайта', 'keywords' => 'статистика запросов'],
-        ['key' => 'views-stats', 'path' => '/views-stats', 'title' => 'Просмотры', 'subtitle' => 'Динамика и топ сериалов', 'keywords' => 'views статистика'],
+        ['key' => 'views-stats', 'path' => '/views-stats', 'title' => 'Просмотры', 'subtitle' => 'Dинамика и топ материалов', 'keywords' => 'views статистика'],
         ['key' => 'redirects', 'path' => '/redirects', 'title' => 'Редиректы', 'subtitle' => 'Перенаправления URL', 'keywords' => 'redirect 301'],
         ['key' => 'settings', 'path' => '/settings', 'title' => 'Настройки', 'subtitle' => 'Брендинг, SEO, каталог, интеграции', 'keywords' => 'конфиг опции'],
         ['key' => 'cron-runs', 'path' => '/cron-runs', 'title' => 'История задач', 'subtitle' => 'Лог синхронизаций', 'keywords' => 'cron задачи'],
@@ -139,7 +139,7 @@ class AdminGlobalSearchController extends Controller
         $groups[] = $this->group('pages', 'Разделы', $this->searchPages($q, $limit, $allowedPages));
 
         if ($can('content.series')) {
-            $groups[] = $this->group('series', 'Сериалы', $this->searchSeries($q, $limit));
+            $groups[] = $this->group('series', 'Контент', $this->searchSeries($q, $limit));
         }
         if ($can('content.collections')) {
             $groups[] = $this->group('collections', 'Подборки', $this->searchCollections($q, $limit));

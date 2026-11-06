@@ -31,7 +31,7 @@ class CollectionsController extends TplController
 
         $vars = [
             'page' => [
-                'heading' => 'Подборки сериалов',
+                'heading' => 'Подборки материалов',
             ],
             'collections_list' => $collections_list,
             'collections_total' => count($collections_list),
@@ -41,8 +41,8 @@ class CollectionsController extends TplController
         $this->applySpeedbar(Speedbar::forCollectionsIndex(), $vars);
 
         $meta = [
-            'title' => 'Подборки сериалов по жанрам и тематикам смотреть онлайн бесплатно',
-            'description' => 'Подборки сериалов по тематикам — смотреть онлайн бесплатно.',
+            'title' => 'Подборки материалов по жанрам и тематикам смотреть онлайн бесплатно',
+            'description' => 'Подборки материалов по тематикам — смотреть онлайн бесплатно.',
         ];
 
         return $this->renderTplPage('collections/index.tpl', $vars, $meta);
@@ -99,7 +99,7 @@ class CollectionsController extends TplController
 
         $metaTitle = trim((string)($collection->meta_title ?? ''));
         if ($metaTitle === '') {
-            $metaTitle = $collection->title . ' — подборка сериалов';
+            $metaTitle = $collection->title . ' — подборка материалов';
         }
 
         $metaDescription = trim((string)($collection->meta_description ?? ''));
@@ -107,7 +107,7 @@ class CollectionsController extends TplController
             $metaDescription = trim((string)($collection->description ?? ''));
         }
         if ($metaDescription === '') {
-            $metaDescription = 'Сериалы из подборки «' . $collection->title . '» — смотреть онлайн бесплатно';
+            $metaDescription = 'Материалы из подборки «' . $collection->title . '» — смотреть онлайн бесплатно';
         }
 
         $meta = [

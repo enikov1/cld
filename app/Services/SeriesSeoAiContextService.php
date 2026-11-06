@@ -190,7 +190,7 @@ class SeriesSeoAiContextService
     {
         $details = $this->tmdbClient->getTvDetails($tmdbId, ['credits', 'keywords']);
         if ($details === [] || !isset($details['id'])) {
-            $warnings[] = 'Не удалось получить данные сериала из TMDB.';
+            $warnings[] = 'Не удалось получить данные материала из TMDB.';
 
             return '';
         }

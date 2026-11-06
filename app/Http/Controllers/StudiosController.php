@@ -78,8 +78,8 @@ class StudiosController extends TplController
         $this->applySpeedbar(Speedbar::forStudiosIndex(), $vars);
 
         $meta = [
-            'title' => 'Студии — каталог сериалов по студиям',
-            'description' => 'Сериалы по студиям — смотреть онлайн бесплатно.',
+            'title' => 'Студии — каталог материалов по студиям',
+            'description' => 'Материалы по студиям — смотреть онлайн бесплатно.',
         ];
 
         return $this->renderTplPage('studios/index.tpl', $vars, $meta);
@@ -144,7 +144,7 @@ class StudiosController extends TplController
             $metaDescription = trim((string)($studio->description ?? ''));
         }
         if ($metaDescription === '') {
-            $metaDescription = 'Сериалы студии «' . $studio->title . '» — смотреть онлайн бесплатно';
+            $metaDescription = 'Материалы студии «' . $studio->title . '» — смотреть онлайн бесплатно';
         }
 
         $meta = [

@@ -379,14 +379,14 @@ export default function AdminAccessPage() {
       >
         <Form form={form} layout="vertical" onFinish={onSubmit}>
           <Form.Item name="name" label="Название" rules={[{ required: true, message: 'Укажите имя' }]}>
-            <Input placeholder="Например: Редактор сериалов" maxLength={120} />
+            <Input placeholder="Например: Редактор материалов" maxLength={120} />
           </Form.Item>
 
           <Form.Item name="preset" label="Пресет">
             <Select
               options={[
                 { value: 'full', label: 'Полный доступ — всё' },
-                { value: 'content', label: 'Контент — сериалы, подборки, шаблоны, sync…' },
+                { value: 'content', label: 'Контент — материалы, подборки, шаблоны, sync…' },
                 { value: 'moderation', label: 'Модерация — комментарии, жалобы, пользователи' },
                 { value: 'custom', label: 'Свой набор — отметьте права ниже' },
               ]}

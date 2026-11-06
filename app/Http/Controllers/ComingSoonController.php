@@ -53,8 +53,8 @@ class ComingSoonController extends TplController
         $this->applySpeedbar(Speedbar::forComingSoon($page), $vars);
 
         $meta = [
-            'title' => 'Скоро — самые ожидаемые премьеры сериалов',
-            'description' => 'Рейтинг ожидания новых сериалов и премьер. Отметьте, что будете смотреть, и помогите сформировать топ.',
+            'title' => 'Скоро — самые ожидаемые премьеры материалов',
+            'description' => 'Рейтинг ожидания новых материалов и премьер. Отметьте, что будете смотреть, и помогите сформировать топ.',
             'canonical' => $page > 1 ? url('/skoro/page/' . $page . '/') : url('/skoro/'),
             'prev' => $pagination['prev_url'] ? url($pagination['prev_url']) : '',
             'next' => $pagination['next_url'] ? url($pagination['next_url']) : '',

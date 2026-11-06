@@ -55,7 +55,7 @@ export default function PlayerReportsPage() {
   const columns: ColumnsType<PlayerReportItem> = [
     { title: 'ID', dataIndex: 'id', width: 70 },
     {
-      title: 'Сериал',
+      title: 'Материал',
       key: 'series',
       width: 220,
       ellipsis: true,

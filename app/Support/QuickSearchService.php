@@ -120,11 +120,11 @@ class QuickSearchService
             if ($series->isNotEmpty()) {
                 $built['series'] = [
                     'type' => 'series',
-                    'label' => 'Сериалы',
+                    'label' => 'Контент',
                     'items' => $series->map(static fn (Series $item) => [
                         'type' => 'series',
                         'title' => $item->title,
-                        'subtitle' => $item->year ? (string)$item->year : '',
+                        'subtitle' => trim(((string)($item->year ?? '')) . ($item->content_type ? ' · ' . ContentTypes::label($item->content_type) : '')),
                         'url' => SeriesUrl::path($item),
                         'image' => PublicMedia::url($item->poster_url ?? ''),
                     ])->all(),
@@ -210,7 +210,7 @@ class QuickSearchService
                 'items' => $years->map(static fn (Year $item) => [
                     'type' => 'years',
                     'title' => TaxonomyRegistry::displayName($item),
-                    'subtitle' => 'Сериалы года',
+                    'subtitle' => 'Материалы года',
                     'url' => '/year/' . rawurlencode($item->slug) . '/',
                     'image' => '',
                 ])->all(),

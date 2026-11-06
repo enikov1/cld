@@ -26,7 +26,7 @@ class ReactionWidgetService
 
     public static function titleText(): string
     {
-        return SiteSetting::get('reactions_title', 'Как вам этот сериал?') ?: 'Как вам этот сериал?';
+        return SiteSetting::get('reactions_title', 'Как вам этот материал?') ?: 'Как вам этот материал?';
     }
 
     /**

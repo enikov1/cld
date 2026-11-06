@@ -108,7 +108,7 @@ export default function CollectionsPage() {
       : promptModalOpen
         ? 'Промпт для ИИ'
         : addModalOpen
-          ? 'Добавить сериалы в подборку'
+          ? 'Добавить материалы в подборку'
           : modalOpen
             ? editing
               ? `Редактируем подборку — ${editing.title}`
@@ -353,7 +353,7 @@ export default function CollectionsPage() {
       if (res.skipped > 0) {
         message.warning(`Добавлено: ${res.added}, пропущено: ${res.skipped}`)
       } else {
-        message.success('Сериалы добавлены в подборку')
+        message.success('Материалы добавлены в подборку')
       }
       setAddModalOpen(false)
       addForm.resetFields()
@@ -367,7 +367,7 @@ export default function CollectionsPage() {
     if (!activeSlug) return
     try {
       await api(`/api/admin/collections/${activeSlug}/items/${encodeURIComponent(seriesKey)}`, { method: 'DELETE' })
-      message.success('Сериал удалён из подборки')
+      message.success('Материал удалён из подборки')
       await Promise.all([loadItems(activeSlug), loadCollections()])
     } catch (e) {
       message.error(String((e as Error).message))
@@ -482,7 +482,7 @@ export default function CollectionsPage() {
   const importPreviewColumns: ColumnsType<AiImportPreview['items'][number]> = [
     { title: 'Название', dataIndex: 'title', key: 'title' },
     { title: 'Slug', dataIndex: 'slug', key: 'slug', width: 140 },
-    { title: 'Сериалов', dataIndex: 'series_count', key: 'series_count', width: 90 },
+    { title: 'Материалов', dataIndex: 'series_count', key: 'series_count', width: 90 },
     {
       title: 'Keywords',
       key: 'keywords',
@@ -590,7 +590,7 @@ export default function CollectionsPage() {
           </Tooltip>
           <Popconfirm
             title="Удалить подборку?"
-            description={`«${row.title}» и все сериалы в ней будут отвязаны.`}
+            description={`«${row.title}» и все материалы в ней будут отвязаны.`}
             onConfirm={() => void removeCollection(row)}
             okText="Удалить"
             cancelText="Отмена"
@@ -809,7 +809,7 @@ export default function CollectionsPage() {
                     </Popconfirm>
                   ) : null}
                   <Button type="primary" onClick={() => setAddModalOpen(true)} disabled={!series.length}>
-                    Добавить сериалы
+                    Добавить материалы
                   </Button>
                 </Space>
               </div>
@@ -936,7 +936,7 @@ export default function CollectionsPage() {
                 children: (
                   <>
                     <Form.Item
-                      label="Сериалы (вручную)"
+                      label="Материалы (вручную)"
                       name="series_ids"
                       extra="Только ручные позиции. Автодобавленные по ключевым словам сохраняются отдельно и здесь не редактируются."
                     >
@@ -956,7 +956,7 @@ export default function CollectionsPage() {
                     <Form.Item
                       label="Ключевые слова"
                       name="auto_keywords"
-                      extra="Через запятую или Enter. Ищется в названии, описании и жанрах сериала (без учёта регистра)."
+                      extra="Через запятую или Enter. Ищется в названии, описании и жанрах материала (без учёта регистра)."
                     >
                       <Select
                         mode="tags"
@@ -993,7 +993,7 @@ export default function CollectionsPage() {
                         }
                       }}
                     />
-                    <Form.Item label="Meta title" name="meta_title" extra="Если пусто — «{название} — подборка сериалов»">
+                    <Form.Item label="Meta title" name="meta_title" extra="Если пусто — «{название} — подборка материалов»">
                       <Input />
                     </Form.Item>
                     <Form.Item label="Описание" name="description">
@@ -1184,7 +1184,7 @@ export default function CollectionsPage() {
       </Modal>
 
       <Modal
-        title="Добавить сериалы в подборку"
+        title="Добавить материалы в подборку"
         open={addModalOpen}
         onCancel={() => setAddModalOpen(false)}
         onOk={() => addForm.submit()}
@@ -1193,7 +1193,7 @@ export default function CollectionsPage() {
         destroyOnHidden
       >
         <Form form={addForm} layout="vertical" onFinish={addSeries}>
-          <Form.Item label="Сериалы" name="series_ids" rules={[{ required: true, message: 'Выберите сериалы' }]}>
+          <Form.Item label="Материалы" name="series_ids" rules={[{ required: true, message: 'Выберите материалы' }]}>
             <Select mode="multiple" options={seriesOptions} optionFilterProp="label" placeholder="Выберите один или несколько" />
           </Form.Item>
         </Form>
@@ -1219,7 +1219,7 @@ export default function CollectionsPage() {
         ) : promptData ? (
           <>
             <Typography.Paragraph type="secondary">
-              Сериалов: {promptData.series_count}, существующих подборок: {promptData.collections_count},
+              Материалов: {promptData.series_count}, существующих подборок: {promptData.collections_count},
               {' '}размер: {formatCharCount(promptData.char_count)} символов
             </Typography.Paragraph>
             {promptData.char_count > LARGE_PROMPT_THRESHOLD ? (

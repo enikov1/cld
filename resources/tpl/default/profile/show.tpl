@@ -21,7 +21,7 @@
                 </div>
                 <div class="profile-stat">
                     <span class="profile-stat__num" data-profile-stat-items>{profile_stats.items}</span>
-                    <span class="profile-stat__label">сериалов</span>
+                    <span class="profile-stat__label">материалов</span>
                 </div>
                 <div class="profile-stat">
                     <span class="profile-stat__num">{profile_stats.comments}</span>
@@ -166,7 +166,7 @@
                 <div class="profile-grid">
                     <div class="profile-card">
                         <h2>Каналы уведомлений</h2>
-                        <p class="profile-card__hint">Выберите, как получать сообщения о новых сериях подписанных сериалов.</p>
+                        <p class="profile-card__hint">Выберите, как получать сообщения о новых сериях подписанных материалов.</p>
                         <form class="profile-notification-prefs" id="notificationPrefsForm">
                             <label class="profile-field profile-field--checkbox">
                                 <input type="checkbox" name="notify_via_email" value="1" [profile.notify_via_email]checked[/profile.notify_via_email]>
@@ -185,7 +185,7 @@
                     </div>
 
                     <div class="profile-card profile-card--full">
-                        <h2>Подписки на сериалы</h2>
+                        <h2>Подписки на материалы</h2>
                         <div class="series-notifications-list">
                             [loop notification_subscriptions]
                                 <article class="series-notification-card">
@@ -206,7 +206,7 @@
                             [not-notification_subscriptions]
                                 <div class="series-notifications-empty">
                                     <strong>Подписок пока нет</strong>
-                                    Настройте уведомления на странице интересующего сериала.
+                                    Настройте уведомления на странице интересующего материала.
                                 </div>
                             [/not-notification_subscriptions]
                         </div>
@@ -239,7 +239,7 @@
                         [not-profile_comments]
                             <div class="series-notifications-empty">
                                 <strong>Комментариев пока нет</strong>
-                                Оставьте первый комментарий на странице интересующего сериала.
+                                Оставьте первый комментарий на странице интересующего материала.
                             </div>
                         [/not-profile_comments]
                     </div>
@@ -251,7 +251,7 @@
                 <div class="profile-card profile-card--full">
                     <h2>Мои рецензии</h2>
                     [has_reviews_pending]
-                    <p class="profile-reviews-hint">На модерации: {profile_stats.reviews_pending}. После одобрения они появятся на страницах сериалов.</p>
+                    <p class="profile-reviews-hint">На модерации: {profile_stats.reviews_pending}. После одобрения они появятся на страницах материалов.</p>
                     [/has_reviews_pending]
                     <div class="series-notifications-list">
                         [loop profile_reviews]
@@ -278,7 +278,7 @@
                         [not-profile_reviews]
                             <div class="series-notifications-empty">
                                 <strong>Рецензий пока нет</strong>
-                                Оставьте первую рецензию на странице интересующего сериала — после входа в аккаунт.
+                                Оставьте первую рецензию на странице интересующего материала — после входа в аккаунт.
                             </div>
                         [/not-profile_reviews]
                     </div>

@@ -113,7 +113,7 @@ const SECTION_TYPES: { value: NavSectionType; label: string }[] = [
 
 const SECTION_SORT_OPTIONS: { value: NavSectionSort; label: string }[] = [
   { value: 'name', label: 'По названию' },
-  { value: 'series_count', label: 'По количеству сериалов' },
+  { value: 'series_count', label: 'По количеству материалов' },
   { value: 'sort_order', label: 'По порядку в справочнике' },
 ]
 
@@ -608,7 +608,7 @@ export default function NavMenuPage() {
       >
         <Form form={itemForm} layout="vertical" onFinish={saveItem}>
           <Form.Item label="Название" name="title" rules={[{ required: true }]}>
-            <Input placeholder="Зарубежные сериалы" />
+            <Input placeholder="Зарубежные материалы" />
           </Form.Item>
           <Form.Item label="Тип ссылки" name="link_type" rules={[{ required: true }]}>
             <Select options={LINK_TYPES} />
@@ -822,7 +822,7 @@ export default function NavMenuPage() {
             <Form.Item
               label="Сортировка ссылок"
               name="item_sort"
-              extra={sectionSourceType === 'voices' ? 'В меню попадают только озвучки, у которых есть сериалы.' : undefined}
+              extra={sectionSourceType === 'voices' ? 'В меню попадают только озвучки, у которых есть материалы.' : undefined}
             >
               <Select options={SECTION_SORT_OPTIONS} />
             </Form.Item>

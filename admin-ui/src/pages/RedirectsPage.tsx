@@ -45,7 +45,7 @@ type StatusCodeOption = {
 }
 
 const TO_TYPE_OPTIONS = [
-	{ value: 'series', label: 'На страницу сериала' },
+	{ value: 'series', label: 'На страницу материала' },
 	{ value: 'url', label: 'На произвольный URL' },
 ]
 
@@ -74,7 +74,7 @@ function normalizeFromPathInput(value: unknown): string {
 
 function targetLabel(item: RedirectItem): string {
 	if (item.to_type === 'series') {
-		return item.series?.title ?? `Сериал #${item.series_id ?? '?'}`
+		return item.series?.title ?? `Материал #${item.series_id ?? '?'}`
 	}
 	return item.target_path ?? item.to_path ?? '—'
 }
@@ -295,7 +295,7 @@ export default function RedirectsPage() {
 			<Space wrap style={{ marginBottom: 16 }}>
 				<Input.Search
 					allowClear
-					placeholder="Поиск по пути, сериалу или заметке"
+					placeholder="Поиск по пути, материалу или заметке"
 					style={{ width: 320 }}
 					value={search}
 					onChange={(e) => setSearch(e.target.value)}
@@ -363,8 +363,8 @@ export default function RedirectsPage() {
 					{watchedToType === 'series' ? (
 						<Form.Item
 							name="series_id"
-							label="Сериал"
-							rules={[{ required: true, message: 'Выберите сериал' }]}
+							label="Материал"
+							rules={[{ required: true, message: 'Выберите материал' }]}
 						>
 							<SeriesSearchSelect
 								initialOption={selectedSeries}

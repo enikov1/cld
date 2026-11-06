@@ -21,7 +21,7 @@ class CalendarController extends TplController
             JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS
         );
 
-        $heading = SiteConfig::str('calendar_heading') ?: 'График выхода сериалов';
+        $heading = SiteConfig::str('calendar_heading') ?: 'График выхода материалов';
         $lead = SiteConfig::str('calendar_lead');
         $seoHtml = SiteConfig::str('calendar_seo_html');
 

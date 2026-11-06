@@ -1,4 +1,5 @@
-const TOKEN_KEY = 'lordserial_admin_token'
+const TOKEN_KEY = 'omro_admin_token'
+const LEGACY_TOKEN_KEY = 'lordserial_admin_token'
 
 /** In-memory only — httpOnly cookie is the persistent auth (SEC-3). */
 let memoryToken = ''
@@ -29,6 +30,7 @@ export function clearAdminToken(): void {
 export function purgeLegacyTokenStorage(): void {
   try {
     localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(LEGACY_TOKEN_KEY)
   } catch {
     // ignore
   }

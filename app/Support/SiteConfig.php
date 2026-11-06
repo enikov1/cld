@@ -47,7 +47,7 @@ class SiteConfig
             'auth_ui_header_profile' => ['type' => 'string', 'default' => 'Профиль', 'group' => 'auth', 'label' => 'Ссылка профиля в шапке'],
 
             // Comments — toggles
-            'comments_enabled' => ['type' => 'bool', 'default' => '1', 'group' => 'comments', 'label' => 'Комментарии на странице сериала'],
+            'comments_enabled' => ['type' => 'bool', 'default' => '1', 'group' => 'comments', 'label' => 'Комментарии на странице материала'],
             'comments_guest_enabled' => ['type' => 'bool', 'default' => '1', 'group' => 'comments', 'label' => 'Комментарии от гостей'],
             'comments_vote_enabled' => ['type' => 'bool', 'default' => '1', 'group' => 'comments', 'label' => 'Голоса за комментарии'],
             'comments_vote_guest_enabled' => ['type' => 'bool', 'default' => '1', 'group' => 'comments', 'label' => 'Голоса гостей за комментарии'],
@@ -59,7 +59,7 @@ class SiteConfig
             'comments_max_reply_depth' => ['type' => 'int', 'default' => '8', 'group' => 'comments', 'label' => 'Макс. глубина ответов', 'min' => 1, 'max' => 20],
             'profile_comments_limit' => ['type' => 'int', 'default' => '20', 'group' => 'comments', 'label' => 'Комментариев в профиле', 'min' => 5, 'max' => 100],
             'profile_reviews_limit' => ['type' => 'int', 'default' => '20', 'group' => 'reviews', 'label' => 'Рецензий в профиле', 'min' => 5, 'max' => 100],
-            'reviews_list_limit' => ['type' => 'int', 'default' => '100', 'group' => 'reviews', 'label' => 'Макс. рецензий на странице сериала', 'min' => 10, 'max' => 200],
+            'reviews_list_limit' => ['type' => 'int', 'default' => '100', 'group' => 'reviews', 'label' => 'Макс. рецензий на странице материала', 'min' => 10, 'max' => 200],
 
             // Comments — messages
             'comments_msg_guest_name_required' => ['type' => 'string', 'default' => 'Укажите имя или отметьте «Анонимно».', 'group' => 'comments', 'label' => 'Имя гостя не указано'],
@@ -74,7 +74,7 @@ class SiteConfig
             // Comments — UI
             'comments_ui_title' => ['type' => 'string', 'default' => 'Комментарии', 'group' => 'comments', 'label' => 'Заголовок блока'],
             'comments_ui_label' => ['type' => 'string', 'default' => 'Напишите комментарий', 'group' => 'comments', 'label' => 'Подпись поля'],
-            'comments_ui_placeholder' => ['type' => 'string', 'default' => 'Поделитесь впечатлениями о сериале...', 'group' => 'comments', 'label' => 'Placeholder'],
+            'comments_ui_placeholder' => ['type' => 'string', 'default' => 'Поделитесь впечатлениями о материале...', 'group' => 'comments', 'label' => 'Placeholder'],
             'comments_ui_guest_name' => ['type' => 'string', 'default' => 'Ваше имя', 'group' => 'comments', 'label' => 'Поле имени гостя'],
             'comments_ui_anonymous' => ['type' => 'string', 'default' => 'Анонимно', 'group' => 'comments', 'label' => 'Чекбокс анонимно'],
             'comments_ui_submit' => ['type' => 'string', 'default' => 'Отправить', 'group' => 'comments', 'label' => 'Кнопка отправки'],
@@ -99,7 +99,7 @@ class SiteConfig
             'comments_ui_pinned' => ['type' => 'string', 'default' => 'Закреплён', 'group' => 'comments', 'label' => 'Метка закреплённого'],
 
             // Reviews — toggles
-            'reviews_enabled' => ['type' => 'bool', 'default' => '1', 'group' => 'reviews', 'label' => 'Рецензии на странице сериала'],
+            'reviews_enabled' => ['type' => 'bool', 'default' => '1', 'group' => 'reviews', 'label' => 'Рецензии на странице материала'],
 
             // Reviews — limits
             'reviews_body_min_length' => ['type' => 'int', 'default' => '20', 'group' => 'reviews', 'label' => 'Мин. длина рецензии', 'min' => 2, 'max' => 1000],
@@ -114,7 +114,7 @@ class SiteConfig
             'reviews_msg_disabled' => ['type' => 'string', 'default' => 'Рецензии отключены.', 'group' => 'reviews', 'label' => 'Рецензии отключены'],
             'reviews_msg_links_forbidden' => ['type' => 'string', 'default' => 'Ссылки в рецензиях запрещены.', 'group' => 'reviews', 'label' => 'Ссылки запрещены'],
             'reviews_msg_auth_required' => ['type' => 'string', 'default' => 'Чтобы оставить рецензию, войдите в аккаунт.', 'group' => 'reviews', 'label' => 'Нужна авторизация'],
-            'reviews_msg_already_exists' => ['type' => 'string', 'default' => 'Вы уже оставили рецензию на этот сериал.', 'group' => 'reviews', 'label' => 'Уже есть рецензия'],
+            'reviews_msg_already_exists' => ['type' => 'string', 'default' => 'Вы уже оставили рецензию на этот материал.', 'group' => 'reviews', 'label' => 'Уже есть рецензия'],
             'reviews_msg_rating_required' => ['type' => 'string', 'default' => 'Поставьте оценку от 1 до 10.', 'group' => 'reviews', 'label' => 'Нужна оценка'],
 
             // Reviews — UI
@@ -122,7 +122,7 @@ class SiteConfig
             'reviews_ui_tab_comments' => ['type' => 'string', 'default' => 'Комментарии', 'group' => 'reviews', 'label' => 'Вкладка комментариев'],
             'reviews_ui_tab_reviews' => ['type' => 'string', 'default' => 'Рецензии', 'group' => 'reviews', 'label' => 'Вкладка рецензий'],
             'reviews_ui_label' => ['type' => 'string', 'default' => 'Напишите рецензию', 'group' => 'reviews', 'label' => 'Подпись поля'],
-            'reviews_ui_placeholder' => ['type' => 'string', 'default' => 'Поделитесь развёрнутым мнением о сериале...', 'group' => 'reviews', 'label' => 'Placeholder'],
+            'reviews_ui_placeholder' => ['type' => 'string', 'default' => 'Поделитесь развёрнутым мнением о материале...', 'group' => 'reviews', 'label' => 'Placeholder'],
             'reviews_ui_rating_label' => ['type' => 'string', 'default' => 'Ваша оценка', 'group' => 'reviews', 'label' => 'Подпись рейтинга'],
             'reviews_ui_submit' => ['type' => 'string', 'default' => 'Отправить', 'group' => 'reviews', 'label' => 'Кнопка отправки'],
             'reviews_ui_loading' => ['type' => 'string', 'default' => 'Загрузка рецензий...', 'group' => 'reviews', 'label' => 'Загрузка'],
@@ -141,11 +141,11 @@ class SiteConfig
             'reviews_label_editorial' => ['type' => 'string', 'default' => 'Редакция', 'group' => 'reviews', 'label' => 'Имя автора по умолчанию'],
 
             // Ratings
-            'series_vote_enabled' => ['type' => 'bool', 'default' => '1', 'group' => 'ratings', 'label' => 'Лайк/дизлайк сериала'],
-            'series_vote_guest_enabled' => ['type' => 'bool', 'default' => '1', 'group' => 'ratings', 'label' => 'Голоса гостей за сериал'],
+            'series_vote_enabled' => ['type' => 'bool', 'default' => '1', 'group' => 'ratings', 'label' => 'Лайк/дизлайк материала'],
+            'series_vote_guest_enabled' => ['type' => 'bool', 'default' => '1', 'group' => 'ratings', 'label' => 'Голоса гостей за материал'],
             'anticipation_enabled' => ['type' => 'bool', 'default' => '1', 'group' => 'ratings', 'label' => 'Рейтинг ожидания (Скоро)'],
             'anticipation_guest_enabled' => ['type' => 'bool', 'default' => '1', 'group' => 'ratings', 'label' => 'Голоса гостей в разделе Скоро'],
-            'coming_soon_per_page' => ['type' => 'int', 'default' => '20', 'group' => 'catalog', 'label' => 'Сериалов на странице «Скоро»', 'min' => 5, 'max' => 60],
+            'coming_soon_per_page' => ['type' => 'int', 'default' => '20', 'group' => 'catalog', 'label' => 'Материалов на странице «Скоро»', 'min' => 5, 'max' => 60],
             'reactions_guest_enabled' => ['type' => 'bool', 'default' => '1', 'group' => 'ratings', 'label' => 'Реакции от гостей'],
             'reactions_msg_disabled' => ['type' => 'string', 'default' => 'Виджет реакций отключён.', 'group' => 'ratings', 'label' => 'Реакции отключены'],
             'reactions_msg_save_failed' => ['type' => 'string', 'default' => 'Не удалось сохранить оценку. Попробуйте позже.', 'group' => 'ratings', 'label' => 'Ошибка сохранения реакции'],
@@ -164,12 +164,12 @@ class SiteConfig
             'favourites_ui_add_label' => ['type' => 'string', 'default' => 'В избранное', 'group' => 'engagement', 'label' => 'Кнопка «В избранное»'],
             'favourites_ui_remove_label' => ['type' => 'string', 'default' => 'В избранном', 'group' => 'engagement', 'label' => 'Кнопка «В избранном»'],
             'favourites_ui_page_title' => ['type' => 'string', 'default' => 'Избранное', 'group' => 'engagement', 'label' => 'Заголовок страницы избранного'],
-            'favourites_ui_empty' => ['type' => 'string', 'default' => 'Вы ещё не добавили сериалы в избранное. Откройте страницу сериала и нажмите «В избранное».', 'group' => 'engagement', 'label' => 'Пустое избранное'],
-            'favourites_meta_title' => ['type' => 'string', 'default' => 'Избранное — мои сериалы', 'group' => 'engagement', 'label' => 'Meta title избранного'],
-            'favourites_meta_description' => ['type' => 'string', 'default' => 'Список избранных сериалов для быстрого доступа.', 'group' => 'engagement', 'label' => 'Meta description избранного'],
+            'favourites_ui_empty' => ['type' => 'string', 'default' => 'Вы ещё не добавили материалы в избранное. Откройте страницу материала и нажмите «В избранное».', 'group' => 'engagement', 'label' => 'Пустое избранное'],
+            'favourites_meta_title' => ['type' => 'string', 'default' => 'Избранное — мои материалы', 'group' => 'engagement', 'label' => 'Meta title избранного'],
+            'favourites_meta_description' => ['type' => 'string', 'default' => 'Список избранных материалов для быстрого доступа.', 'group' => 'engagement', 'label' => 'Meta description избранного'],
             'watch_history_enabled' => ['type' => 'bool', 'default' => '1', 'group' => 'engagement', 'label' => 'История просмотров'],
             'watch_history_guest_enabled' => ['type' => 'bool', 'default' => '1', 'group' => 'engagement', 'label' => 'История просмотров для гостей'],
-            'watch_history_home_limit' => ['type' => 'int', 'default' => '20', 'group' => 'engagement', 'label' => 'Сериалов в блоке истории на главной', 'min' => 4, 'max' => 40],
+            'watch_history_home_limit' => ['type' => 'int', 'default' => '20', 'group' => 'engagement', 'label' => 'Материалов в блоке истории на главной', 'min' => 4, 'max' => 40],
             'watch_history_max_items' => ['type' => 'int', 'default' => '100', 'group' => 'engagement', 'label' => 'Макс. записей в истории', 'min' => 20, 'max' => 500],
             'watch_history_ui_title' => ['type' => 'string', 'default' => 'История просмотров', 'group' => 'engagement', 'label' => 'Заголовок блока истории'],
             'notifications_msg_saved' => ['type' => 'string', 'default' => 'Настройки уведомлений сохранены.', 'group' => 'engagement', 'label' => 'Уведомления сохранены'],
@@ -181,18 +181,18 @@ class SiteConfig
             'notifications_ui_unsubscribe_btn' => ['type' => 'string', 'default' => 'Отписаться', 'group' => 'engagement', 'label' => 'Кнопка отписки'],
             'notifications_ui_subscribed_badge' => ['type' => 'string', 'default' => 'Вы подписаны на новые серии', 'group' => 'engagement', 'label' => 'Метка активной подписки'],
             'notifications_msg_prefs_saved' => ['type' => 'string', 'default' => 'Настройки уведомлений обновлены.', 'group' => 'engagement', 'label' => 'Настройки профиля сохранены'],
-            'notifications_msg_unsubscribed' => ['type' => 'string', 'default' => 'Уведомления для сериала отключены.', 'group' => 'engagement', 'label' => 'Отписка от сериала'],
+            'notifications_msg_unsubscribed' => ['type' => 'string', 'default' => 'Уведомления для материала отключены.', 'group' => 'engagement', 'label' => 'Отписка от материала'],
             'notifications_inbox_limit' => ['type' => 'int', 'default' => '30', 'group' => 'engagement', 'label' => 'Лимит уведомлений в шапке', 'min' => 5, 'max' => 100],
             'notifications_ui_push_label' => ['type' => 'string', 'default' => 'Push-уведомления в браузере', 'group' => 'engagement', 'label' => 'Подпись push в профиле'],
             'notifications_msg_push_enabled' => ['type' => 'string', 'default' => 'Push-уведомления включены.', 'group' => 'engagement', 'label' => 'Push включены'],
             'notifications_msg_push_denied' => ['type' => 'string', 'default' => 'Разрешите уведомления в браузере, чтобы получать push.', 'group' => 'engagement', 'label' => 'Push запрещены'],
             'notifications_ui_comment_approved' => ['type' => 'string', 'default' => 'Комментарий одобрен', 'group' => 'engagement', 'label' => 'Уведомление: комментарий одобрен'],
             'notifications_ui_review_approved' => ['type' => 'string', 'default' => 'Рецензия одобрена', 'group' => 'engagement', 'label' => 'Уведомление: рецензия одобрена'],
-            'telegram_url' => ['type' => 'string', 'default' => '', 'group' => 'engagement', 'label' => 'Ссылка Telegram на странице сериала'],
+            'telegram_url' => ['type' => 'string', 'default' => '', 'group' => 'engagement', 'label' => 'Ссылка Telegram на странице материала'],
             'telegram_label' => ['type' => 'string', 'default' => 'Наш Telegram', 'group' => 'engagement', 'label' => 'Текст кнопки Telegram'],
             'card_badge_popular_days' => ['type' => 'int', 'default' => '3', 'group' => 'engagement', 'label' => 'Дней для бейджа «Популярно»', 'min' => 1, 'max' => 30],
             'card_badge_popular_min_views' => ['type' => 'int', 'default' => '50', 'group' => 'engagement', 'label' => 'Мин. просмотров для «Популярно»', 'min' => 1, 'max' => 100000],
-            'card_badge_popular_percentile' => ['type' => 'int', 'default' => '15', 'group' => 'engagement', 'label' => 'Топ % сериалов для «Популярно»', 'min' => 1, 'max' => 50],
+            'card_badge_popular_percentile' => ['type' => 'int', 'default' => '15', 'group' => 'engagement', 'label' => 'Топ % материалов для «Популярно»', 'min' => 1, 'max' => 50],
             'card_badge_new_episode_days' => ['type' => 'int', 'default' => '2', 'group' => 'engagement', 'label' => 'Дней для бейджа «Новая серия»', 'min' => 1, 'max' => 14],
             'card_badge_new_episode_label' => ['type' => 'string', 'default' => 'Новая серия', 'group' => 'engagement', 'label' => 'Текст бейджа новой серии'],
             'card_badge_popular_label' => ['type' => 'string', 'default' => 'Популярно', 'group' => 'engagement', 'label' => 'Текст бейджа популярности'],
@@ -288,21 +288,21 @@ class SiteConfig
             ],
 
             // Catalog & navigation
-            'catalog_per_page' => ['type' => 'int', 'default' => '18', 'group' => 'catalog', 'label' => 'Сериалов на странице каталога', 'min' => 6, 'max' => 60],
-            'catalog_heading' => ['type' => 'string', 'default' => 'Все сериалы', 'group' => 'catalog', 'label' => 'Заголовок страницы каталога'],
-            'catalog_meta_title' => ['type' => 'string', 'default' => 'Все сериалы — смотреть онлайн бесплатно', 'group' => 'catalog', 'label' => 'Meta title каталога'],
-            'catalog_meta_description' => ['type' => 'string', 'default' => 'Полный каталог сериалов: фильтры по жанру, стране, году и рейтингу.', 'group' => 'catalog', 'label' => 'Meta description каталога'],
-            'calendar_heading' => ['type' => 'string', 'default' => 'График выхода сериалов', 'group' => 'catalog', 'label' => 'Заголовок страницы календаря'],
+            'catalog_per_page' => ['type' => 'int', 'default' => '18', 'group' => 'catalog', 'label' => 'Материалов на странице каталога', 'min' => 6, 'max' => 60],
+            'catalog_heading' => ['type' => 'string', 'default' => 'Все материалы', 'group' => 'catalog', 'label' => 'Заголовок страницы каталога'],
+            'catalog_meta_title' => ['type' => 'string', 'default' => 'Все материалы — смотреть онлайн бесплатно', 'group' => 'catalog', 'label' => 'Meta title каталога'],
+            'catalog_meta_description' => ['type' => 'string', 'default' => 'Полный каталог материалов: фильтры по жанру, стране, году и рейтингу.', 'group' => 'catalog', 'label' => 'Meta description каталога'],
+            'calendar_heading' => ['type' => 'string', 'default' => 'График выхода материалов', 'group' => 'catalog', 'label' => 'Заголовок страницы календаря'],
             'calendar_lead' => [
                 'type' => 'string',
-                'default' => 'Следите за датами выхода новых серий зарубежных и российских сериалов. Выберите день в календаре или листайте список ближайших премьер.',
+                'default' => 'Следите за датами выхода новых серий зарубежных и российских материалов. Выберите день в календаре или листайте список ближайших премьер.',
                 'group' => 'catalog',
                 'label' => 'Подзаголовок страницы календаря',
             ],
-            'calendar_meta_title' => ['type' => 'string', 'default' => 'Календарь выхода сериалов — график новых серий', 'group' => 'catalog', 'label' => 'Meta title календаря'],
+            'calendar_meta_title' => ['type' => 'string', 'default' => 'Календарь выхода материалов — график новых серий', 'group' => 'catalog', 'label' => 'Meta title календаря'],
             'calendar_meta_description' => [
                 'type' => 'string',
-                'default' => 'График выхода новых серий сериалов: даты премьер, сезон и номер эпизода. Смотрите, какие серии выходят сегодня и в ближайшие дни.',
+                'default' => 'График выхода новых серий материалов: даты премьер, сезон и номер эпизода. Смотрите, какие серии выходят сегодня и в ближайшие дни.',
                 'group' => 'catalog',
                 'label' => 'Meta description календаря',
             ],
@@ -320,9 +320,9 @@ class SiteConfig
             'search_suggest_limit' => ['type' => 'int', 'default' => '5', 'group' => 'catalog', 'label' => 'Результатов в каждой группе быстрого поиска', 'min' => 2, 'max' => 10],
             'search_full_group_limit' => ['type' => 'int', 'default' => '12', 'group' => 'catalog', 'label' => 'Результатов в каждой группе полного поиска', 'min' => 4, 'max' => 60],
             'search_popular_limit' => ['type' => 'int', 'default' => '20', 'group' => 'catalog', 'label' => 'Популярных поисковых запросов на странице', 'min' => 5, 'max' => 50],
-            'collections_per_page' => ['type' => 'int', 'default' => '12', 'group' => 'catalog', 'label' => 'Сериалов в подборке на странице', 'min' => 6, 'max' => 48],
+            'collections_per_page' => ['type' => 'int', 'default' => '12', 'group' => 'catalog', 'label' => 'Материалов в подборке на странице', 'min' => 6, 'max' => 48],
             'collections_index_limit' => ['type' => 'int', 'default' => '40', 'group' => 'catalog', 'label' => 'Подборок на странице списка', 'min' => 6, 'max' => 100],
-            'studios_per_page' => ['type' => 'int', 'default' => '12', 'group' => 'catalog', 'label' => 'Сериалов студии на странице', 'min' => 6, 'max' => 48],
+            'studios_per_page' => ['type' => 'int', 'default' => '12', 'group' => 'catalog', 'label' => 'Материалов студии на странице', 'min' => 6, 'max' => 48],
             'studios_index_limit' => ['type' => 'int', 'default' => '40', 'group' => 'catalog', 'label' => 'Студий на странице списка', 'min' => 6, 'max' => 100],
             'home_studios_limit' => ['type' => 'int', 'default' => '8', 'group' => 'catalog', 'label' => 'Студий на главной', 'min' => 2, 'max' => 24],
             'home_studios_sort' => [
@@ -332,8 +332,8 @@ class SiteConfig
                 'label' => 'Сортировка студий на главной',
                 'options' => [
                     'catalog' => 'По закреплению и порядку',
-                    'items_desc' => 'По количеству сериалов (убыв.)',
-                    'items_asc' => 'По количеству сериалов (возр.)',
+                    'items_desc' => 'По количеству материалов (убыв.)',
+                    'items_asc' => 'По количеству материалов (возр.)',
                     'title_asc' => 'Название (А→Я)',
                     'title_desc' => 'Название (Я→А)',
                 ],
@@ -345,8 +345,8 @@ class SiteConfig
                 'label' => 'Сортировка студий в списке',
                 'options' => [
                     'catalog' => 'По закреплению и порядку',
-                    'items_desc' => 'По количеству сериалов (убыв.)',
-                    'items_asc' => 'По количеству сериалов (возр.)',
+                    'items_desc' => 'По количеству материалов (убыв.)',
+                    'items_asc' => 'По количеству материалов (возр.)',
                     'title_asc' => 'Название (А→Я)',
                     'title_desc' => 'Название (Я→А)',
                 ],
@@ -357,7 +357,7 @@ class SiteConfig
                 'default' => 'popular',
                 'group' => 'catalog',
                 'label' => 'Сортировка блока «Популярное» на главной',
-                'description' => 'Критерий отбора сериалов в карусели на первой странице',
+                'description' => 'Критерий отбора материалов в карусели на первой странице',
                 'options' => [
                     'popular' => 'Популярность TMDB',
                     'views_period' => 'Просмотры за период',
@@ -391,7 +391,7 @@ class SiteConfig
                 'default' => '1',
                 'group' => 'catalog',
                 'label' => 'Секции по типам контента на главной',
-                'description' => 'Блоки фильмов, сериалов, аниме и др. для шаблона home.tpl ([type-N], content_type_sections)',
+                'description' => 'Блоки фильмов, материалов, аниме и др. для шаблона home.tpl ([type-N], content_type_sections)',
             ],
             'home_content_types_limit' => [
                 'type' => 'int',
@@ -413,7 +413,7 @@ class SiteConfig
                 ],
             ],
             'home_content_type_film_title' => ['type' => 'string', 'default' => '', 'group' => 'catalog', 'label' => 'Заголовок секции «Фильм»', 'description' => 'Пусто — название типа из настроек'],
-            'home_content_type_series_title' => ['type' => 'string', 'default' => '', 'group' => 'catalog', 'label' => 'Заголовок секции «Сериал»'],
+            'home_content_type_series_title' => ['type' => 'string', 'default' => '', 'group' => 'catalog', 'label' => 'Заголовок секции «Материал»'],
             'home_content_type_cartoon_title' => ['type' => 'string', 'default' => '', 'group' => 'catalog', 'label' => 'Заголовок секции «Мультфильм»'],
             'home_content_type_cartoon_series_title' => ['type' => 'string', 'default' => '', 'group' => 'catalog', 'label' => 'Заголовок секции «Мультсериал»'],
             'home_content_type_anime_title' => ['type' => 'string', 'default' => '', 'group' => 'catalog', 'label' => 'Заголовок секции «Аниме»'],
@@ -446,10 +446,10 @@ class SiteConfig
                 'label' => 'Код счётчиков и метрик',
                 'description' => 'HTML/JavaScript: Яндекс.Метрика, Google Analytics, LiveInternet и др. Выводится перед </body> на всех страницах.',
             ],
-            'series_meta_title_suffix' => ['type' => 'string', 'default' => 'смотреть онлайн в хорошем HD качестве бесплатно', 'group' => 'seo', 'label' => 'Суффикс title сериала'],
-            'series_meta_description_fallback' => ['type' => 'string', 'default' => 'Смотреть бесплатно онлайн.', 'group' => 'seo', 'label' => 'Fallback description сериала'],
-            'home_meta_title' => ['type' => 'string', 'default' => 'Сериалы онлайн, смотреть в хорошем HD качестве бесплатно', 'group' => 'seo', 'label' => 'Meta title главной'],
-            'home_meta_description' => ['type' => 'string', 'default' => 'Lordserials — смотреть новые серии любимых сериалов в хорошем переводе бесплатно.', 'group' => 'seo', 'label' => 'Meta description главной'],
+            'series_meta_title_suffix' => ['type' => 'string', 'default' => 'смотреть онлайн в хорошем HD качестве бесплатно', 'group' => 'seo', 'label' => 'Суффикс title материала'],
+            'series_meta_description_fallback' => ['type' => 'string', 'default' => 'Смотреть бесплатно онлайн.', 'group' => 'seo', 'label' => 'Fallback description материала'],
+            'home_meta_title' => ['type' => 'string', 'default' => 'Смотреть онлайн в хорошем HD качестве бесплатно', 'group' => 'seo', 'label' => 'Meta title главной'],
+            'home_meta_description' => ['type' => 'string', 'default' => 'Онлайн-каталог фильмов, материалов, мультфильмов и аниме: смотреть в хорошем качестве бесплатно.', 'group' => 'seo', 'label' => 'Meta description главной'],
             'series_ui_player_empty' => ['type' => 'string', 'default' => 'Плеер скоро будет добавлен', 'group' => 'seo', 'label' => 'Текст без плеера'],
             'series_ui_bookmark_hint' => ['type' => 'string', 'default' => 'Добавляйте сайт в закладки, чтобы ничего не пропустить!', 'group' => 'seo', 'label' => 'Подсказка под плеером'],
             'series_ui_bookmark_modal_title' => ['type' => 'string', 'default' => 'Как добавить сайт в закладки', 'group' => 'seo', 'label' => 'Заголовок модалки закладок'],
@@ -459,46 +459,46 @@ class SiteConfig
                 'default' => '',
                 'group' => 'seo',
                 'label' => 'Виджет «Поделиться» под плеером',
-                'description' => 'HTML/JavaScript-код виджета соцсетей (Яндекс.Поделиться, uSocial и др.). Выводится слева под плеером на странице сериала.',
+                'description' => 'HTML/JavaScript-код виджета соцсетей (Яндекс.Поделиться, uSocial и др.). Выводится слева под плеером на странице материала.',
             ],
             'taxonomy_seo_ai_prompt' => [
                 'type' => 'html',
                 'default' => <<<'PROMPT'
-Ты — копирайтер сайта зарубежных сериалов. Пишешь для зрителей, которые выбирают, что посмотреть. Не пишешь документацию, справки и энциклопедические статьи.
+Ты — копирайтер сайта зарубежных материалов. Пишешь для зрителей, которые выбирают, что посмотреть. Не пишешь документацию, справки и энциклопедические статьи.
 
-Задача: для каталога сериалов по теме «{name}» ({type_label}) подготовь meta_title, meta_description и SEO-блок (HTML).
+Задача: для каталога материалов по теме «{name}» ({type_label}) подготовь meta_title, meta_description и SEO-блок (HTML).
 
 Контекст:
 - Тип страницы: {type_label} ({type})
 - Тема: {name}
 - URL: {url}
 
-Это страница каталога: сверху список сериалов, снизу короткий живой текст. Человек уже видит список сериалов — текст помогает выбрать и настраивает на просмотр.
+Это страница каталога: сверху список материалов, снизу короткий живой текст. Человек уже видит список материалов — текст помогает выбрать и настраивает на просмотр.
 
 КАК ПИСАТЬ ПО ТИПУ ({type}):
 
 voices (озвучка):
 - {name} — студия перевода / озвучка (LostFilm, TVShows, дубляж, многоголосый и т.п.).
-- Это каталог зарубежных сериалов С ЭТОЙ ОЗВУЧКОЙ, а не статья про студию.
-- Всегда формулируй «с озвучкой {name}». Не пиши «сериалы TVShows» так, будто это бренд сайта, жанр или страна.
-- Title: «Сериалы с озвучкой TVShows смотреть онлайн в HD»
-- Говори зрителю: можно выбрать сериал и смотреть в этой озвучке, в знакомом переводе.
+- Это каталог зарубежных материалов С ЭТОЙ ОЗВУЧКОЙ, а не статья про студию.
+- Всегда формулируй «с озвучкой {name}». Не пиши «материалы TVShows» так, будто это бренд сайта, жанр или страна.
+- Title: «Материалы с озвучкой TVShows смотреть онлайн в HD»
+- Говори зрителю: можно выбрать материал и смотреть в этой озвучке, в знакомом переводе.
 
 genres (жанр):
-- Каталог сериалов в этом жанре. Передай настроение жанра, без учебника «что такое боевик».
-- Title: «Зарубежные сериалы в жанре боевик смотреть онлайн в HD»
+- Каталог материалов в этом жанре. Передай настроение жанра, без учебника «что такое боевик».
+- Title: «Зарубежные материалы в жанре боевик смотреть онлайн в HD»
 
 countries (страна):
-- Каталог сериалов этой страны. Если есть естественное прилагательное — используй его (США → американские, Великобритания → британские, Южная Корея → корейские).
-- Title: «Американские сериалы смотреть онлайн бесплатно в HD»
+- Каталог материалов этой страны. Если есть естественное прилагательное — используй его (США → американские, Великобритания → британские, Южная Корея → корейские).
+- Title: «Американские материалы смотреть онлайн бесплатно в HD»
 
 years (год):
-- Каталог сериалов этого года выхода. Не пиши «страница года» и не пересказывай историю ТВ.
-- Title: «Зарубежные сериалы 2024 года смотреть онлайн в HD»
+- Каталог материалов этого года выхода. Не пиши «страница года» и не пересказывай историю ТВ.
+- Title: «Зарубежные материалы 2024 года смотреть онлайн в HD»
 
 people (актёр):
-- Каталог сериалов с этим актёром / этой персоной.
-- Title: «Сериалы с Киану Ривзом смотреть онлайн в HD»
+- Каталог материалов с этим актёром / этой персоной.
+- Title: «Материалы с Киану Ривзом смотреть онлайн в HD»
 
 ТОН:
 - Живой грамотный русский, как совет другу, что посмотреть.
@@ -508,21 +508,21 @@ people (актёр):
 ЗАПРЕЩЕНО:
 - Слова: справочник, энциклопедия, документация, «страница … — это», «в данном разделе», «данный каталог».
 - Инструкции и фичи сайта: «как смотреть», «как пользоваться», «удобная навигация», «поиск по названию», «без регистрации», «без рекламы», «регулярное обновление».
-- Заголовки-инструкции вроде <h2>Как смотреть сериалы онлайн</h2>.
+- Заголовки-инструкции вроде <h2>Как смотреть материалы онлайн</h2>.
 - Клише: лучший сайт, самый полный каталог, уникальная подборка.
 
 ПРАВИЛА meta_title (до ~70 символов):
-- Тема страницы + зарубежные сериалы (или естественный вариант для типа)
+- Тема страницы + зарубежные материалы (или естественный вариант для типа)
 - 1–2 фразы из: смотреть онлайн, в HD качестве, бесплатно
 - Для озвучки обязательно «с озвучкой {name}»
 
 ПРАВИЛА meta_description (120–160 символов):
-- 1–2 предложения: какие сериалы здесь и что можно смотреть
+- 1–2 предложения: какие материалы здесь и что можно смотреть
 - Упомяни смотреть онлайн / бесплатно / HD без набивки ключей
 
 ПРАВИЛА seo_html:
 - 2–4 коротких абзаца: только <p>; <h2> можно один раз и только по теме страницы (жанр, озвучка, год, страна, актёр), не «как смотреть»
-- <ul><li> — только про сериалы и настроение, не про функции сайта
+- <ul><li> — только про материалы и настроение, не про функции сайта
 - SEO-фразы («смотреть онлайн», «бесплатно», «HD») 2–4 раза на весь блок
 - Без markdown, inline-стилей, скриптов и внешних ссылок
 - В JSON экранируй кавычки внутри HTML как \"
@@ -532,9 +532,9 @@ people (актёр):
 Для других типов адаптируй формулировки по правилам выше.
 
 {
-  "meta_title": "Сериалы с озвучкой TVShows смотреть онлайн в HD",
-  "meta_description": "Зарубежные сериалы с озвучкой TVShows — смотреть онлайн бесплатно в HD. Выбирайте сериал и смотрите в привычном переводе.",
-  "seo_html": "<p>Здесь собраны зарубежные сериалы с озвучкой TVShows — смотреть онлайн бесплатно в HD. Можно сразу выбрать сериал и смотреть в знакомом переводе.</p><p>Если вам близка эта озвучка, листайте каталог: новинки и давно знакомые сериалы в одном месте.</p>"
+  "meta_title": "Материалы с озвучкой TVShows смотреть онлайн в HD",
+  "meta_description": "Зарубежные материалы с озвучкой TVShows — смотреть онлайн бесплатно в HD. Выбирайте материал и смотрите в привычном переводе.",
+  "seo_html": "<p>Здесь собраны зарубежные материалы с озвучкой TVShows — смотреть онлайн бесплатно в HD. Можно сразу выбрать материал и смотреть в знакомом переводе.</p><p>Если вам близка эта озвучка, листайте каталог: новинки и давно знакомые материалы в одном месте.</p>"
 }
 PROMPT,
                 'group' => 'seo',
@@ -544,9 +544,9 @@ PROMPT,
             'studio_seo_ai_prompt' => [
                 'type' => 'html',
                 'default' => <<<'PROMPT'
-Ты — SEO-редактор каталога зарубежных сериалов.
+Ты — SEO-редактор каталога зарубежных материалов.
 
-Задача: для страницы студии «{name}» подготовь meta_title, description, meta_description и SEO-блок (HTML) для сайта зарубежных сериалов.
+Задача: для страницы студии «{name}» подготовь meta_title, description, meta_description и SEO-блок (HTML) для сайта зарубежных материалов.
 
 Контекст страницы:
 - Студия: {name}
@@ -555,23 +555,23 @@ PROMPT,
 Цель: тексты должны быть полезными для людей и дружелюбными к Яндексу/Google — естественные формулировки, коммерческий интент «смотреть онлайн», без переспама и воды.
 
 ПРАВИЛА meta_title (до ~70 символов):
-- Включи название студии и акцент на зарубежные сериалы
+- Включи название студии и акцент на зарубежные материалы
 - Естественно встрой 1–2 фразы: смотреть онлайн, в HD качестве, бесплатно
-- Пример: «Сериалы USA Network смотреть онлайн в HD качестве бесплатно»
+- Пример: «Материалы USA Network смотреть онлайн в HD качестве бесплатно»
 
 ПРАВИЛА description (2–4 предложения, обычный текст без HTML):
-- Живое описание студии и её зарубежных сериалов
+- Живое описание студии и её зарубежных материалов
 - Без обязательных SEO-штампов в каждом предложении
 - Без markdown и кавычек-ёлочек
 
 ПРАВИЛА meta_description (120–160 символов):
 - 1–2 предложения: что пользователь найдёт на странице студии
-- Упомяни зарубежные сериалы и смотреть онлайн / бесплатно / HD без набивки ключей
+- Упомяни зарубежные материалы и смотреть онлайн / бесплатно / HD без набивки ключей
 - Без клише вроде «лучший сайт»
 
 ПРАВИЛА seo_html:
 - 2–4 абзаца валидного HTML: только <p>, при необходимости <h2> и <ul><li>
-- Полезный текст про зарубежные сериалы студии «{name}»
+- Полезный текст про зарубежные материалы студии «{name}»
 - SEO-фразы («смотреть онлайн», «бесплатно», «HD») используй естественно 2–4 раза на весь блок
 - Без markdown, inline-стилей, скриптов и внешних ссылок
 - В JSON экранируй кавычки внутри HTML как \"
@@ -579,10 +579,10 @@ PROMPT,
 ФОРМАТ ОТВЕТА (JSON):
 Ответ верни СТРОГО в формате JSON без markdown, без пояснений до или после JSON.
 {
-  "meta_title": "Сериалы USA Network смотреть онлайн в HD качестве бесплатно",
-  "description": "USA Network — студия с узнаваемыми зарубежными сериалами: динамичные сюжеты, сильные герои и сезоны, которые удобно смотреть подряд.",
-  "meta_description": "Зарубежные сериалы USA Network — смотреть онлайн бесплатно в хорошем HD качестве. Новые серии и популярные сериалы студии.",
-  "seo_html": "<p>На странице собраны зарубежные сериалы студии USA Network — смотреть онлайн бесплатно в HD.</p><p>Выбирайте сериалы студии и следите за новыми сериями.</p>"
+  "meta_title": "Материалы USA Network смотреть онлайн в HD качестве бесплатно",
+  "description": "USA Network — студия с узнаваемыми зарубежными материалами: динамичные сюжеты, сильные герои и сезоны, которые удобно смотреть подряд.",
+  "meta_description": "Зарубежные материалы USA Network — смотреть онлайн бесплатно в хорошем HD качестве. Новые серии и популярные материалы студии.",
+  "seo_html": "<p>На странице собраны зарубежные материалы студии USA Network — смотреть онлайн бесплатно в HD.</p><p>Выбирайте материалы студии и следите за новыми сериями.</p>"
 }
 PROMPT,
                 'group' => 'seo',
@@ -592,9 +592,9 @@ PROMPT,
             'collection_seo_ai_prompt' => [
                 'type' => 'html',
                 'default' => <<<'PROMPT'
-Ты — SEO-редактор каталога зарубежных сериалов.
+Ты — SEO-редактор каталога зарубежных материалов.
 
-Задача: для страницы подборки «{name}» подготовь meta_title, description, meta_description и SEO-блок (HTML) для сайта зарубежных сериалов.
+Задача: для страницы подборки «{name}» подготовь meta_title, description, meta_description и SEO-блок (HTML) для сайта зарубежных материалов.
 
 Контекст страницы:
 - Подборка: {name}
@@ -603,23 +603,23 @@ PROMPT,
 Цель: тексты должны быть полезными для людей и дружелюбными к Яндексу/Google — естественные формулировки, коммерческий интент «смотреть онлайн», без переспама и воды.
 
 ПРАВИЛА meta_title (до ~70 символов):
-- Включи тему подборки и акцент на зарубежные сериалы
+- Включи тему подборки и акцент на зарубежные материалы
 - Естественно встрой 1–2 фразы: смотреть онлайн, в HD качестве, бесплатно
-- Пример: «Сериалы про вампиров — смотреть онлайн в HD качестве бесплатно»
+- Пример: «Материалы про вампиров — смотреть онлайн в HD качестве бесплатно»
 
 ПРАВИЛА description (2–4 предложения, обычный текст без HTML):
-- Живое тематическое описание подборки зарубежных сериалов
+- Живое тематическое описание подборки зарубежных материалов
 - Без обязательных SEO-штампов в каждом предложении
 - Без markdown и кавычек-ёлочек
 
 ПРАВИЛА meta_description (120–160 символов):
 - 1–2 предложения: что пользователь найдёт в подборке
-- Упомяни зарубежные сериалы и смотреть онлайн / бесплатно / HD без набивки ключей
+- Упомяни зарубежные материалы и смотреть онлайн / бесплатно / HD без набивки ключей
 - Без клише вроде «лучший сайт»
 
 ПРАВИЛА seo_html:
 - 2–4 абзаца валидного HTML: только <p>, при необходимости <h2> и <ul><li>
-- Полезный текст про зарубежные сериалы по теме «{name}»
+- Полезный текст про зарубежные материалы по теме «{name}»
 - SEO-фразы («смотреть онлайн», «бесплатно», «HD») используй естественно 2–4 раза на весь блок
 - Без markdown, inline-стилей, скриптов и внешних ссылок
 - В JSON экранируй кавычки внутри HTML как \"
@@ -627,10 +627,10 @@ PROMPT,
 ФОРМАТ ОТВЕТА (JSON):
 Ответ верни СТРОГО в формате JSON без markdown, без пояснений до или после JSON.
 {
-  "meta_title": "Сериалы про вампиров — смотреть онлайн в HD качестве бесплатно",
-  "description": "Подборка зарубежных сериалов про вампиров: мрачная атмосфера, сильные характеры и истории, в которых магия соседствует с повседневностью.",
-  "meta_description": "Подборка зарубежных сериалов про вампиров — смотреть онлайн бесплатно в хорошем HD качестве. Атмосферные истории и новые серии.",
-  "seo_html": "<p>В подборке собраны зарубежные сериалы про вампиров — смотреть онлайн бесплатно в HD.</p><p>Выбирайте сериалы по настроению и следите за новыми сериями.</p>"
+  "meta_title": "Материалы про вампиров — смотреть онлайн в HD качестве бесплатно",
+  "description": "Подборка зарубежных материалов про вампиров: мрачная атмосфера, сильные характеры и истории, в которых магия соседствует с повседневностью.",
+  "meta_description": "Подборка зарубежных материалов про вампиров — смотреть онлайн бесплатно в хорошем HD качестве. Атмосферные истории и новые серии.",
+  "seo_html": "<p>В подборке собраны зарубежные материалы про вампиров — смотреть онлайн бесплатно в HD.</p><p>Выбирайте материалы по настроению и следите за новыми сериями.</p>"
 }
 PROMPT,
                 'group' => 'seo',
@@ -640,16 +640,16 @@ PROMPT,
             'series_seo_ai_prompt' => [
                 'type' => 'html',
                 'default' => <<<'PROMPT'
-Ты — автор статей для сайта зарубежных сериалов. Пишешь для зрителей: увлекательно, информативно, живым языком. Не пишешь документацию и энциклопедии.
+Ты — автор статей для сайта зарубежных материалов. Пишешь для зрителей: увлекательно, информативно, живым языком. Не пишешь документацию и энциклопедии.
 
-Задача: напиши SEO-статью для страницы сериала «{title}».
+Задача: напиши SEO-статью для страницы материала «{title}».
 
 URL страницы: {url}
 
 ДАННЫЕ О СЕРИАЛЕ (используй все релевантные факты, не выдумывай то, чего нет в блоке ниже):
 {series_context}
 
-ЦЕЛЬ: развёрнутая статья внизу страницы сериала — как в журнале о кино. Читатель уже видит плеер и описание; статья углубляет сюжет, героев, атмосферу, график серий и контекст.
+ЦЕЛЬ: развёрнутая статья внизу страницы материала — как в журнале о кино. Читатель уже видит плеер и описание; статья углубляет сюжет, героев, атмосферу, график серий и контекст.
 
 СТРУКТУРА seo_html (валидный HTML):
 - Объём: ориентир 1200–3000 слов, если данных достаточно; иначе короче, но содержательно
@@ -665,12 +665,12 @@ URL страницы: {url}
 - Раздел «Главные герои» — актёры и роли из данных: используй `<ul>` с `<li>`
 - Дополнительные разделы по ситуации: атмосфера, производство, создатели, интересные факты
 - Упомяни страны, жанры, озвучки — если они есть в данных
-- Завершение: короткий нейтральный финал про сериал (без агрессивного CTA и без домена)
+- Завершение: короткий нейтральный финал про материал (без агрессивного CTA и без домена)
 
 ТОН:
 - Живой грамотный русский, для людей, не для поисковых роботов
 - SEO-фразы («смотреть онлайн», «бесплатно», «HD», «в хорошем качестве») — только когда это уместно и без повторов. Ориентир: в тексте 2–4 раза суммарно, без «простыней» и без вставок в каждый абзац.
-- Без канцелярита: «данный сериал», «на данной странице», «в данном разделе»
+- Без канцелярита: «данный материал», «на данной странице», «в данном разделе»
 
 ЗАПРЕЩЕНО:
 - Markdown, inline-стили, скрипты, внешние ссылки
@@ -685,26 +685,26 @@ meta_title (до ~70 символов):
 - «{title}» + смотреть онлайн / HD / бесплатно
 
 meta_description (120–160 символов):
-- 1–2 предложения: о чём сериал + смотреть онлайн бесплатно в HD
+- 1–2 предложения: о чём материал + смотреть онлайн бесплатно в HD
 
 ФОРМАТ ОТВЕТА (JSON):
 Ответ верни СТРОГО в формате JSON без markdown, без пояснений до или после JSON.
 В JSON экранируй кавычки внутри HTML как \"
 
 {
-  "meta_title": "Извне — смотреть сериал онлайн бесплатно в HD",
-  "meta_description": "Сериал «Извне» — мистический триллер о городе-ловушке. Смотреть онлайн бесплатно в хорошем HD качестве, все серии.",
+  "meta_title": "Извне — смотреть материал онлайн бесплатно в HD",
+  "meta_description": "Материал «Извне» — мистический триллер о городе-ловушке. Смотреть онлайн бесплатно в хорошем HD качестве, все серии.",
   "seo_html": "<p>«Извне» — пугающая история в жанре триллера...</p><p><strong>Осторожно спойлеры</strong></p><h2>Сюжет</h2><p>[spoiler]Семья Мэтьюс попадает в Фромвилль...[/spoiler]</p><h2>Когда смотреть новые серии</h2><ul><li>«Осколки» — 22 сентября</li></ul>"
 }
 PROMPT,
                 'group' => 'seo',
-                'label' => 'Промпт ИИ для SEO-статьи сериала',
-                'description' => 'Шаблон для генерации SEO-статьи (seo_html) на странице сериала. ИИ возвращает JSON. Плейсхолдеры: {title}, {slug}, {url}, {series_context} (подставляется автоматически на сервере).',
+                'label' => 'Промпт ИИ для SEO-статьи материала',
+                'description' => 'Шаблон для генерации SEO-статьи (seo_html) на странице материала. ИИ возвращает JSON. Плейсхолдеры: {title}, {slug}, {url}, {series_context} (подставляется автоматически на сервере).',
             ],
             'collection_cover_ai_prompt' => [
                 'type' => 'html',
                 'default' => <<<'PROMPT'
-Ты — арт-директор каталога зарубежных сериалов.
+Ты — арт-директор каталога зарубежных материалов.
 
 Задача: напиши промпт для генерации ОБЛОЖКИ подборки «{name}» (соотношение сторон 4:3).
 
@@ -716,7 +716,7 @@ PROMPT,
 
 Требования к картинке:
 - Атмосфера и визуальный язык темы подборки «{name}»
-- Кинематографичный стиль зарубежных сериалов, без логотипов конкретных студий и без узнаваемых чужих постеров
+- Кинематографичный стиль зарубежных материалов, без логотипов конкретных студий и без узнаваемых чужих постеров
 - Крупный выразительный образ или сцена, читаемая в маленькой плитке
 - Без текста, водяных знаков, UI, рамок и коллажа из нескольких кадров
 - Высокая детализация, естественный свет, без «AI-артефактов» на лицах
@@ -730,12 +730,12 @@ PROMPT,
             'collection_cover_alice_ai_prompt' => [
                 'type' => 'html',
                 'default' => <<<'PROMPT'
-Нарисуй обложку для подборки зарубежных сериалов «{name}».
+Нарисуй обложку для подборки зарубежных материалов «{name}».
 
 Формат: горизонтальная картинка 4:3 (например 1200×900), как плитка каталога.
 
 Объект: крупный выразительный кинематографичный кадр или сцена, передающая атмосферу темы «{name}».
-Окружение: мир зарубежных сериалов по этой теме, естественный свет, глубина кадра.
+Окружение: мир зарубежных материалов по этой теме, естественный свет, глубина кадра.
 Стиль: фотореалистичный cinematic look, высокая детализация, без коллажа.
 Детали: без текста, логотипов, водяных знаков, UI и рамок; без узнаваемых чужих постеров и логотипов студий; лица без артефактов; композиция читается даже в маленькой плитке.
 PROMPT,
@@ -746,7 +746,7 @@ PROMPT,
             'collection_banner_ai_prompt' => [
                 'type' => 'html',
                 'default' => <<<'PROMPT'
-Ты — арт-директор каталога зарубежных сериалов.
+Ты — арт-директор каталога зарубежных материалов.
 
 Задача: напиши промпт для генерации ШИРОКОГО БАННЕРА подборки «{name}» (соотношение сторон 16:4).
 
@@ -758,7 +758,7 @@ PROMPT,
 
 Требования к картинке:
 - Горизонтальная композиция с «воздухом» по краям (важное не у краёв — обрежется на мобильных)
-- Атмосфера темы подборки «{name}», кинематографичный стиль зарубежных сериалов
+- Атмосфера темы подборки «{name}», кинематографичный стиль зарубежных материалов
 - Без логотипов студий, без чужих постеров, без коллажа
 - Без текста, водяных знаков и UI
 - Высокая детализация, cinematic lighting
@@ -772,12 +772,12 @@ PROMPT,
             'collection_banner_alice_ai_prompt' => [
                 'type' => 'html',
                 'default' => <<<'PROMPT'
-Нарисуй широкий баннер для подборки зарубежных сериалов «{name}».
+Нарисуй широкий баннер для подборки зарубежных материалов «{name}».
 
 Формат: панорамная картинка 16:4 (например 1600×400), как промо-блок на главной странице.
 
 Объект: кинематографичная сцена или образ, передающий атмосферу темы «{name}», с горизонтальной композицией и «воздухом» по краям.
-Окружение: мир зарубежных сериалов по этой теме, естественный свет, глубина кадра; важное не у самых краёв (на мобильных обрежется).
+Окружение: мир зарубежных материалов по этой теме, естественный свет, глубина кадра; важное не у самых краёв (на мобильных обрежется).
 Стиль: фотореалистичный cinematic look, высокая детализация, без коллажа.
 Детали: без текста, логотипов, водяных знаков, UI и рамок; без узнаваемых чужих постеров и логотипов студий; лица без артефактов.
 PROMPT,
@@ -813,7 +813,7 @@ PROMPT,
                 'default' => '',
                 'group' => 'advertising',
                 'label' => 'Реклама под плеером',
-                'description' => 'HTML-блок под плеером на странице сериала. Выводите через {ad_below_player_code|raw} или [ad_below_player_code]...[/ad_below_player_code].',
+                'description' => 'HTML-блок под плеером на странице материала. Выводите через {ad_below_player_code|raw} или [ad_below_player_code]...[/ad_below_player_code].',
             ],
 
             // Image optimization
@@ -867,12 +867,12 @@ PROMPT,
                 'type' => 'enum',
                 'default' => 'kp_prefix',
                 'group' => 'optimization',
-                'label' => 'Имя файла постера сериала',
+                'label' => 'Имя файла постера материала',
                 'description' => 'Шаблон имени в /storage/posters/',
                 'options' => [
                     'kp_prefix' => 'kp-{id} (например kp-357)',
                     'kp_id' => 'Только ID ({id})',
-                    'slug' => 'Slug сериала',
+                    'slug' => 'Slug материала',
                     'title_year' => 'Название-год (title-2024)',
                 ],
             ],
@@ -1165,10 +1165,10 @@ PROMPT,
             $groups['seo_counters'] = ['title' => 'Счётчики и метрики', 'fields' => $counters];
         }
         if ($widgets !== []) {
-            $groups['seo_widgets'] = ['title' => 'Виджеты на странице сериала', 'fields' => $widgets];
+            $groups['seo_widgets'] = ['title' => 'Виджеты на странице материала', 'fields' => $widgets];
         }
         if ($content !== []) {
-            $groups['seo_content'] = ['title' => 'SEO и тексты сериала', 'fields' => $content];
+            $groups['seo_content'] = ['title' => 'SEO и тексты материала', 'fields' => $content];
         }
         if ($aiPrompts !== []) {
             $groups['seo_ai'] = ['title' => 'Промпты для ИИ', 'fields' => $aiPrompts];

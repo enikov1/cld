@@ -63,7 +63,7 @@ class AdminRedirectController extends Controller
 
         if ($data['to_type'] === SiteRedirect::TYPE_SERIES && empty($data['series_id'])) {
             throw ValidationException::withMessages([
-                'series_id' => ['Выберите сериал для редиректа.'],
+                'series_id' => ['Выберите материал для редиректа.'],
             ]);
         }
 

@@ -137,7 +137,7 @@ export default function SeriesLookupSearch({ form, onSelect }: Props) {
   const showPanel = open && (loading || results.length > 0 || warnings.length > 0 || query.trim().length >= 2)
 
   return (
-    <Form.Item label="Поиск по названию" extra="Kinopoisk + TMDB — выбор подставит соответствующий ID. Можно вставить ссылку lordserials.fan и нажать Enter — KP ID подставится автоматически.">
+    <Form.Item label="Поиск по названию" extra="Kinopoisk + TMDB — выбор подставит соответствующий ID. Можно вставить ссылку на страницу Кинопоиска и нажать Enter — KP ID подставится автоматически.">
       <div style={{ position: 'relative' }}>
         <Input.Search
           placeholder="Название сериала или фильма…"

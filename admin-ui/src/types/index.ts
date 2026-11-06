@@ -225,9 +225,17 @@ export type UserItem = {
   updated_at?: string
 }
 
+export type AdminStatsContentType = {
+  slug: string
+  label: string
+  total: number
+  active: number
+}
+
 export type AdminStats = {
   series_total: number
   series_active: number
+  content_types?: AdminStatsContentType[]
   collections: number
   collections_active: number
   studios: number
@@ -493,7 +501,7 @@ export const BROADCAST_STATUSES = [
 
 export const CONTENT_TYPES = [
   { value: 'film', label: 'Фильм' },
-  { value: 'series', label: 'Сериал' },
+  { value: 'series', label: 'Материал' },
   { value: 'cartoon', label: 'Мультфильм' },
   { value: 'cartoon_series', label: 'Мультсериал' },
   { value: 'anime', label: 'Аниме' },

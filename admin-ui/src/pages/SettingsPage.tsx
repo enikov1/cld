@@ -702,13 +702,13 @@ export default function SettingsPage() {
             Название, слоган, логотип, favicon, фон и текст в подвале — отображаются на всех страницах.
           </Typography.Paragraph>
           <Form.Item label="Название сайта" name="site_name">
-            <Input placeholder="LordSerial" />
+            <Input placeholder="Omro" />
           </Form.Item>
           <Form.Item label="Слоган" name="site_tagline">
             <Input placeholder="Смотреть бесплатно в хорошем качестве" />
           </Form.Item>
           <Form.Item label="Текст в футере" name="footer_text">
-            <Input.TextArea rows={3} placeholder="Сериалы онлайн в HD качестве" />
+            <Input.TextArea rows={3} placeholder="Смотреть онлайн в HD качестве" />
           </Form.Item>
 
           <Typography.Title level={5} style={{ marginTop: 8 }}>Логотип</Typography.Title>
@@ -942,7 +942,7 @@ export default function SettingsPage() {
               <Form.Item
                 label="SEO-блок (HTML)"
                 name="home_seo_html"
-                extra="Текст под списком сериалов на главной. Допускается HTML."
+                extra="Текст под списком материалов на главной. Допускается HTML."
               >
                 <Input.TextArea rows={6} placeholder="<h1>...</h1><p>...</p>" />
               </Form.Item>
@@ -1067,7 +1067,7 @@ export default function SettingsPage() {
                 children: (
                   <>
                     <Typography.Paragraph type="secondary">
-                      Meta title и description главной и суффиксы для страницы сериала.
+                      Meta title и description главной и суффиксы для страницы материала.
                     </Typography.Paragraph>
                     <SiteConfigFields
                       fields={(configSeoFields.seo_content?.fields ?? []).filter((field) =>
@@ -1083,7 +1083,7 @@ export default function SettingsPage() {
                 children: (
                   <>
                     <Typography.Paragraph type="secondary">
-                      Тексты вокруг плеера и виджет «Поделиться» на странице сериала.
+                      Тексты вокруг плеера и виджет «Поделиться» на странице материала.
                     </Typography.Paragraph>
                     <SiteConfigFields
                       fields={(configSeoFields.seo_content?.fields ?? []).filter((field) =>
@@ -1264,7 +1264,7 @@ export default function SettingsPage() {
       children: (
         <Card title={configSchema.ratings?.title ?? 'Рейтинги и реакции'} loading={loading} bordered={false}>
           <Typography.Paragraph type="secondary">
-            Лайк/дизлайк сериала, реакции и голоса. Типы эмодзи — в разделе «Реакции» админки.
+            Лайк/дизлайк материала, реакции и голоса. Типы эмодзи — в разделе «Реакции» админки.
           </Typography.Paragraph>
           <SiteConfigFields fields={configSchema.ratings?.fields ?? []} />
         </Card>
@@ -1322,7 +1322,7 @@ export default function SettingsPage() {
       children: (
         <Card title={configSchema.optimization?.title ?? 'Оптимизация изображений'} loading={loading} bordered={false}>
           <Typography.Paragraph type="secondary">
-            Настройки загрузки постеров сериалов и обложек подборок: размер, сжатие, формат и шаблон имени файла.
+            Настройки загрузки постеров материалов и обложек подборок: размер, сжатие, формат и шаблон имени файла.
             Сейчас по умолчанию: <Typography.Text code>/storage/posters/kp-357.jpg</Typography.Text>
           </Typography.Paragraph>
           <SiteConfigFields fields={configSchema.optimization?.fields ?? []} />
@@ -1475,7 +1475,7 @@ export default function SettingsPage() {
         </Card>
         <Card title="KinoPoisk API" loading={loading} bordered={false} style={{ marginTop: 16 }}>
           <Typography.Paragraph type="secondary">
-            Ключ для импорта сериалов и фильмов. Запасной вариант — переменная <code>KINOPOISK_API_KEY</code> в .env.
+            Ключ для импорта материалов и фильмов. Запасной вариант — переменная <code>KINOPOISK_API_KEY</code> в .env.
           </Typography.Paragraph>
           <Form.Item
             label="API-ключ"
@@ -1529,7 +1529,7 @@ export default function SettingsPage() {
             <code>TMDB_API_KEY</code> в .env.
             Документация:{' '}
             <a href="https://developer.themoviedb.org/reference/tv-series-details" target="_blank" rel="noreferrer">
-              сериалы
+              материалы
             </a>
             {' '}(networks),{' '}
             <a href="https://developer.themoviedb.org/reference/movie-details" target="_blank" rel="noreferrer">
@@ -1559,7 +1559,7 @@ export default function SettingsPage() {
           )}
           <Form.Item
             label="Автообновление TMDB"
-            extra="Синхронизация идёт пакетами (по 25 сериалов), чтобы сайт не зависал на больших каталогах. Раз в сутки обновляет популярность TMDB, статус, расписание, студии и логотипы. Ручной статус «На паузе» не перезаписывается, пока TMDB считает шоу продолжающимся."
+            extra="Синхронизация идёт пакетами (по 25 материалов), чтобы сайт не зависал на больших каталогах. Раз в сутки обновляет популярность TMDB, статус, расписание, студии и логотипы. Ручной статус «На паузе» не перезаписывается, пока TMDB считает шоу продолжающимся."
           >
             <Space wrap>
               <Switch
@@ -1662,8 +1662,8 @@ export default function SettingsPage() {
         </Card>
         <Card title="CDN VideoHub — автоплеер" loading={loading} bordered={false} style={{ marginTop: 16 }}>
           <Typography.Paragraph type="secondary">
-            При импорте сериала автоматически добавляется вкладка с плеером <code>&lt;video-player&gt;</code>.
-            В атрибут <code>data-title-id</code> подставляется KP ID сериала.
+            При импорте материала автоматически добавляется вкладка с плеером <code>&lt;video-player&gt;</code>.
+            В атрибут <code>data-title-id</code> подставляется KP ID материала.
           </Typography.Paragraph>
           <SiteConfigFields fields={configSchema.players?.fields ?? []} />
 
@@ -1695,14 +1695,14 @@ export default function SettingsPage() {
           <Space style={{ marginTop: 8 }} wrap>
             {!cdnSyncing && cdnProgress?.status !== 'running' && cdnProgress?.status !== 'paused' ? (
               <Popconfirm
-                title="Проставить CDN VideoHub всем сериалам?"
-                description="Будет создана или обновлена вкладка плеера у всех сериалов с KP ID. Сохраните настройки перед запуском."
+                title="Проставить CDN VideoHub всем материалам?"
+                description="Будет создана или обновлена вкладка плеера у всех материалов с KP ID. Сохраните настройки перед запуском."
                 okText="Проставить всем"
                 cancelText="Отмена"
                 onConfirm={() => void runCdnLoop(true)}
               >
                 <Button type="primary" icon={<PlayCircleOutlined />}>
-                  Проставить всем сериалам
+                  Проставить всем материалам
                 </Button>
               </Popconfirm>
             ) : null}
@@ -1768,7 +1768,7 @@ export default function SettingsPage() {
               </Button>
             ) : null}
             <Typography.Text type="secondary">
-              Только сериалы с числовым KP ID. Работает, если автодобавление включено.
+              Только материалы с числовым KP ID. Работает, если автодобавление включено.
             </Typography.Text>
           </Space>
         </Card>

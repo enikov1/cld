@@ -42,7 +42,7 @@ class TmdbScheduleImportService
 
         $tmdbId = trim((string)$series->tmdb_id);
         if ($tmdbId === '') {
-            throw new \RuntimeException('У сериала не указан TMDB ID');
+            throw new \RuntimeException('У материала не указан TMDB ID');
         }
 
         $details = is_array($prefetchedDetails) && $prefetchedDetails !== []
@@ -50,7 +50,7 @@ class TmdbScheduleImportService
             : $this->client->getTvDetails($tmdbId);
 
         if ($details === []) {
-            throw new \RuntimeException('Не удалось получить данные сериала из TMDB');
+            throw new \RuntimeException('Не удалось получить данные материала из TMDB');
         }
 
         $seasonNumbers = $this->seasonNumbersFromDetails($details);

@@ -61,7 +61,7 @@ export default function DashboardPage() {
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
-            <Statistic title="Сериалов с просмотрами сегодня" value={views?.series_active_today ?? 0} />
+            <Statistic title="Материалов с просмотрами сегодня" value={views?.series_active_today ?? 0} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
@@ -71,11 +71,38 @@ export default function DashboardPage() {
         </Col>
       </Row>
 
+      <Typography.Title level={5}>Контент по типам</Typography.Title>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        {(stats?.content_types ?? []).length > 0 ? (
+          stats?.content_types?.map((type) => (
+            <Col xs={12} sm={8} lg={6} key={type.slug}>
+              <Card loading={loading}>
+                <Statistic
+                  title={type.label}
+                  value={type.total}
+                  suffix={type.active !== type.total ? `/ ${type.active} акт.` : undefined}
+                />
+              </Card>
+            </Col>
+          ))
+        ) : (
+          <Col xs={24} sm={12} lg={6}>
+            <Card loading={loading}>
+              <Statistic
+                title="Материалов всего"
+                value={stats?.series_total ?? 0}
+                suffix={`/ ${stats?.series_active ?? 0} акт.`}
+              />
+            </Card>
+          </Col>
+        )}
+      </Row>
+
       <Typography.Title level={5}>Контент и модерация</Typography.Title>
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
-            <Statistic title="Сериалы" value={stats?.series_total ?? 0} suffix={`/ ${stats?.series_active ?? 0} акт.`} />
+            <Statistic title="Материалов" value={stats?.series_total ?? 0} suffix={`/ ${stats?.series_active ?? 0} акт.`} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
@@ -143,7 +170,7 @@ export default function DashboardPage() {
         <Col xs={24} md={12}>
           <Card title="Быстрые действия">
             <Typography.Paragraph>
-              <Link to={ADMIN_ROUTES.series}>Управление сериалами</Link>
+              <Link to={ADMIN_ROUTES.series}>Управление контентом</Link>
               {' · '}
               <Link to={ADMIN_ROUTES.collections}>Подборки</Link>
               {' · '}
@@ -184,7 +211,7 @@ export default function DashboardPage() {
         <Col xs={24} md={12}>
           <Card title="Порядок наполнения">
             <Typography.Paragraph>1. Настройте справочники (жанры, страны) и студии.</Typography.Paragraph>
-            <Typography.Paragraph>2. Импортируйте сериалы через KinoPoisk / Alloha или добавьте вручную.</Typography.Paragraph>
+            <Typography.Paragraph>2. Импортируйте материалы через KinoPoisk / Alloha или добавьте вручную.</Typography.Paragraph>
             <Typography.Paragraph>3. Проставьте вкладки плееров (Alloha, CDN VideoHub, Rutube) в карточке или массово.</Typography.Paragraph>
             <Typography.Paragraph style={{ marginBottom: 0 }}>4. Соберите подборки, меню и проверьте шаблон.</Typography.Paragraph>
           </Card>

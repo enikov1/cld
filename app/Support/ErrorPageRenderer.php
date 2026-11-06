@@ -51,7 +51,7 @@ class ErrorPageRenderer
         $common = self::commonVars();
         $vars = array_merge($common, $bodyVars);
         $vars['seo'] = [
-            'title' => $bodyVars['error_title'] . ' — ' . ($common['site']['name'] ?? 'LordSerial'),
+            'title' => $bodyVars['error_title'] . ' — ' . ($common['site']['name'] ?? 'Omro'),
             'description' => $bodyVars['error_message'],
             'robots' => 'noindex, nofollow',
         ];
@@ -108,8 +108,8 @@ class ErrorPageRenderer
             'theme' => ThemeManager::assetVars(),
             'site' => array_merge([
                 'name' => SiteSetting::get('site_name', config('app.name', 'LordSerial')),
-                'tagline' => SiteSetting::get('site_tagline', 'Сериалы онлайн'),
-                'footer_text' => SiteSetting::get('footer_text', 'Сериалы онлайн в HD качестве'),
+                'tagline' => SiteSetting::get('site_tagline', 'Смотреть онлайн'),
+                'footer_text' => SiteSetting::get('footer_text', 'Смотреть онлайн в HD качестве'),
                 'year' => (string)date('Y'),
             ], SiteBranding::siteVars()),
             'has_notifications' => SiteConfig::bool('notifications_enabled'),

@@ -111,9 +111,20 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
 
     Route::get('/stats', function () {
         return response()->json(Cache::remember('admin_inventory_stats', 60, function () {
+            $contentTypes = [];
+            foreach (\App\Support\ContentTypes::all() as $typeSlug => $typeLabel) {
+                $contentTypes[] = [
+                    'slug' => $typeSlug,
+                    'label' => $typeLabel,
+                    'total' => Series::query()->where('content_type', $typeSlug)->count(),
+                    'active' => Series::query()->where('content_type', $typeSlug)->where('is_active', true)->count(),
+                ];
+            }
+
             return [
                 'series_total' => Series::query()->count(),
                 'series_active' => Series::query()->where('is_active', true)->count(),
+                'content_types' => $contentTypes,
                 'collections' => Collection::query()->count(),
                 'collections_active' => Collection::query()->where('is_active', true)->count(),
                 'studios' => Studio::query()->count(),
@@ -150,6 +161,19 @@ Route::middleware(['throttle:admin-api', 'admin.token'])->prefix('admin')->group
     Route::get('/cache', [AdminCacheController::class, 'info']);
     Route::post('/cache/clear', [AdminCacheController::class, 'clear'])->middleware('throttle:admin-destructive');
     Route::get('/system', [AdminSystemController::class, 'info']);
+
+    Route::get('/system/update/check', function () {
+        return response()->json([
+            'ok' => true,
+            'update' => \App\Services\EngineUpdater::check(),
+        ]);
+    });
+
+    Route::post('/system/update/run', function () {
+        $result = \App\Services\EngineUpdater::run();
+
+        return response()->json(['ok' => (bool)($result['ok'] ?? false)] + $result);
+    })->middleware('throttle:admin-destructive');
 
     Route::get('/cron-runs', function (Request $request) {
         $perPage = min(100, max(10, (int)$request->query('per_page', 50)));

@@ -40,7 +40,7 @@
                         [/series.imdb_rating] [series.status_badge_label]
                         <div class="serial-status serial-status--{series.status_badge_class|raw}">
                             <span class="serial-status__dot"></span>
-                            <span class="serial-status__label">Статус сериала:</span>
+                            <span class="serial-status__label">Статус:</span>
                             <span class="serial-status__value">{series.status_badge_label}</span>
                         </div>
                         [/series.status_badge_label]
@@ -275,7 +275,7 @@
                 <label class="notify-item"><input type="checkbox" name="notify_any" value="1" checked><span></span>На новую серию</label> [loop notify_voices]
                 <label class="notify-item"><input type="checkbox" name="voices[]" value="{item.name}"><span></span>{item.name}</label> [/loop]
                 <div class="notify-actions">
-                    <button type="button" class="dontusebuttonclass notify-unsubscribe" id="notifyUnsubscribeBtn" hidden>Отключить для сериала</button>
+                    <button type="button" class="dontusebuttonclass notify-unsubscribe" id="notifyUnsubscribeBtn" hidden>Отключить уведомления</button>
                     <button type="button" class="dontusebuttonclass notify-cancel" data-notify-close>Отменить</button>
                     <button type="submit" class="dontusebuttonclass notify-save">Сохранить</button>
                 </div>

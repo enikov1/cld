@@ -156,7 +156,7 @@ export default function CommentsPage() {
   const columns: ColumnsType<CommentItem> = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
     {
-      title: 'Сериал',
+      title: 'Материал',
       key: 'series',
       width: 180,
       ellipsis: true,

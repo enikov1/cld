@@ -97,7 +97,7 @@ function ReactionSettingsPanel() {
   const [items, setItems] = useState<ReactionItem[]>([])
   const [enabled, setEnabled] = useState(true)
   const [badge, setBadge] = useState('ОЦЕНИТЕ')
-  const [title, setTitle] = useState('Как вам этот сериал?')
+  const [title, setTitle] = useState('Как вам этот материал?')
   const [loading, setLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<ReactionItem | null>(null)
@@ -418,7 +418,7 @@ function ReactionStatsPanel() {
       render: (v: number) => formatInt(v),
     },
     {
-      title: 'Сериалов',
+      title: 'Материалов',
       dataIndex: 'series_count',
       width: 110,
       align: 'right',
@@ -445,7 +445,7 @@ function ReactionStatsPanel() {
         ),
     },
     {
-      title: 'Сериал',
+      title: 'Материал',
       dataIndex: 'title',
       render: (_, row) => (
         <Space direction="vertical" size={0}>
@@ -586,7 +586,7 @@ function ReactionStatsPanel() {
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card loading={loading}>
-            <Statistic title="Сериалов с реакциями" value={summary?.series_period ?? 0} />
+            <Statistic title="Материалов с реакциями" value={summary?.series_period ?? 0} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
@@ -622,7 +622,7 @@ function ReactionStatsPanel() {
         />
       </Card>
 
-      <Card title="Где поставили — топ сериалов">
+      <Card title="Где поставили — топ материалов">
         <Table
           rowKey="id"
           loading={loading}

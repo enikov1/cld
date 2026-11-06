@@ -130,7 +130,7 @@ class DispatchEpisodeNotifications implements ShouldQueue
             }
 
             WebPushService::sendToUser($user, [
-                'title' => 'Новая серия — ' . ($series->title ?? 'сериал'),
+                'title' => 'Новая серия — ' . ($series->title ?? 'материал'),
                 'body' => $episodeLabel !== ''
                     ? $episodeLabel . ($event->voice ? ' · ' . $event->voice : '')
                     : 'Вышла новая серия',
