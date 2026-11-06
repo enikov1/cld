@@ -1,5 +1,0 @@
-[meta-title]Поиск {search-value}, найдено: {count-news} [dle-search declination={count-news}]новост|ь|и|ей[/declination][page] страница {page}[/page][/meta-title]
-[meta-description]Поиск {search-value}, найдено: {count-news} [dle-search declination={count-news}]новост|ь|и|ей[/declination][page] страница {page}[/page][/meta-description]
-[meta-keywords]Поиск {search-value}, найдено: {count-news} [dle-search declination={count-news}]новост|ь|и|ей[/declination][page] страница {page}[/page][/meta-keywords]
-[meta-speedbar]Поиск {search-value}, найдено: {count-news} [dle-search declination={count-news}]новост|ь|и|ей[/declination][page] страница {page}[/page][/meta-speedbar]
-[meta-robots]index,follow[/meta-robots]

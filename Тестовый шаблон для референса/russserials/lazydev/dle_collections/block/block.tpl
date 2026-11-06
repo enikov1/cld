@@ -1,3 +1,0 @@
-[collection]
-	{collection}
-[/collection]

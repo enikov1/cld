@@ -1,1 +1,0 @@
-<li><a href="{url}">[title]{title}[/title][not-title]{name}[/not-title]</a></li>

@@ -1,1 +1,0 @@
-{include file="shortstory.tpl"}
