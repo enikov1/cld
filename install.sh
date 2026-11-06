@@ -196,7 +196,7 @@ fix_nodesource_apt_conflict() {
     [[ -f /usr/share/keyrings/nodejs.gpg ]] && keyrings=$((keyrings + 1))
     [[ -f /usr/share/keyrings/nodesource.gpg ]] && keyrings=$((keyrings + 1))
 
-    if [[ "$force" == "1" ]] || [[ "$keyrings" -gt 1 ]] || [[ "$(echo "$ns_files" | grep -c . || echo 0)" -gt 1 ]]; then
+    if [[ "$force" == "1" ]] || [[ "$keyrings" -gt 1 ]] || [[ "$(printf '%s\n' "$ns_files" | grep -c .)" -gt 1 ]]; then
         warn "Исправляю конфликт репозитория Node.js..."
         rm -f /etc/apt/sources.list.d/nodesource*.list /etc/apt/sources.list.d/nodesource*.sources
         rm -f /etc/apt/sources.list.d/node_*.list /etc/apt/sources.list.d/node_*.sources
