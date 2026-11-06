@@ -381,6 +381,20 @@ abstract class TplController extends Controller
      */
     protected function injectFreshAssetVersions(string $html): string
     {
+        // omrotpl (public/omrotpl) — versioned directly from the file.
+        $html = (string)preg_replace_callback(
+            '#((?:https?:)?(?://[^/]+)?/omrotpl/(omrotpl\.(?:min\.)?(?:js|css)))\?v=\d+#i',
+            static function (array $matches): string {
+                $diskPath = public_path('omrotpl/' . $matches[2]);
+                if (!is_file($diskPath)) {
+                    return $matches[0];
+                }
+
+                return $matches[1] . '?v=' . filemtime($diskPath);
+            },
+            $html
+        );
+
         $replaced = preg_replace_callback(
             '#((?:https?:)?(?://[^/]+)?/theme-assets/([^/]+)/assets/([^?\s"\']+\.(?:js|css)))\?v=\d+#i',
             static function (array $matches): string {

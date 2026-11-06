@@ -1,10 +1,117 @@
-import { readdir, readFile, writeFile, access } from 'node:fs/promises';
+import { readdir, readFile, writeFile, access, copyFile, mkdir } from 'node:fs/promises';
 import { join, extname, basename, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 
 const themesRoot = join(fileURLToPath(new URL('.', import.meta.url)), '../resources/tpl');
 const MINIFY_EXT = new Set(['.css', '.js']);
+
+// Engine functional layer omrotpl: source — resources/omrotpl/, artifact — public/omrotpl/.
+const omroSourceDir = join(themesRoot, '../omrotpl');
+const omroOutDir = join(themesRoot, '../../public/omrotpl');
+
+/**
+ * data-omro-* contract layer: maps theme-independent attributes
+ * to engine hooks. Runs BEFORE module initialization (its DOMContentLoaded
+ * handler is registered first in the assembled file).
+ */
+const OMRO_CONTRACT_LAYER = `/* ══ OmroTPL contract: data-omro-* → engine hooks ═══════════════════════
+   Themes use the data-omro-* attributes instead of engine classes.        */
+(function () {
+  'use strict';
+
+  var qsa = function (sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); };
+  var mark = function (sel, hook) {
+    qsa(sel).forEach(function (el) { el.classList.add(hook); });
+  };
+  var markId = function (el, id) { if (!el.id) { el.id = id; } };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    // Authorization modal
+    qsa('[data-omro-modal="auth"]').forEach(function (el) { markId(el, 'loginOverlay'); });
+    mark('[data-omro-modal-open]', 'js-login-open');
+    mark('[data-omro-modal-close]', 'js-login-close');
+    mark('[data-omro-form="login"]', 'login-form');
+    mark('[data-omro-form-switch]', 'js-auth-switch');
+    qsa('[data-omro-reset-email]').forEach(function (el) { markId(el, 'resetEmailField'); });
+    qsa('[data-omro-reset-token]').forEach(function (el) { markId(el, 'resetTokenField'); });
+
+    // Search
+    mark('[data-omro-search]', 'ls-search');
+    mark('[data-omro-search-panel]', 'ls-search__panel');
+    mark('[data-omro-search-loading]', 'ls-search__loading');
+    mark('[data-omro-search-open]', 'js-header-search-open');
+    mark('[data-omro-search-close]', 'js-header-search-close');
+    mark('[data-omro-search-input]', 'js-quick-search');
+
+    // Mobile menu and theme
+    qsa('[data-omro-menu]').forEach(function (el) { markId(el, 'lsMobileMenu'); el.classList.add('ls-mobile-overlay'); });
+    mark('[data-omro-menu-open]', 'js-mobile-menu-open');
+    mark('[data-omro-menu-close]', 'js-mobile-menu-close');
+    mark('[data-omro-theme-toggle]', 'js-theme-toggle');
+
+    // Texts: description trimming, details, comment spoilers
+    mark('[data-omro-slice]', 'slice-this');
+    mark('[data-omro-details-toggle]', 'serial-details__toggle');
+    mark('[data-omro-spoiler]', 'comment-spoiler__text');
+
+    // Subscription module (variant → element id)
+    var NOTIFY_IDS = {
+      modal: 'notifyOverlay',
+      open: 'notifyOpenBtn',
+      form: 'notifyForm',
+      feedback: 'notifyFeedback',
+      badge: 'notifySubscribedBadge',
+      unsubscribe: 'notifyUnsubscribeBtn',
+      subscribed: 'notifySubscribeFeedback',
+      box: 'seriesSubscribeBox',
+      bell: 'headerNotifyBtn',
+      count: 'headerNotifyCount',
+      clear: 'clearAllNotifi'
+    };
+    qsa('[data-omro-notify]').forEach(function (el) {
+      var id = NOTIFY_IDS[el.getAttribute('data-omro-notify')];
+      if (id) { markId(el, id); }
+    });
+    mark('[data-omro-notify-item]', 'series-item');
+  });
+})();
+`;
+
+/**
+ * omrotpl.js = contract layer + engine script (site.js source) with
+ * renaming of internal events lordserial:* → omro:*.
+ */
+async function buildOmrotpl() {
+    await mkdir(omroOutDir, { recursive: true });
+
+    const seedPath = join(omroSourceDir, 'omrotpl.js');
+    if (!(await fileExists(seedPath))) {
+        // First migration: the source of the engine script — the site.js of the standard theme.
+        const legacySource = join(themesRoot, 'default/assets/site.js');
+        if (!(await fileExists(legacySource))) {
+            console.log('  skip omrotpl (no source)');
+            return;
+        }
+        await writeFile(seedPath, await readFile(legacySource, 'utf8'));
+        console.log('  omrotpl.js source migrated from the standard theme');
+    }
+
+    const source = await readFile(seedPath, 'utf8');
+    const js = OMRO_CONTRACT_LAYER + '\n' + source.replaceAll('lordserial:', 'omro:');
+
+    const outJs = join(omroOutDir, 'omrotpl.js');
+    await writeFile(outJs, js);
+    console.log(`  omrotpl.js generated (${(js.length / 1024).toFixed(1)} KB)`);
+    await minifyFile(outJs);
+
+    const srcCss = join(omroSourceDir, 'omrotpl.css');
+    if (await fileExists(srcCss)) {
+        const outCss = join(omroOutDir, 'omrotpl.css');
+        await copyFile(srcCss, outCss);
+        await minifyFile(outCss);
+    }
+}
 
 /** ES-module entries → bundled IIFE in assets/ (tree-shaken deps like Swiper modules). */
 const THEME_MODULE_BUNDLES = [
@@ -97,6 +204,9 @@ async function processAssetsDir(dir) {
 }
 
 async function main() {
+    console.log('Building omrotpl engine assets...');
+    await buildOmrotpl();
+
     console.log('Bundling theme ES modules...');
     await bundleThemeModules();
 

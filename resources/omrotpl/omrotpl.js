@@ -763,7 +763,7 @@
 
         compose.innerHTML = '';
         compose.appendChild(form);
-        document.dispatchEvent(new CustomEvent('lordserial:comments-compose-upgrade'));
+        document.dispatchEvent(new CustomEvent('omro:comments-compose-upgrade'));
     }
 
     function applyAuthSession(data) {
@@ -772,7 +772,7 @@
         updateHeaderAuthState(data);
         upgradeCommentsComposeForm();
         cleanAuthUrlParams();
-        document.dispatchEvent(new CustomEvent('lordserial:auth-login', { detail: data || {} }));
+        document.dispatchEvent(new CustomEvent('omro:auth-login', { detail: data || {} }));
         mergeGuestLibrary();
     }
 
@@ -1609,7 +1609,7 @@
         });
 
         refreshEngagement();
-        document.addEventListener('lordserial:auth-login', refreshEngagement);
+        document.addEventListener('omro:auth-login', refreshEngagement);
 
         var favBtn = document.querySelector('[data-favourite-toggle][data-series-id="' + seriesId + '"]');
         if (favBtn && cfgBool('favourites_enabled', true)) {
@@ -2736,7 +2736,7 @@
 
         bindListEvents();
         section.querySelectorAll('[data-comment-form]').forEach(enhanceCommentForm);
-        document.addEventListener('lordserial:comments-compose-upgrade', function() {
+        document.addEventListener('omro:comments-compose-upgrade', function() {
             section.querySelectorAll('[data-comment-form]').forEach(enhanceCommentForm);
         });
         if (!commentsSsr) {
@@ -3740,7 +3740,7 @@
             });
         }
 
-        document.addEventListener('lordserial:auth-login', function() {
+        document.addEventListener('omro:auth-login', function() {
             updateSubscribeUi({ subscribed: subscribed });
             loadSettings();
         });
@@ -5438,7 +5438,7 @@
         ensureCsrfToken().then(function() {
             refreshHeaderFavouritesCount();
         });
-        document.addEventListener('lordserial:auth-login', function() {
+        document.addEventListener('omro:auth-login', function() {
             refreshHeaderFavouritesCount();
         });
     }

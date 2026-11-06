@@ -161,7 +161,9 @@ class ThemeManager
         $name = self::activeName();
         $vars = ['name' => $name];
 
-        $stylesheets = [];
+        // Движковые ассеты omrotpl — функциональный слой движка: подключаются
+        // в каждой теме первыми (тема переопределяет внешний вид).
+        $stylesheets = self::omrotplAssets('css');
         $deferredStylesheets = [];
         foreach (['fonts.css', 'style.formated.css', 'new-dark.css', 'site.css', 'auth.css', 'theme-overrides.css'] as $file) {
             if (self::assetPath($file, $name)) {
@@ -200,7 +202,7 @@ class ThemeManager
             $vars['home_carousels_css'] = self::assetUrl('home-carousels.css', $name);
         }
 
-        $scripts = [];
+        $scripts = self::omrotplAssets('js');
         if (self::assetPath('libs.js', $name)) {
             $scripts[] = self::assetUrl('libs.js', $name);
         }
@@ -218,5 +220,25 @@ class ThemeManager
     private static function isValidThemeName(string $name): bool
     {
         return (bool)preg_match('/^[a-zA-Z0-9_-]+$/', $name);
+    }
+
+    /**
+     * URL движковых ассетов omrotpl (public/omrotpl) с ?v= filemtime.
+     *
+     * @return list<string>
+     */
+    private static function omrotplAssets(string $ext): array
+    {
+        $dir = public_path('omrotpl');
+        $min = self::shouldUseMinifiedAssets();
+        $file = ($min && is_file($dir . '/omrotpl.min.' . $ext)) ? 'omrotpl.min.' . $ext : 'omrotpl.' . $ext;
+
+        if (!is_file($dir . '/' . $file)) {
+            return [];
+        }
+
+        $version = @filemtime($dir . '/' . $file) ?: time();
+
+        return ['/omrotpl/' . $file . '?v=' . $version];
     }
 }

@@ -1,0 +1,83 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   OmroTPL — структурные стили функциональных модулей движка.
+   Пара с public/omrotpl/omrotpl.js. Подключается в каждой теме ПЕРЕД
+   стилями темы (тема переопределяет внешний вид). Правила касаются
+   только движковых хуков: data-omro-* атрибуты и классы движка.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+    /* Переменные для темизации модулей движка — темы могут переопределить. */
+    --omro-overlay-bg: rgba(0, 0, 0, 0.55);
+    --omro-modal-z: 9995;
+    --omro-dropdown-z: 9000;
+    --omro-toast-z: 9999;
+    --omro-toast-bg: #1d1d1f;
+    --omro-toast-fg: #fff;
+    --omro-toast-radius: 10px;
+}
+
+/* ── Служебные состояния ─────────────────────────────────────────────── */
+
+[hidden] {
+    display: none !important;
+}
+
+.is-hidden {
+    display: none !important;
+}
+
+.is-loading {
+    opacity: 0.55;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+}
+
+/* ── Модалки (корень: [data-omro-modal], движок переключает .is-open) ── */
+
+[data-omro-modal] {
+    display: none;
+}
+
+.is-open[data-omro-modal] {
+    display: block;
+}
+
+[data-omro-modal] [data-omro-modal-close] {
+    cursor: pointer;
+}
+
+/* ── Тосты движка (уведомления JS-модулей) ──────────────────────────── */
+
+.omro-toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: var(--omro-toast-z);
+    max-width: min(560px, calc(100vw - 32px));
+    padding: 12px 18px;
+    background: var(--omro-toast-bg);
+    color: var(--omro-toast-fg);
+    border-radius: var(--omro-toast-radius);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.omro-toast.is-error {
+    background: #b3261e;
+}
+
+/* ── Дропдауны движка (уведомления, watchlist-меню) ─────────────────── */
+/* site.js позиционирует .series-dropdown инлайном — это структурный фолбэк. */
+
+[data-omro-dropdown],
+.series-dropdown {
+    position: fixed;
+    z-index: var(--omro-dropdown-z);
+    min-width: 280px;
+}
+
+/* ── Состояние загрузки панели дня в календаре расписания ───────────── */
+
+.schedule-cal__day-panel.is-loading {
+    opacity: 0.55;
+}
